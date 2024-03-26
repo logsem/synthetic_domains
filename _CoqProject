@@ -1,0 +1,9 @@
+-Q ./theories SynthDom
+
+
+theories/prelude.v
+
+theories/ordinals/set_functions.v
+theories/ordinals/set_model.v
+theories/ordinals/set_ordinals.v
+theories/ordinals/set_sets.v
