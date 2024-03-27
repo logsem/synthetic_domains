@@ -2,8 +2,10 @@
 
 
 theories/prelude.v
+theories/stepindex.v
 
-theories/ordinals/set_functions.v
 theories/ordinals/set_model.v
-theories/ordinals/set_ordinals.v
 theories/ordinals/set_sets.v
+theories/ordinals/set_functions.v
+theories/ordinals/set_ordinals.v
+theories/ordinals/ord_stepindex.v
