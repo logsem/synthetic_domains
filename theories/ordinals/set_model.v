@@ -16,7 +16,7 @@ Unset Universe Minimization ToSet.
 (* Following Aczel 78 and Werner 97 we construct an intensional type of sets *)
 Section aczel_trees.
 Set Universe Polymorphism.
-Polymorphic Inductive Acz@{i} : Type :=
+Polymorphic Cumulative Inductive Acz@{i} : Type :=
 | Asup : ∀ A : Type@{i}, (A → Acz) → Acz.
 
 Definition Atypeof '(Asup A f) := A.
@@ -368,7 +368,7 @@ Require Import Coq.Logic.Epsilon.
 Require Import Coq.Logic.PropExtensionality.
 Require Import Coq.Logic.FunctionalExtensionality.
 
-Definition tdelta : (Acz → Prop) → Acz := epsilon (inhabits AEmpty).
+Definition tdelta@{i} : (Acz@{i} → Prop) → Acz@{i} := epsilon (inhabits AEmpty).
 
 Lemma TDesc1 : ∀ P, (∃ s, ∀ t, P t ↔ Aeq t s) → P (tdelta P).
 Proof.
@@ -424,63 +424,64 @@ Polymorphic Record set@{i} := mkset {
 }.
 
 Definition NS s : set := mkset (N s) (N_idem s).
-Definition IN (X Y : set) := Ain X Y.
-Instance in_elem_of: ElemOf set set := IN.
-Lemma IN_unfold (X Y: set): X ∈ Y = Ain X Y.
+Definition IN@{i} (X Y : set@{i}) := Ain X Y.
+Instance in_elem_of@{i}: ElemOf set@{i} set@{i} := IN.
+Lemma IN_unfold@{i} (X Y: set@{i}): X ∈ Y = Ain X Y.
 Proof. reflexivity. Qed.
 
 
-Definition Subq (X Y : set) := ∀ Z, Z ∈ X → Z ∈ Y.
-Instance Subq_subseteq: SubsetEq set := Subq.
-Lemma Subq_unfold (X Y: set): X ⊆ Y = Subq X Y.
+Definition Subq@{i} (X Y : set@{i}) := ∀ Z, Z ∈ X → Z ∈ Y.
+Instance Subq_subseteq@{i}: SubsetEq set@{i} := Subq.
+Lemma Subq_unfold@{i} (X Y: set@{i}): X ⊆ Y = Subq X Y.
 Proof. reflexivity. Qed.
 
 (* lemmas for interfacing with the normalizer *)
 Section set_lemmas.
   Implicit Types s t u : Acz.
-  Implicit Types X Y Z: set.
+  Universe i.
+  Implicit Types X Y Z: set@{i}.
 
 
   (* equality *)
-  Lemma mkset_pi s t (H1 : N s = s) (H2 : N t = t) :
+  Lemma mkset_pi s t (H1 : N@{i} s = s) (H2 : N@{i} t = t) :
     s = t → mkset s H1 = mkset t H2.
   Proof.
     intros XY. subst t. f_equal. apply PI_N.
   Qed.
 
-  Lemma NS_id X : NS X = X.
+  Lemma NS_id X : NS@{i} X = X.
   Proof.
     destruct X. simpl. by apply mkset_pi.
   Qed.
 
-  Lemma Aeq_NS s: Aeq (NS s) s.
+  Lemma Aeq_NS s: Aeq@{i} (NS@{i} s) s.
   Proof. symmetry. exact (N_Aeq s). Qed.
 
 
   Lemma Aeq_eq_NS s t :
-    Aeq s t → NS s = NS t.
+    Aeq@{i} s t → NS@{i} s = NS@{i} t.
   Proof.
     intros H % N_Aeq_mor. by apply mkset_pi.
   Qed.
 
   Lemma Aeq_eq X Y:
-    Aeq X Y → X = Y.
+    Aeq@{i} X Y → X = Y.
   Proof.
     intros H % Aeq_eq_NS; move: H; by rewrite !NS_id.
   Qed.
 
 
   (* elements *)
-  Lemma Ain_IN X Y : Ain X Y ↔ X ∈ Y.
+  Lemma Ain_IN X Y : Ain@{i} X Y ↔ X ∈ Y.
   Proof. by rewrite IN_unfold. Qed.
 
-  Lemma Ain_IN_NS s t : Ain s t ↔ NS s ∈ NS t.
+  Lemma Ain_IN_NS s t : Ain@{i} s t ↔ NS@{i} s ∈ NS@{i} t.
   Proof.
     by rewrite -Ain_IN !Aeq_NS.
   Qed.
 
   Lemma ASubq_Subq X Y :
-    ASubq X Y ↔ Subq X Y.
+    ASubq@{i} X Y ↔ Subq@{i} X Y.
   Proof.
     split; intros H s H1.
     - by apply Ain_IN, H.
@@ -490,33 +491,32 @@ Section set_lemmas.
 
 End set_lemmas.
 
-
 (* shorthands hiding the normalizer and the aczel trees *)
-Definition setof {X: Type} (f: X → set): set := NS (Asup X (λ x, set_tree (f x))).
+Definition setof@{i} {X: Type@{i}} (f: X → set@{i}): set@{i} := NS (Asup@{i} X (λ x, set_tree (f x))).
 Notation "{{ f | x : X }}" := (@setof X (λ x, f)) (x pattern, at level 60).
 
-Definition typeof (s: set) : Type := Atypeof s.
-Definition elements (s: set): typeof s → set := λ x, NS (Aelements s x).
+Definition typeof@{i} (s: set@{i}) : Type@{i} := Atypeof s.
+Definition elements@{i} (s: set@{i}): typeof s → set@{i} := λ x, NS (Aelements s x).
 
-Lemma in_inv {Y} x (f: Y → set): x ∈ setof f → ∃ y, x = f y.
+Lemma in_inv@{i} {Y : Type@{i} } x (f: Y → set@{i}): x ∈ setof@{i} f → ∃ y, x = f y.
 Proof.
   rewrite IN_unfold Aeq_NS; intros [y Heq] % Ain_Alements; simpl in *.
   exists y; by apply Aeq_eq.
 Qed.
 
-Lemma in_intro {Y} x y (f: Y → set): x = f y → x ∈ setof f.
+Lemma in_intro@{i} {Y : Type@{i} } x y (f: Y → set@{i}): x = f y → x ∈ setof f.
 Proof.
   intros ->. rewrite IN_unfold Aeq_NS; simpl.
   by exists y.
 Qed.
 
-Lemma setof_ext {Y} (f g: Y → set): (∀ y, f y = g y) → setof f = setof g.
+Lemma setof_ext@{i} {Y : Type@{i} } (f g: Y → set): (∀ y, f y = g y) → setof f = setof g.
 Proof.
   intros Heq. unfold setof. eapply Aeq_eq_NS; simpl; split.
   all: intros a; exists a; rewrite Heq; reflexivity.
 Qed.
 
-Lemma setof_eta (s: set): {{ elements s x | x: typeof s }} = s.
+Lemma setof_eta@{i} (s: set@{i}): {{ elements s x | x: typeof s }} = s.
 Proof.
   apply Aeq_eq; rewrite Aeq_NS; destruct s as [[X f]]; simpl.
   split; intros a; exists a; symmetry; by rewrite -N_Aeq.
@@ -544,8 +544,8 @@ Instance empty_set_notation: Empty set := empty_set.
 Lemma empty_set_unfold: ∅ = empty_set.
 Proof. reflexivity. Qed.
 
-Definition upair_set (X Y : set) := NS (Aupair X Y).
-Definition union_set (X : set) := NS (Aunion X).
+Definition upair_set@{i} (X Y : set@{i}) := NS (Aupair X Y).
+Definition union_set@{i} (X : set@{i}) := NS (Aunion X).
 Notation "⋃ S" := (union_set S) (at level 20) : zf_scope.
 
 Definition singleton_set A := upair_set A A.
@@ -572,7 +572,7 @@ Definition emfun (F : set → set) := λ s, F (NS s): Acz.
 
 (* We have functional replacement, which is weaker than the usual relational replacement.*)
 (* (this difference in power between relational replacement and functional replacement is only present when formalising set theory in Coq, as functions need to be computable while relations don't) *)
-Definition replacement_set (X : set) (F : set → set) := NS (Arepl (emfun F) X).
+Definition replacement_set@{i} (X : set@{i}) (F : set@{i} → set@{i}) := NS (Arepl (emfun F) X).
 Notation "R @ A" := (replacement_set A R) (at level 56) : zf_scope.
 
 

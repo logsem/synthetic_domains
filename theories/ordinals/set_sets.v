@@ -23,7 +23,9 @@ Unset Universe Minimization ToSet.
 
 (** ** Basic Framework with Element- and Subset-Relation *)
 Section set_theory.
-  Implicit Types (A B C: set).
+  Universe i.
+
+  Implicit Types (A B C: set@{i}).
 
 (* we do not want the definitions to unfold / be reduced automatically in proof scripts *)
 Local Open Scope zf_scope.
@@ -299,12 +301,12 @@ Qed.
 
 (** ** Singletons and Ordered Pairs, Projection and Cartesian Product *)
 
-Definition opair A B := upair_set (singleton A) (upair_set A B).
+Definition opair@{} A B := upair_set@{i} (singleton A) (upair_set A B).
 Notation "( x , y )" := (opair x y) (at level 0) : zf_scope.
 
-Definition pi1 p := ⋃ (⋂ p).
-Definition pi2 p := ⋃ (specification_set (⋃ p) (λ x, x ∈ ⋂ p → ⋃ p = ⋂ p)).
-Definition product A B := ⋃ ((λ a, (λ b, (a, b)) @ B) @ A).
+Definition pi1@{} (p : set@{i}) := ⋃ (⋂ p).
+Definition pi2@{} (p : set@{i}) := ⋃ (specification_set (⋃ p) (λ x, x ∈ ⋂ p → ⋃ p = ⋂ p)).
+Definition product@{} A B := ⋃ ((λ a, (λ b, (a, b)) @ B) @ A).
 Notation "A × B" := (product A B) (at level 53) : zf_scope.
 
 

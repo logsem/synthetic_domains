@@ -44,9 +44,9 @@ Proof.
     + apply Infinity.
     + apply Infinity, IHn.
 Qed.
-Definition stransitive (A: set@{i}) := ∀ (x: set@{i}), x ∈ A → x ⊆ A.
+Definition stransitive@{} (A: set@{i}) := ∀ (x: set@{i}), x ∈ A → x ⊆ A.
 Definition elorder A := specification_set (product A A) (λ p, pi1 p ∈ pi2 p).
-Definition ordinal (a: set@{i}) := stransitive a ∧ wordering (elorder a) a.
+Definition ordinal@{} (a: set@{i}) := stransitive a ∧ wordering (elorder a) a.
 
 Lemma empty_ordinal: ordinal empty.
 Proof.

@@ -12,7 +12,9 @@ Set Universe Minimization ToSet.
 Section set_functions.
 Local Open Scope zf_scope.
 
-Implicit Types (a b c A B C R S T f: set).
+Polymorphic Universe i.
+
+Implicit Types (a b c A B C R S T f: set@{i}).
 
 (** ** Relations *)
 
@@ -36,9 +38,9 @@ Definition equivalence R A :=
 Definition lordering R A :=
   relation R A A ∧ asymmetric R ∧ transitive R ∧ linear R A.
 
-Definition least R A x := x ∈ A ∧ ∀ y, y ∈ A → (x,y) ∈ R ∨ y = x.
-Definition wfounded R A := ∀ M, M ⊆ A → M <> empty → ∃ x, least R M x.
-Definition wordering R A := lordering R A ∧ wfounded R A.
+Definition least@{} (R A x : set@{i}) := x ∈ A ∧ ∀ y, y ∈ A → (x,y) ∈ R ∨ y = x.
+Definition wfounded@{} R A := ∀ M, M ⊆ A → M <> empty → ∃ x, least R M x.
+Definition wordering@{} R A := lordering R A ∧ wfounded R A.
 Definition WO A := ∃ R, wordering R A.
 
 

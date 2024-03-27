@@ -320,3 +320,47 @@ Section large_index_class.
     intros X P H He. eapply commute_exists; eauto.
   Qed.
 End large_index_class.
+
+
+
+Local Set Printing Universes.
+
+
+
+(* since N is defined using epsilon, we can only postulate the following axiom about. *)
+Section lifting_N.
+  Polymorphic Universes i j.
+  Constraint i <= j.
+
+  Axiom lift_N@{} : ∀ (s : Acz@{i}), N@{i} s = N@{j} s :> Acz@{j}.
+
+End lifting_N.
+
+
+Section lifting.
+  Universes i j.
+  Constraint i < j.
+
+  Lemma lift_is_normal@{} (s : Acz@{i}) (p : N s = s) : N@{j} s = s :> Acz@{j}.
+  Proof. rewrite -{2}p; symmetry. apply lift_N. Qed.
+
+  Definition set_lift@{} (s : set@{i}) : set@{j} :=
+    {| set_tree := set_tree s; set_tree_is_normal := lift_is_normal _ (set_tree_is_normal s) |}.
+
+  Definition lift_ordinal@{} (α : set@{i}) (p : ordinal@{i} α) : ordinal@{j} (set_lift α).
+  Proof.
+    destruct p as [p1 p2].
+    split.
+    - intros ?. admit.
+    - repeat split.
+      + admit.
+      + admit.
+      + admit.
+      + admit.
+      + intros ? ? ?.
+
+
+  Definition ord_lift (α : Ord@{i}) : Ord@{j} :=
+
+End lifting.
+
