@@ -9,3 +9,6 @@ theories/ordinals/set_sets.v
 theories/ordinals/set_functions.v
 theories/ordinals/set_ordinals.v
 theories/ordinals/ord_stepindex.v
+
+theories/categories/category.v
+theories/categories/enriched.v

@@ -1,5 +1,9 @@
 From SynthDom Require Import prelude.
 
+(* Helper tactic. *)
+Ltac solve_by_equiv_rewrite :=
+  by repeat match goal with Heq : context [equiv _ _] |- _ => first [rewrite Heq| rewrite (Heq _)] end; eauto.
+
 Polymorphic Record category := MkCat {
   obj : Type;
   hom : obj → obj → Type;
@@ -31,21 +35,42 @@ Local Open Scope category_scope.
 Notation "g ∘{ C } f" := (comp C f g) (at level 40, left associativity) : category_scope.
 Notation "g ∘ f" := (comp _ f g) : category_scope.
 
-Record functor C D := MkFunc {
+Program Definition SingletonCat : category :=
+  MkCat unit (λ _ _, unit) (λ _, ()) (λ _ _ _ _ _, ()) (λ _ _ _ _, True) _ _ _ _ _.
+Solve All Obligations with done.
+Fail Next Obligation.
+
+Polymorphic Record functor C D := MkFunc {
   o_map : obj C → obj D;
   h_map : ∀ a b, hom a b → hom (o_map a) (o_map b);
+  h_map_proper : ∀ a b, Proper ((≡) ==> (≡)) (h_map a b);
   h_map_comp : ∀ a b c (f : hom a b) (g : hom b c), h_map _ _ (g ∘ f) ≡ h_map _ _ g ∘ h_map _ _ f;
   h_map_id : ∀ a, h_map _ _ (id a) ≡ (id _);
 }.
 
-Arguments MkFunc {_ _} _ _ _ _.
-Arguments o_map {C D} F a : rename.
-Arguments h_map {C D} F {a b} f : rename.
+Global Existing Instance h_map_proper.
+
+Global Arguments MkFunc {_ _} _ _ _ _.
+Global Arguments o_map {C D} F a : rename.
+Global Arguments h_map {C D} F [a b] f : rename.
 
 Notation "( F ₒ)" := (o_map F) : category_scope.
 Notation "F 'ₒ' a" := (o_map F a) (at level 40, no associativity) : category_scope.
 Notation "( F ₕ)" := (h_map F) : category_scope.
 Notation "F 'ₕ' f" := (h_map F f) (at level 40, no associativity) : category_scope.
+
+Program Definition const_functor {C} (c : obj C) : functor SingletonCat C := MkFunc (λ _, c) (λ _ _ _, id c) _ _ _.
+Solve All Obligations with repeat intros ?; rewrite /= ?left_id //.
+Fail Next Obligation.
+
+Program Definition id_functor C : functor C C := MkFunc (λ c, c) (λ _ _ f, f) _ _ _.
+Solve All Obligations with done.
+Fail Next Obligation.
+
+Program Definition functor_compose {C D E} (F : functor C D) (G : functor D E) : functor C E :=
+MkFunc (λ c, G ₒ (F ₒ c)) (λ _ _ f, G ₕ (F ₕ f)) _ _ _.
+Solve All Obligations with repeat intros ?; rewrite /= ?h_map_comp ?h_map_id; solve_by_equiv_rewrite.
+Fail Next Obligation.
 
 Record natural {C D} (F G : functor C D) := MkNat {
   nat_map : ∀ c, hom (F ₒ c) (G ₒ c);
@@ -58,8 +83,10 @@ Global Arguments naturality {C D F G} η [a b] f : rename.
 Notation "( η ₙ)" := (nat_map η) : category_scope.
 Notation "η 'ₙ' c" := (nat_map η c) (at level 40, no associativity) : category_scope.
 
-Program Definition opposite C := MkCat (obj C) (λ a b, hom C b a) id (λ a b c, flip (comp C)) (λ _ _, (≡)) _ _ _ _ _.
-Solve All Obligations with by repeat intros ?; setoid_subst; rewrite /= ?comp_assoc ?left_id ?right_id.
+Program Definition opposite C :=
+  MkCat (obj C) (λ a b, hom C b a) id (λ a b c, flip (comp C)) (λ _ _, (≡)) _ _ _ _ _.
+Solve All Obligations with
+  by repeat intros ?; setoid_subst; rewrite /= ?comp_assoc ?left_id ?right_id.
 Fail Next Obligation.
 
 Notation "C 'ᵒᵖ'" := (opposite C) (at level 75).
@@ -74,7 +101,11 @@ Global Arguments MkIso {_ _ _ _ _} _ _.
 Global Arguments iso_lr {_ _ _ _ _} _.
 Global Arguments iso_rl {_ _ _ _ _} _.
 
-Record isomorphic {C} a b := MkIsoIc {forward : hom C a b; backward : hom C b a; is_iso : isomorphism forward backward}.
+Record isomorphic {C} a b := MkIsoIc {
+  forward : hom C a b;
+  backward : hom C b a;
+  is_iso : isomorphism forward backward
+}.
 Global Arguments MkIsoIc {_ _ _} _ _ _.
 Global Arguments forward {_ _ _} _.
 Global Arguments backward {_ _ _} _.
@@ -83,19 +114,22 @@ Global Arguments is_iso {_ _ _} _.
 Infix "≃" := isomorphic (at level 70, no associativity) : category_scope.
 Infix "≃@{ C }" := (@isomorphic C) (at level 70, only parsing, no associativity) : category_scope.
 
-Program Definition ismorphism_id {C} c : isomorphism (@id C c) (@id C c) := {|  iso_lr := _; iso_rl := _; |}.
+Program Definition ismorphism_id {C} c : isomorphism (@id C c) (@id C c) := MkIso _ _.
 Solve All Obligations with by repeat intros ?; rewrite left_id.
 Fail Next Obligation.
 Definition ismorphism_swap {C a b} {f : hom C a b} {g : hom C b a} (iso : isomorphism f g) : isomorphism g f :=
   MkIso (iso_rl iso) (iso_lr iso).
 Program Definition ismorphism_compose {C a b c}
   {f : hom C a b} {g : hom C b a} (iso : isomorphism f g)
-  {h : hom C b c} {i : hom C c b} (iso : isomorphism h i) : isomorphism (h ∘ f) (g ∘ i) := MkIso _ _.
+  {h : hom C b c} {i : hom C c b} (iso : isomorphism h i) :
+  isomorphism (h ∘ f) (g ∘ i) := MkIso _ _.
 Next Obligation.
-  intros ???? f g isofg h i isohi; rewrite (comp_assoc _ _ g) -(comp_assoc _ _ i) (iso_lr isohi) left_id (iso_lr isofg) //.
+  intros ???? f g isofg h i isohi.
+  rewrite (comp_assoc _ _ g) -(comp_assoc _ _ i) (iso_lr isohi) left_id (iso_lr isofg) //.
 Qed.
 Next Obligation.
-  intros ???? f g isofg h i isohi. rewrite (comp_assoc _ _ h) -(comp_assoc _ _ f) (iso_rl isofg) left_id (iso_rl isohi) //.
+  intros ???? f g isofg h i isohi.
+  rewrite (comp_assoc _ _ h) -(comp_assoc _ _ f) (iso_rl isofg) left_id (iso_rl isohi) //.
 Qed.
 Fail Next Obligation.
 
@@ -104,10 +138,6 @@ Definition isomorphic_symm {C} (a b : obj C) : isomorphic a b → isomorphic b a
   λ iso, MkIsoIc _ _ (ismorphism_swap (is_iso iso)).
 Definition isomorphic_trans {C} (a b c : obj C) : isomorphic a b → isomorphic b c → isomorphic a c :=
   λ iso1 iso2, MkIsoIc _ _ (ismorphism_compose (is_iso iso1) (is_iso iso2)).
-
-(* Helper tactic. *)
-Ltac solve_by_equiv_rewrite :=
-  by repeat match goal with Heq : context [equiv _ _] |- _ => first [rewrite Heq| rewrite (Heq _)] end; eauto.
 
 (* Discrete categories *)
 
@@ -318,7 +348,7 @@ Section psh_limit.
   Context {C} {J} (F : functor J (PSh C)).
 
   Program Definition pointwise_func : ∀ c : obj C, functor J Setoid :=
-    λ c, MkFunc (λ j, (F ₒ j) ₒ c) (λ _ _ f, F ₕ f ₙ c) _ _.
+    λ c, MkFunc (λ j, (F ₒ j) ₒ c) (λ _ _ f, F ₕ f ₙ c) _ _ _.
   Solve All Obligations with repeat first [intros ->|intros ?]; rewrite /= ?h_map_comp ?h_map_id //=.
   Fail Next Obligation.
 
@@ -339,8 +369,8 @@ Section psh_limit.
   Fail Next Obligation.
 
   Program Definition psh_lim_func : PreSheaf C :=
-    MkFunc (λ c, setoid_lim_obj (pointwise_func c)) (λ a b f, psh_lim_func_hom b a f) _ _.
-  Solve All Obligations with repeat first [intros ->| intros ?]; rewrite /= ?h_map_comp ?h_map_id //=.
+    MkFunc (λ c, setoid_lim_obj (pointwise_func c)) (λ a b f, psh_lim_func_hom b a f) _ _ _.
+  Solve All Obligations with repeat intros ?; rewrite /= ?h_map_comp ?h_map_id //=; solve_by_equiv_rewrite.
   Fail Next Obligation.
 
   Program Definition psh_lim_side : ∀ j, hom (PSh C) psh_lim_func (F ₒ j) :=
