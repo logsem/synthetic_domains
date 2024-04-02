@@ -4,7 +4,9 @@ From SynthDom Require Import prelude.
 Ltac solve_by_equiv_rewrite :=
   by repeat match goal with Heq : context [equiv _ _] |- _ => first [rewrite Heq| rewrite (Heq _)] end; eauto.
 
-Polymorphic Record category := MkCat {
+Local Set Universe Polymorphism.
+
+Record category := MkCat {
   obj : Type;
   hom : obj → obj → Type;
   id : ∀ a, hom a a;
@@ -40,7 +42,7 @@ Program Definition SingletonCat : category :=
 Solve All Obligations with done.
 Fail Next Obligation.
 
-Polymorphic Record functor C D := MkFunc {
+Record functor C D := MkFunc {
   o_map : obj C → obj D;
   h_map : ∀ a b, hom a b → hom (o_map a) (o_map b);
   h_map_proper : ∀ a b, Proper ((≡) ==> (≡)) (h_map a b);
@@ -412,4 +414,3 @@ End psh_limit.
 
 Program Definition presheaves_complete C : complete (PSh C) :=
   λ _ F, MkTerm (psh_lim_cone F) (psh_lim_cone_is_limiting_cone F).
-
