@@ -228,15 +228,18 @@ Proof.
     intros β Hβ; apply (Aiso_rl (aiso β Hβ)).
 Qed.
 
-Program Definition Aismorphism_id `{!EnrichedCategory SI C} α c : Aisomorphism α (@id C c) (@id C c) := MkAIso _ _.
+Program Definition Aismorphism_id `{!EnrichedCategory SI C} α c :
+  Aisomorphism α (@id C c) (@id C c) := MkAIso _ _.
 Solve All Obligations with by repeat intros ?; rewrite left_id.
 Fail Next Obligation.
 Definition Aismorphism_swap
-  `{!EnrichedCategory SI C} {α} {a b} {f : hom C a b} {g : hom C b a} (iso : Aisomorphism α f g) : Aisomorphism α g f :=
+  `{!EnrichedCategory SI C} {α} {a b} {f : hom C a b} {g : hom C b a} (iso : Aisomorphism α f g) :
+  Aisomorphism α g f :=
   MkAIso (Aiso_rl iso) (Aiso_lr iso).
 Program Definition Aismorphism_compose `{!EnrichedCategory SI C} {α} {a b c}
   {f : hom C a b} {g : hom C b a} (iso : Aisomorphism α f g)
-  {h : hom C b c} {i : hom C c b} (iso : Aisomorphism α h i) : Aisomorphism α (h ∘ f) (g ∘ i) := MkAIso _ _.
+  {h : hom C b c} {i : hom C c b} (iso : Aisomorphism α h i) :
+  Aisomorphism α (h ∘ f) (g ∘ i) := MkAIso _ _.
 Next Obligation.
   intros ??????? f g isofg h i isohi.
   rewrite (comp_assoc _ _ g) -(comp_assoc _ _ i) (Aiso_lr isohi) left_id (Aiso_lr isofg) //.
@@ -249,8 +252,34 @@ Fail Next Obligation.
 
 Definition isomorphic_refl `{!EnrichedCategory SI C} α (c : obj C) : Aisomorphic α c c :=
   MkAIsoIc _ _ (Aismorphism_id _ _).
-Definition isomorphic_symm `{!EnrichedCategory SI C} α (a b : obj C) : Aisomorphic α a b → Aisomorphic α b a :=
+Definition isomorphic_symm
+  `{!EnrichedCategory SI C} α (a b : obj C) : Aisomorphic α a b → Aisomorphic α b a :=
   λ iso, MkAIsoIc _ _ (Aismorphism_swap (Ais_iso iso)).
 Definition isomorphic_trans `{!EnrichedCategory SI C} α (a b c : obj C) :
   Aisomorphic α a b → Aisomorphic α b c → Aisomorphic α a c :=
   λ iso1 iso2, MkAIsoIc _ _ (Aismorphism_compose (Ais_iso iso1) (Ais_iso iso2)).
+
+Lemma iso_Aiso `{!EnrichedCategory SI C} {a b} (f : hom C a b) (g : hom C b a) :
+  isomorphism f g ↔ ∀ α, Aisomorphism α f g.
+Proof.
+  split.
+  - intros [Hf Hb] ?; split; rewrite ?Hf ?Hb; done.
+  - intros Haiso; split; apply dist_equiv; intros ?; apply Haiso.
+Qed.
+
+Lemma iso_Aiso_1 `{!EnrichedCategory SI C} {a b} (f : hom C a b) (g : hom C b a) α :
+  isomorphism f g → Aisomorphism α f g.
+Proof. intros ?; apply iso_Aiso; done. Qed.
+
+Lemma isoic_Aisoic_1 `{!EnrichedCategory SI C} (a b : obj C) :
+  isomorphic a b → ∀ α, Aisomorphic α a b.
+Proof.
+  intros [f g Hiso] ?; exists f g; apply iso_Aiso; done.
+Qed.
+
+(* Lemma contr_func_unique_fixpoint *)
+(*   `{!EnrichedCategory SI C} (F : functor C C) `{!LocallyContractiveFunctor F} : *)
+(*   ∀ c d, c ≃ F ₒ c → d ≃ F ₒ d → c ≃ d. *)
+(* Proof. *)
+(*   intros c d cfx dfx. *)
+  

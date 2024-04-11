@@ -2,9 +2,16 @@ From SynthDom Require Import prelude.
 
 (* Helper tactic. *)
 Ltac solve_by_equiv_rewrite :=
-  by repeat match goal with Heq : context [equiv _ _] |- _ => first [rewrite Heq| rewrite (Heq _)] end; eauto.
+  by repeat match goal with
+         Heq : context [equiv _ _] |- _ => first [rewrite Heq| rewrite (Heq _)] end;
+  eauto.
 
 Local Set Universe Polymorphism.
+Unset Universe Minimization ToSet.
+
+Inductive Empty@{i} : Type@{i} :=.
+
+Global Hint Extern 0 => match goal with H : Empty |- _ => exfalso; inversion H end : core.
 
 Record category := MkCat {
   obj : Type;
@@ -28,6 +35,8 @@ Global Arguments hom {C} a b, _ _ _: rename.
 Global Arguments id {C} a: rename.
 Global Arguments comp C {a b c} f g : rename.
 Global Arguments comp_assoc {C a b c d} f g h : rename.
+Global Arguments left_id {C a b} f : rename.
+Global Arguments right_id {C a b} f : rename.
 
 Declare Scope category_scope.
 Delimit Scope category_scope with category.
@@ -56,10 +65,10 @@ Global Arguments MkFunc {_ _} _ _ _ _.
 Global Arguments o_map {C D} F a : rename.
 Global Arguments h_map {C D} F [a b] f : rename.
 
-Notation "( F ₒ)" := (o_map F) : category_scope.
-Notation "F 'ₒ' a" := (o_map F a) (at level 40, no associativity) : category_scope.
-Notation "( F ₕ)" := (h_map F) : category_scope.
-Notation "F 'ₕ' f" := (h_map F f) (at level 40, no associativity) : category_scope.
+Notation "( F ₒ)" := (o_map F) (format "( F ₒ)") : category_scope.
+Notation "F 'ₒ' a" := (o_map F a) (at level 40, no associativity, format "F ₒ  a") : category_scope.
+Notation "( F ₕ)" := (h_map F) (format "( F ₕ)") : category_scope.
+Notation "F 'ₕ' f" := (h_map F f) (at level 40, no associativity, format "F ₕ  f" ) : category_scope.
 
 Program Definition const_functor {C} (c : obj C) : functor SingletonCat C := MkFunc (λ _, c) (λ _ _ _, id c) _ _ _.
 Solve All Obligations with repeat intros ?; rewrite /= ?left_id //.
@@ -82,16 +91,18 @@ Global Arguments MkNat {_ _ _ _} _ _.
 Global Arguments nat_map {C D F G} η c : rename.
 Global Arguments naturality {C D F G} η [a b] f : rename.
 
-Notation "( η ₙ)" := (nat_map η) : category_scope.
-Notation "η 'ₙ' c" := (nat_map η c) (at level 40, no associativity) : category_scope.
+Notation "( η ₙ)" := (nat_map η) (format "( η ₙ)") : category_scope.
+Notation "η 'ₙ' c" := (nat_map η c) (at level 40, no associativity, format "η ₙ  c") : category_scope.
 
-Program Definition opposite C :=
-  MkCat (obj C) (λ a b, hom C b a) id (λ a b c, flip (comp C)) (λ _ _, (≡)) _ _ _ _ _.
-Solve All Obligations with
-  by repeat intros ?; setoid_subst; rewrite /= ?comp_assoc ?left_id ?right_id.
-Fail Next Obligation.
+Definition opposite C :=
+  MkCat (obj C) (λ a b, hom C b a) id (λ a b c, flip (comp C)) (λ _ _, (≡))
+  (λ _ _, hom_eq_equiv C _ _)
+  (λ _ _ _ _ _ Heq1 _ _ Heq2, comp_proper C _ _ _ _ _ Heq2 _ _ Heq1)
+  (λ _ _ _ _ f g h, symmetry (comp_assoc h g f))
+  (λ _ _ f, right_id f)
+  (λ _ _ f, left_id f).
 
-Notation "C 'ᵒᵖ'" := (opposite C) (at level 75).
+Notation "C 'ᵒᵖ'" := (opposite C) (at level 75, format "C ᵒᵖ").
 
 (* Isomorphisms *)
 
@@ -143,13 +154,32 @@ Definition isomorphic_trans {C} (a b c : obj C) : isomorphic a b → isomorphic 
 
 (* Discrete categories *)
 
-Program Definition Discr (A : Type) := MkCat A (=) (@eq_refl A) (@eq_trans A) (λ _ _ _ _, True) _ _ _ _ _.
+Program Definition Discr (A : Type) :=
+  MkCat A (=) (@eq_refl A) (@eq_trans A) (λ _ _ _ _, True) _ _ _ _ _.
 Solve All Obligations with done.
+Fail Next Obligation.
+
+Definition EmpCat := Discr Empty.
+
+Program Definition func_from_EmpCat C : functor EmpCat C :=
+  MkFunc (λ a, Empty_rect _ a) (λ a _ _, Empty_rect (λ _, hom C _ _) a) _ _ _.
+Solve All Obligations with by simpl.
+Fail Next Obligation.
+
+Definition UnitCat := Discr unit.
+
+Program Definition func_to_UnitCat C : functor C UnitCat :=
+  MkFunc (λ _, ()) (λ _ _ _, reflexivity _) _ _ _.
+Solve All Obligations with by repeat intros ?.
 Fail Next Obligation.
 
 (* Category of setoids (Set) *)
 
-Record setoid := MkSetoid { setoid_set :> Type; setoid_eq : Equiv setoid_set; setoid_eq_equiv : Equivalence setoid_eq; }.
+Record setoid := MkSetoid {
+  setoid_set :> Type;
+  setoid_eq : Equiv setoid_set;
+  setoid_eq_equiv : Equivalence setoid_eq;
+}.
 Global Existing Instance setoid_eq.
 Global Existing Instance setoid_eq_equiv.
 Record setoid_fun (A B : setoid) := MkSetoidFun {
@@ -171,16 +201,23 @@ Program Definition setoid_compose {A B C} (f : setoid_fun A B) (g : setoid_fun B
 Solve All Obligations with by intros ????????; setoid_subst.
 Fail Next Obligation.
 Global Instance setoid_compose_proper : ∀ A B C, Proper ((≡) ==> (≡) ==> (≡)) (@setoid_compose A B C).
-Proof. intros ????????????; setoid_subst; done. Qed.
+Proof. intros ????????????; rewrite /=; solve_by_equiv_rewrite. Qed.
 
 Program Definition Setoid := MkCat setoid setoid_fun (λ _, λset x, x) (@setoid_compose) (λ _ _, (≡)) _ _ _ _ _.
 Solve All Obligations with by repeat intros ?; rewrite /=; setoid_subst.
 Fail Next Obligation.
 
+Program Definition empty_setoid : setoid := MkSetoid False (λ _ _, False) _.
+Next Obligation. split; repeat intros ?; done. Qed.
+Fail Next Obligation.
+Definition singleton_setoid : setoid := MkSetoid unit (≡) _.
+
 (* Functor categories *)
 
-Global Instance natural_eq {C D} {F G : functor C D} : Equiv (natural F G) := λ η ρ, ∀ a, η ₙ a ≡ ρ ₙ a.
-Global Instance nat_map_proper : ∀ C D (F G : functor C D), Proper ((≡) ==>  forall_relation (λ _, (≡))) (@nat_map C D F G).
+Global Instance natural_eq {C D} {F G : functor C D} : Equiv (natural F G) :=
+  λ η ρ, ∀ a, η ₙ a ≡ ρ ₙ a.
+Global Instance nat_map_proper :
+  ∀ C D (F G : functor C D), Proper ((≡) ==>  forall_relation (λ _, (≡))) (@nat_map C D F G).
 Proof. intros ?????? Heq ?; apply Heq. Qed.
 Global Instance natural_eq_equiv {C D} {F G : functor C D} : Equivalence (≡@{natural F G}).
 Proof. split; repeat intros ?; solve_by_equiv_rewrite. Qed.
@@ -189,22 +226,29 @@ Program Definition natural_id {C D} (F : functor C D) : natural F F := MkNat (λ
 Solve All Obligations with by intros ??????; rewrite /= left_id right_id.
 Fail Next Obligation.
 
-Program Definition natural_comp {C D} {F G H : functor C D} (η : natural F G) (ρ : natural G H) : natural F H :=
-  MkNat (λ c, (ρ ₙ c) ∘ (η ₙ c)) _.
-Solve All Obligations with by repeat intros ?; rewrite /= !comp_assoc naturality -!comp_assoc naturality.
+Program Definition natural_comp {C D} {F G H : functor C D} (η : natural F G) (ρ : natural G H) :
+  natural F H := MkNat (λ c, (ρ ₙ c) ∘ (η ₙ c)) _.
+Solve All Obligations with
+  by repeat intros ?; rewrite /= !comp_assoc naturality -!comp_assoc naturality.
 Fail Next Obligation.
-Global Instance natural_comp_proper : ∀ {C D} {F G H : functor C D}, Proper ((≡) ==> (≡) ==> (≡)) (@natural_comp C D F G H).
-Proof. repeat intros ?; setoid_subst; done. Qed.
-Lemma natrual_comp_assoc : ∀ (C D : category) (F G H I : functor C D) (η : natural F G) (ρ : natural G H) (δ : natural H I),
+Global Instance natural_comp_proper :
+  ∀ {C D} {F G H : functor C D}, Proper ((≡) ==> (≡) ==> (≡)) (@natural_comp C D F G H).
+Proof. repeat intros ?; rewrite /=; solve_by_equiv_rewrite. Qed.
+Lemma natrual_comp_assoc :
+  ∀ (C D : category) (F G H I : functor C D) (η : natural F G) (ρ : natural G H) (δ : natural H I),
     natural_comp η (natural_comp ρ δ) ≡ natural_comp (natural_comp η ρ) δ.
 Proof. repeat intros ?; rewrite /= !comp_assoc //. Qed.
-Lemma natrual_comp_left_id : ∀ (C D : category) (F G : functor C D) (η : natural F G), natural_comp η (natural_id _) ≡ η.
+Lemma natrual_comp_left_id :
+  ∀ (C D : category) (F G : functor C D) (η : natural F G), natural_comp η (natural_id _) ≡ η.
 Proof. repeat intros ?; rewrite /= left_id //. Qed.
-Lemma natrual_comp_right_id : ∀ (C D : category) (F G : functor C D) (η : natural F G), natural_comp (natural_id _) η ≡ η.
+Lemma natrual_comp_right_id :
+  ∀ (C D : category) (F G : functor C D) (η : natural F G), natural_comp (natural_id _) η ≡ η.
 Proof. repeat intros ?; rewrite /= right_id //. Qed.
 
-Program Definition FuncCat C D := MkCat (functor C D) natural natural_id (@natural_comp C D) (λ _ _, (≡)) _ _ _ _ _.
-Solve All Obligations with by auto using natrual_comp_assoc, natrual_comp_left_id, natrual_comp_right_id.
+Program Definition FuncCat C D :=
+  MkCat (functor C D) natural natural_id (@natural_comp C D) (λ _ _, (≡)) _ _ _ _ _.
+Solve All Obligations with
+  by auto using natrual_comp_assoc, natrual_comp_left_id, natrual_comp_right_id.
 Fail Next Obligation.
 
 (* Presheaf categories *)
@@ -215,7 +259,8 @@ Definition PSh C := FuncCat (C ᵒᵖ) Setoid.
 
 (* Terminal Object *)
 
-Record is_terminal {C} (t : obj C) := MkIsTerm { bang : ∀ c, hom c t; bang_unique : ∀ c (f : hom c t), f ≡ bang c }.
+Record is_terminal {C} (t : obj C) :=
+  MkIsTerm { bang : ∀ c, hom c t; bang_unique : ∀ c (f : hom c t), f ≡ bang c }.
 Global Arguments MkIsTerm {_} _ _.
 Global Arguments bang {_ _} _.
 Global Arguments bang_unique {_ _} _ [_] _.
@@ -225,8 +270,9 @@ Global Arguments MkTerm {_} _ _.
 Global Arguments term {_} _.
 Global Arguments term_is_terminal {_} _.
 
-Program Definition is_term_unique {C} (t t' : obj C) : is_terminal t → is_terminal t' → isomorphic t t' :=
-λ it it', MkIsoIc (bang it' t) (bang it t') _.
+Program Definition is_term_unique {C} (t t' : obj C) :
+  is_terminal t → is_terminal t' → isomorphic t t' :=
+  λ it it', MkIsoIc (bang it' t) (bang it t') _.
 Next Obligation.
 Proof.
   split.
@@ -234,6 +280,10 @@ Proof.
   - rewrite ?(bang_unique it' (id _)) ?(bang_unique it' (_ ∘ _)) //.
 Qed.
 Fail Next Obligation.
+
+Class HasTerm C := term_of : terminal C.
+
+Global Arguments term_of _ {_}.
 
 (* Limits *)
 Section Limit.
@@ -252,38 +302,100 @@ Section Limit.
   Arguments MkConeHom {_ _} _ _.
   Arguments cone_hom_map {_ _} _.
 
-  Global Instance cone_hom_eq : ∀ cn cn', Equiv (cone_hom cn cn') := λ _ _ ch ch', cone_hom_map ch ≡ cone_hom_map ch'.
+  Global Instance cone_hom_eq :
+    ∀ cn cn', Equiv (cone_hom cn cn') := λ _ _ ch ch', cone_hom_map ch ≡ cone_hom_map ch'.
   Global Instance cone_hom_map_proper : ∀ cn cn', Proper ((≡) ==> (≡)) (@cone_hom_map cn cn').
   Proof. intros ???? Heq; exact Heq. Qed.
   Global Instance cone_hom_eq_equiv {cn cn'} : Equivalence (≡@{cone_hom cn cn'}).
-  Proof. split; repeat intros []; rewrite /equiv /cone_hom_eq /=; repeat intros ?; solve_by_equiv_rewrite. Qed.
+  Proof.
+    split; repeat intros []; rewrite /equiv /cone_hom_eq /=; repeat intros ?; solve_by_equiv_rewrite.
+  Qed.
 
   Program Definition cone_hom_id cn : cone_hom cn cn := MkConeHom (id _) _.
   Solve All Obligations with by repeat intros ?; rewrite /= right_id.
   Fail Next Obligation.
 
-  Program Definition cone_hom_comp {cn cn' cn''} (ch : cone_hom cn cn') (ch' : cone_hom cn' cn'') : cone_hom cn cn'' :=
+  Program Definition cone_hom_comp {cn cn' cn''} (ch : cone_hom cn cn') (ch' : cone_hom cn' cn'') :
+    cone_hom cn cn'' :=
   MkConeHom (cone_hom_map ch' ∘ cone_hom_map ch) _.
   Solve All Obligations with by repeat intros ?; rewrite -comp_assoc -!cone_hom_commutes.
   Fail Next Obligation.
 
-  Global Instance cone_hom_comp_proper : ∀ cn cn' cn'', Proper ((≡) ==> (≡) ==> (≡)) (@cone_hom_comp cn cn' cn'').
-  Proof. intros ??? [] [] Heq [] []; revert Heq; rewrite /= /equiv /cone_hom_eq /=; intros -> ->; done. Qed.
-  Lemma cone_hom_comp_assoc : ∀ cn1 cn2 cn3 cn4 (ch1 : cone_hom cn1 cn2) (ch2 : cone_hom cn2 cn3) (ch3 : cone_hom cn3 cn4),
+  Global Instance cone_hom_comp_proper :
+    ∀ cn cn' cn'', Proper ((≡) ==> (≡) ==> (≡)) (@cone_hom_comp cn cn' cn'').
+  Proof.
+    intros ??? [] [] Heq [] []; revert Heq; rewrite /= /equiv /cone_hom_eq /=; intros -> ->; done.
+  Qed.
+  Lemma cone_hom_comp_assoc :
+    ∀ cn1 cn2 cn3 cn4 (ch1 : cone_hom cn1 cn2) (ch2 : cone_hom cn2 cn3) (ch3 : cone_hom cn3 cn4),
       cone_hom_comp ch1 (cone_hom_comp ch2 ch3) ≡ cone_hom_comp (cone_hom_comp ch1 ch2) ch3.
   Proof. intros ???? [] [] []; rewrite /= /equiv /cone_hom_eq /= comp_assoc; done. Qed.
-  Lemma cone_hom_comp_left_id : ∀ cn cn' (ch : cone_hom cn cn'), cone_hom_comp ch (cone_hom_id _) ≡ ch.
+  Lemma cone_hom_comp_left_id :
+    ∀ cn cn' (ch : cone_hom cn cn'), cone_hom_comp ch (cone_hom_id _) ≡ ch.
   Proof. intros ?? []; rewrite /= /equiv /cone_hom_eq /= left_id; done. Qed.
-  Lemma cone_hom_comp_right_id : ∀ cn cn' (ch : cone_hom cn cn'), cone_hom_comp (cone_hom_id _) ch ≡ ch.
+  Lemma cone_hom_comp_right_id :
+    ∀ cn cn' (ch : cone_hom cn cn'), cone_hom_comp (cone_hom_id _) ch ≡ ch.
   Proof. intros ?? []; rewrite /= /equiv /cone_hom_eq /= right_id; done. Qed.
 
-  Program Definition ConeCat := MkCat cone cone_hom cone_hom_id (@cone_hom_comp) (λ _ _, (≡)) _ _ _ _ _.
-  Solve All Obligations with by auto using cone_hom_comp_assoc, cone_hom_comp_left_id, cone_hom_comp_right_id.
+  Program Definition ConeCat :=
+    MkCat cone cone_hom cone_hom_id (@cone_hom_comp) (λ _ _, (≡)) _ _ _ _ _.
+  Solve All Obligations with
+    by auto using cone_hom_comp_assoc, cone_hom_comp_left_id, cone_hom_comp_right_id.
   Fail Next Obligation.
 
   Definition is_limiting_cone cn := @is_terminal ConeCat cn.
 
   Definition limit := terminal ConeCat.
+
+  (* an alternative formulation *)
+
+  Record is_cone c := MkIsCone {
+    ic_side : ∀ j, hom c (F ₒ j);
+    ic_side_commutes : ∀ j j' f, ic_side j' ≡ F ₕ f ∘ ic_side j;
+  }.
+
+  Definition cone_of_is_cone {c} (ic : is_cone c) : cone :=
+    MkCone c (ic_side _ ic) (ic_side_commutes _ ic).
+
+  Definition cone_is_cone cn : is_cone (vertex cn) :=
+    MkIsCone _ (side cn) (side_commutes cn).
+
+  Record is_limit c := MkIsLimit {
+    il_is_cone : is_cone c;
+    il_is_limiting_cone : is_limiting_cone (cone_of_is_cone il_is_cone);
+  }.
+
+  Definition il_side {c} il := ic_side c (il_is_cone _ il).
+  Definition il_side_commutes {c} il := ic_side_commutes c (il_is_cone _ il).
+
+  Definition cone_of_is_limit {c} (il : is_limit c) : cone :=
+    cone_of_is_cone (il_is_cone _ il).
+
+  Definition limiting_cone_is_limit cn :
+    is_limiting_cone cn → is_limit (vertex cn) :=
+    match cn as u return is_limiting_cone u → is_limit (vertex u) with
+      (MkCone v s c) => MkIsLimit v (MkIsCone _ s c)
+    end.
+
+  Definition is_limit_limiting_cone {c} (il : is_limit c) :
+    is_limiting_cone (cone_of_is_limit il) := il_is_limiting_cone _ il.
+
+  (* useful lemma *)
+  Lemma hom_to_limit_unique {c l} (f g : hom C c l) (il : is_limit l) :
+    ∀ ic : is_cone c,
+      (∀ j, ic_side _ ic j ≡ ic_side _ (il_is_cone _ il) j ∘ f) →
+      (∀ j, ic_side _ ic j ≡ ic_side _ (il_is_cone _ il) j ∘ g) →
+      f ≡ g.
+  Proof.
+    intros ic Hf Hg.
+    pose (@MkConeHom (cone_of_is_cone ic) (cone_of_is_limit il) f Hf) as fc.
+    change f with (cone_hom_map fc).
+    pose (@MkConeHom (cone_of_is_cone ic) (cone_of_is_limit il) g Hg) as gc.
+    change g with (cone_hom_map gc).
+    rewrite (bang_unique (il_is_limiting_cone _ il) fc).
+    rewrite (bang_unique (il_is_limiting_cone _ il) gc).
+    done.
+  Qed.
 
 End Limit.
 Global Arguments MkCone {_ _ _} _ _ _.
@@ -295,17 +407,61 @@ Global Arguments cone_hom {_ _ _} _ _.
 Global Arguments cone_hom_map {_ _ _ _ _} _.
 Global Arguments cone_hom_commutes {_ _ _ _ _} _ _.
 Global Arguments is_limiting_cone {_ _ _} _.
+Global Arguments MkIsCone {_ _ _ _} _ _, {_ _ _} _ _ _.
+Global Arguments is_cone {_ _} _ _.
+Global Arguments ic_side {_ _ _ _} _ _.
+Global Arguments ic_side_commutes {_ _ _ _} _ [_ _] _.
+Global Arguments cone_of_is_cone {_ _ _ _} _.
+Global Arguments cone_is_cone {_ _ _} _.
+Global Arguments MkIsLimit {_ _ _ _} _ _, {_ _ _} _ _ _.
+Global Arguments is_limit {_ _} _ _.
+Global Arguments il_is_cone {_ _ _ _} _.
+Global Arguments il_side {_ _ _ _} _ _.
+Global Arguments il_side_commutes {_ _ _ _} _ [_ _] _.
+Global Arguments cone_of_is_limit {_ _ _ _} _.
+Global Arguments is_limit_limiting_cone {_ _ _ _} _.
+Global Arguments limiting_cone_is_limit {_ _ _ _} _.
 
-Definition complete C := ∀ J (F : functor J C), limit F.
+Class Complete C := complete : ∀ J (F : functor J C), limit F.
+Arguments complete {_ _ _} _, _ {_ _} _.
+
+Section Complete_terminal.
+  Context C `{!Complete C}.
+
+  Program Definition make_cone_on_func_from_EmpCat c : cone (func_from_EmpCat C) :=
+    MkCone c ((λ a, Empty_rect (λ _, hom C _ _) a)) _.
+  Next Obligation. by simpl. Qed.
+
+  Program Definition make_cone_hom_from_func_from_EmpCat
+    {c} {cn : cone (func_from_EmpCat C)} (f : hom c (vertex cn)) :
+    cone_hom (make_cone_on_func_from_EmpCat c) cn := MkConeHom f _.
+  Next Obligation. by simpl. Qed.
+
+
+  Program Definition compl_term : terminal C :=
+    let t := (complete C (func_from_EmpCat C)) in
+    MkTerm (vertex (term t))
+      (MkIsTerm _ (λ c, cone_hom_map (bang (term_is_terminal t) (make_cone_on_func_from_EmpCat c))) _).
+  Next Obligation.
+  Proof.
+    intros t ? f; simpl in *.
+    apply (bang_unique (term_is_terminal t) (make_cone_hom_from_func_from_EmpCat f)).
+  Qed.
+
+End Complete_terminal.
+
 
 Global Instance sig_eq `{!Equiv A} (P : A → Prop) : Equiv (sig P) := λ x y, `x ≡ `y.
-Global Instance sig_eq_equiv `{!Equiv A} (P : A → Prop) `{!Equivalence (≡@{A})} : Equivalence (≡@{sig P}).
+Global Instance sig_eq_equiv
+  `{!Equiv A} (P : A → Prop) `{!Equivalence (≡@{A})} : Equivalence (≡@{sig P}).
 Proof. split; repeat intros []; rewrite /equiv /sig_eq /=; try intros ->; eauto. Qed.
 Global Instance proj1_sig_proper `{!Equiv A} (P : A → Prop) : Proper ((≡) ==> (≡)) (@proj1_sig _ P).
 Proof. intros [] []; done. Qed.
 
-Global Instance forall_eq `{!∀ a : A, Equiv (T a)} : Equiv (∀ a, T a) := forall_relation (λ x, (≡@{T x})).
-Global Instance forall_eq_equiv `{!∀ a : A, Equiv (T a)} `{!∀ a, Equivalence (≡@{T a})} : Equivalence (≡@{∀ a, T a}).
+Global Instance forall_eq `{!∀ a : A, Equiv (T a)} : Equiv (∀ a, T a) :=
+  forall_relation (λ x, (≡@{T x})).
+Global Instance forall_eq_equiv
+  `{!∀ a : A, Equiv (T a)} `{!∀ a, Equivalence (≡@{T a})} : Equivalence (≡@{∀ a, T a}).
 Proof. split; repeat intros ?; solve_by_equiv_rewrite. Qed.
 
 (* Completeness proofs *)
@@ -339,11 +495,13 @@ Section setoid_limit.
   Program Definition setoid_lim_cone_is_limiting_cone : is_limiting_cone setoid_lim_cone :=
     MkIsTerm setoid_lim_cone cone_hom_to_setoid_lim_cone _.
   Next Obligation.
-  Proof. intros cn [chm chmc] x y Heq j; pose proof (chmc j y x (symmetry Heq)) as Heq'; simpl in *; done. Qed.
+  Proof.
+    intros cn [chm chmc] x y Heq j; pose proof (chmc j y x (symmetry Heq)) as Heq'; simpl in *; done.
+  Qed.
   Fail Next Obligation.
 End setoid_limit.
 
-Program Definition setoid_complete : complete Setoid :=
+Program Instance setoid_complete : Complete Setoid :=
   λ _ F, MkTerm (setoid_lim_cone F) (setoid_lim_cone_is_limiting_cone F).
 
 Section psh_limit.
@@ -372,7 +530,8 @@ Section psh_limit.
 
   Program Definition psh_lim_func : PreSheaf C :=
     MkFunc (λ c, setoid_lim_obj (pointwise_func c)) (λ a b f, psh_lim_func_hom b a f) _ _ _.
-  Solve All Obligations with repeat intros ?; rewrite /= ?h_map_comp ?h_map_id //=; solve_by_equiv_rewrite.
+  Solve All Obligations with
+    repeat intros ?; rewrite /= ?h_map_comp ?h_map_id //=; solve_by_equiv_rewrite.
   Fail Next Obligation.
 
   Program Definition psh_lim_side : ∀ j, hom (PSh C) psh_lim_func (F ₒ j) :=
@@ -387,14 +546,16 @@ Section psh_limit.
   Program Definition pointwise_cone_hom {cn : cone F} (h : cone_hom cn psh_lim_cone) c :
     cone_hom (pointwise_cone cn c) (setoid_lim_cone (pointwise_func c)) :=
     MkConeHom (cone_hom_map h ₙ c) _.
-  Next Obligation. repeat intros ?; apply (cone_hom_commutes h); done. Qed.
+  Next Obligation. intros ? h ?????; apply: (cone_hom_commutes h); done. Qed.
   Fail Next Obligation.
 
   Program Definition natural_to_psh_lim_cone (cn : cone F) :
     natural (vertex cn) (vertex psh_lim_cone) :=
-    MkNat (λ c, MkSetoidFun (λ x, setoid_fun_to_setoid_lim_cone (pointwise_func c) (pointwise_cone cn c) x) _) _.
+    MkNat (λ c,
+        MkSetoidFun (λ x,
+            setoid_fun_to_setoid_lim_cone (pointwise_func c) (pointwise_cone cn c) x) _) _.
   Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
-  Next Obligation. repeat intros ?; apply (naturality (side cn _)); done. Qed.
+  Next Obligation. repeat intros ?; apply: (naturality (side cn _)); done. Qed.
   Fail Next Obligation.
 
   Program Definition cone_hom_to_psh_lim_cone cn : cone_hom cn psh_lim_cone :=
@@ -407,10 +568,11 @@ Section psh_limit.
   Next Obligation.
   Proof.
     intros ???????; simpl in *.
-    apply (bang_unique (setoid_lim_cone_is_limiting_cone (pointwise_func _)) (pointwise_cone_hom f a)); done.
+    apply: (bang_unique
+      (setoid_lim_cone_is_limiting_cone (pointwise_func _)) (pointwise_cone_hom f a)); done.
   Qed.
 
 End psh_limit.
 
-Program Definition presheaves_complete C : complete (PSh C) :=
+Program Instance presheaves_complete C : Complete (PSh C) :=
   λ _ F, MkTerm (psh_lim_cone F) (psh_lim_cone_is_limiting_cone F).
