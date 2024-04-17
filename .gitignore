@@ -7,3 +7,4 @@
 *.vok
 *.vos
 *.glob
+/theories/categories/.lia.cache
