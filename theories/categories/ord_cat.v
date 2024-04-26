@@ -20,6 +20,13 @@ Program Definition OrdCat (SI : indexT) : category :=
 Solve All Obligations with done.
 Fail Next Obligation.
 
+(* useful tactics *)
+Ltac rewrite_cone_hom_commutes_back :=
+  match goal with
+    |- context [il_side _ ?j ∘ cone_hom_map ?c] => rewrite -(cone_hom_commutes c j)
+  | |- context [ic_side _ ?j ∘ cone_hom_map ?c] => rewrite -(cone_hom_commutes c j)
+  end.
+
 (* successor as a functor *)
 
 Program Definition Succ SI : functor (OrdCat SI) (OrdCat SI) :=
@@ -206,10 +213,10 @@ Section later_func_gen.
     intros ??? Hle Hle'; rewrite /=.
     apply (hom_to_limit_unique _ _ _ (lo_map_il _)
              (cone_is_cone (proj_cone _ (cone_of_is_limit (lo_map_il _))))).
-    - apply (cone_hom_commutes (proj_cone_hom (transitivity Hle' Hle))).
+    - intros ?. rewrite_cone_hom_commutes_back; done.
     - intros.
       rewrite -comp_assoc -(cone_hom_commutes (proj_cone_hom Hle')) /=.
-      rewrite -(cone_hom_commutes (proj_cone_hom Hle) (lift_in_lt_ds Hle' _)) /=.
+      rewrite_cone_hom_commutes_back; simpl.
       match goal with |- ?A ≡ ?B => assert (A = B) as ->; last done end.
       apply il_side_eq.
   Qed.
@@ -218,7 +225,7 @@ Section later_func_gen.
     intros ?; rewrite /=.
     apply (hom_to_limit_unique _ _ _ (lo_map_il _)
              (cone_is_cone (proj_cone _ (cone_of_is_limit (lo_map_il _))))).
-    - apply (cone_hom_commutes (proj_cone_hom (reflexivity _))).
+    - intros; rewrite_cone_hom_commutes_back; done.
     - intros δ; rewrite /= right_id.
       match goal with |- ?A ≡ ?B => assert (A = B) as ->; last done end.
       destruct δ; apply il_side_eq.
@@ -313,13 +320,12 @@ Section later.
               (limiting_cone_is_limit (il_is_limiting_cone _ _ (later_func_o_map_is_limit _ _)))
               (cone_is_cone cn)).
     - intros ?. rewrite -comp_assoc.
-      rewrite -(cone_hom_commutes
-        (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (later_h_map_cone _ _))).
-      rewrite /= comp_assoc -(cone_hom_commutes (proj_cone_hom _ (later_func_o_map _) _ _)); done.
+      rewrite_cone_hom_commutes_back.
+      rewrite /= comp_assoc.
+      rewrite_cone_hom_commutes_back; done.
     - intros ?; rewrite /=.
-      rewrite -comp_assoc -(cone_hom_commutes (proj_cone_hom _ (later_func_o_map _) _ _)) /=.
-      apply (cone_hom_commutes
-        (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (later_h_map_cone η α)) (lift_in_lt_ds _ _)).
+      rewrite -comp_assoc.
+      repeat (rewrite_cone_hom_commutes_back; simpl); done.
   Qed.
   Fail Next Obligation.
 
@@ -331,15 +337,11 @@ Section later.
     apply (hom_to_limit_unique _ _ _
       (limiting_cone_is_limit (il_is_limiting_cone _ _ (later_func_o_map_is_limit _ _)))
       (cone_is_cone cn)).
-    - intros ?; rewrite /=.
-      rewrite -(cone_hom_commutes
-        (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (later_h_map_cone _ _))); done.
+    - intros ?; rewrite /=. rewrite_cone_hom_commutes_back; done.
     - intros ?; rewrite /= -comp_assoc.
-      rewrite -(cone_hom_commutes
-        (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (later_h_map_cone _ _))).
+      rewrite_cone_hom_commutes_back.
       rewrite /= !comp_assoc.
-      rewrite -(cone_hom_commutes
-        (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (later_h_map_cone _ _))) //=.
+      rewrite_cone_hom_commutes_back; done.
   Qed.
 
   Definition later_h_map_id F : later_h_map (natural_id F) ≡ natural_id (later_func F).
@@ -351,9 +353,7 @@ Section later.
       (cone_is_cone cn)).
     - intros ?; rewrite /= left_id right_id //.
     - intros ?; rewrite /= left_id.
-      rewrite -(cone_hom_commutes
-        (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (later_h_map_cone _ _))).
-      rewrite /= left_id //.
+      rewrite_cone_hom_commutes_back; rewrite /= left_id //.
   Qed.
 
   Program Definition later : functor (FuncCat ((OrdCat SI)ᵒᵖ) C) (FuncCat ((OrdCat SI)ᵒᵖ) C) :=
@@ -363,12 +363,8 @@ Section later.
     apply (hom_to_limit_unique _ _ _
       (limiting_cone_is_limit (il_is_limiting_cone _ _ (later_func_o_map_is_limit _ _)))
       (cone_is_cone (later_h_map_cone _ _))).
-    - intros ?; rewrite /=.
-      rewrite -(cone_hom_commutes
-        (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (later_h_map_cone _ _))); done.
-    - intros ?; rewrite /=.
-      rewrite -(cone_hom_commutes
-        (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (later_h_map_cone _ _))) Heq; done.
+    - intros ?; rewrite /=; rewrite_cone_hom_commutes_back; done.
+    - intros ?; rewrite /=; rewrite_cone_hom_commutes_back; rewrite Heq //.
   Qed.
   Fail Next Obligation.
 
@@ -391,31 +387,21 @@ Section later.
             (cone_is_cone (cone_down _ (index_lt_le_subrel _ _ (index_le_lt_trans _ _ _ Hle (index_succ_greater _)))))).
     - intros ?; rewrite /=.
       rewrite -comp_assoc.
-      rewrite -(cone_hom_commutes (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (cone_down _ _))) /=.
+      rewrite_cone_hom_commutes_back.
       rewrite -h_map_comp; f_equiv; done.
     - intros ?; rewrite /=.
       rewrite -comp_assoc.
-      rewrite -(cone_hom_commutes (proj_cone_hom _ _ _ _)) /=.
-      rewrite -(cone_hom_commutes
-        (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (cone_down _ _)) (lift_in_lt_ds _ _)) /=.
-      f_equiv; done.
+    repeat (rewrite_cone_hom_commutes_back; simpl); f_equiv; done.
   Qed.
   Next Obligation.
     intros F G η α; rewrite /=.
     apply (hom_to_limit_unique _ _ _
              (limiting_cone_is_limit (il_is_limiting_cone (lift_func _ _) _ (later_func_o_map_is_limit _ _)))
              (cone_is_cone (next_cone η (cone_down _ (index_lt_le_subrel _ _ (index_succ_greater _)))))).
-    - intros ?; rewrite /=.
-      rewrite -comp_assoc.
-      rewrite -(cone_hom_commutes (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (cone_down _ _))) /=.
+    - intros ?; rewrite /= -comp_assoc; rewrite_cone_hom_commutes_back.
       rewrite naturality. f_equiv; done.
-    - intros ?; rewrite /=.
-      rewrite -comp_assoc.
-      rewrite -(cone_hom_commutes (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (later_h_map_cone _ _))) /=.
-      rewrite comp_assoc.
-      rewrite -(cone_hom_commutes
-        (bang (il_is_limiting_cone _ (later_func_o_map _ _) _) (cone_down _ _))) /=.
-      f_equiv; done.
+    - intros ?; rewrite /= -comp_assoc; rewrite_cone_hom_commutes_back.
+      rewrite comp_assoc; rewrite_cone_hom_commutes_back; f_equiv; done.
   Qed.
 
 End later.
@@ -448,10 +434,7 @@ Section Adjunction.
                                         (later_func_o_map_is_limit _ _)))
              (cone_is_cone (proj_cone _ (index_le_succ_mono _ _ Hle)
                               (cone_of_is_limit (later_func_o_map_is_limit _ _))))).
-    - intros ?; rewrite /=.
-      rewrite -(cone_hom_commutes
-        (proj_cone_hom F (later_func_o_map F) (later_func_o_map_is_limit F)
-           (index_le_succ_mono b a Hle))) //=.
+    - intros ?; rewrite /=. rewrite_cone_hom_commutes_back; done.
     - intros ?; rewrite /=.
       rewrite !later_func_o_map_is_limit_succ.
       rewrite !trans_side_of_is_limit_trans.
@@ -494,7 +477,8 @@ Section Adjunction.
     rewrite -hom_trans_trans eq_trans_refl_r eq_trans_refl_l.
     match goal with |- hom_trans _ _ ?A ∘ _ ≡ _ => assert (A ≡ id _) as -> end.
     { rewrite -h_map_id; f_equiv; done. }
-    replace (later_func_o_map_succ G1 α) with (func_eq_o_map (later_succ G1) α) by apply ProofIrrelevance.
+    replace (later_func_o_map_succ G1 α) with (func_eq_o_map (later_succ G1) α)
+      by apply ProofIrrelevance.
     rewrite hom_trans_id left_id //.
   Qed.
   Fail Next Obligation.
@@ -506,11 +490,44 @@ Section Adjunction.
 
   Program Definition to_later_F_succ F :
     natural F (later_func (functor_compose (opposite_func (Succ SI)) F)) :=
-    MkNat (λ α, cone_hom_map (bang (is_limit_limiting_cone (later_func_o_map_is_limit _ α))
-      (cone_of_is_cone (to_later_F_succ_cone F α)))) _.
+    MkNat (λ α,
+        cone_hom_map
+          (bang (is_limit_limiting_cone (later_func_o_map_is_limit _ α))
+             (cone_of_is_cone (to_later_F_succ_cone F α)))) _.
   Next Obligation.
-    repeat intros ?; rewrite /=.
-  Admitted.
+    intros ??? Hle; rewrite /=.
+    apply (hom_to_limit_unique _ _ _
+             (later_func_o_map_is_limit
+                (functor_compose (opposite_func (Succ SI)) _) _)
+             (cone_is_cone (proj_cone _ Hle (cone_of_is_cone (to_later_F_succ_cone _ _))))).
+    - intros ?; rewrite /= -comp_assoc. rewrite_cone_hom_commutes_back.
+      rewrite /to_later_F_succ_cone /= -h_map_comp.
+      f_equiv; done.
+    - intros ?; rewrite /= -comp_assoc; repeat (rewrite_cone_hom_commutes_back; simpl); done.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition cone_for_later_earlier_backward
+    {F1 : functor (OrdCat SI ᵒᵖ) C}
+    {G1 : functor (OrdCat SI ᵒᵖ) C}
+    {F2 : functor (OrdCat SI ᵒᵖ) C}
+    {G2 : functor (OrdCat SI ᵒᵖ) C}
+    (η1 : natural F2 F1)
+    (η2 : natural G1 G2)
+    (δ : natural (functor_compose (opposite_func (Succ SI)) F1) G1)
+    (α : SI)
+    : cone (lift_func (lt_dsp α) G2) :=
+    MkCone (F2 ₒ α)
+      (λ j, (η2 ₙ (j : SI)) ∘ (δ ₙ (j : SI)) ∘ (η1 ₙ (succ j)) ∘
+              (F2 ₕ (index_succ_least _ _ (ds_in_dsp j)))) _.
+  Next Obligation.
+    intros ???? η1 η2 δ ????; rewrite /=.
+    rewrite -!comp_assoc -!(naturality η2) !comp_assoc. f_equiv.
+    rewrite -!comp_assoc -(naturality δ) /= !comp_assoc. f_equiv.
+    rewrite -!comp_assoc -(naturality η1) /= !comp_assoc. f_equiv.
+    rewrite -h_map_comp. f_equiv.
+    done.
+  Qed.
   Fail Next Obligation.
 
   Program Definition later_earlier_backward :
@@ -524,8 +541,25 @@ Section Adjunction.
     MkNat (λ FG, λset η, natural_comp (to_later_F_succ FG.1) (later ₕ η)) _.
   Next Obligation. intros ??? ->; done. Qed.
   Next Obligation.
-    intros [F1 G1] [F2 G2] [η1 η2] δ1 δ2 -> α; simpl in *.
-  Admitted.
+    intros [F1 G1] [F2 G2] [η1 η2] z δ -> α; clear z; simpl in *.
+    apply (hom_to_limit_unique _ _ _
+             (later_func_o_map_is_limit G2 α)
+             (cone_is_cone (cone_for_later_earlier_backward η1 η2 δ α))).
+    - intros ?; rewrite /=.
+      rewrite -!comp_assoc; rewrite_cone_hom_commutes_back.
+      rewrite !comp_assoc; rewrite_cone_hom_commutes_back.
+      rewrite h_map_id left_id /=; repeat f_equiv; done.
+    - intros ?; rewrite /=.
+      rewrite -!comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite !comp_assoc; f_equiv.
+      rewrite -!comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite !comp_assoc; f_equiv.
+      rewrite -!comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite naturality; repeat f_equiv; done.
+  Qed.
 
   Program Definition later_adj : adjunction (@earlier SI C) later :=
     MkIsoIc later_earlier_forward later_earlier_backward _.
