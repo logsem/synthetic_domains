@@ -201,8 +201,12 @@ Section later_func_gen.
   Proof. by replace Hβ1 with Hβ2 by apply ProofIrrelevance. Qed.
 
   Definition proj_cone_hom {α β} (Hle : β ⪯ α) :
-    cone_hom (proj_cone Hle (cone_of_is_limit (lo_map_il α))) (cone_of_is_limit (lo_map_il β)) :=
-    bang (is_limit_limiting_cone (lo_map_il β)) (proj_cone Hle (cone_of_is_limit (lo_map_il α))).
+    cone_hom
+      (proj_cone Hle (cone_of_is_limit (lo_map_il α)))
+      (cone_of_is_limit (lo_map_il β)) :=
+    bang
+      (is_limit_limiting_cone (lo_map_il β))
+      (proj_cone Hle (cone_of_is_limit (lo_map_il α))).
 
   Program Definition later_func_gen : functor ((OrdCat SI)ᵒᵖ) C :=
     MkFunc lo_map (λ _ _ f, cone_hom_map (proj_cone_hom f)) _ _ _.
@@ -286,7 +290,8 @@ Section later.
   Proof. rewrite /later_func_o_map_il /later_func_o_map_il index_rec_succ //. Qed.
 
   Lemma later_func_o_map_is_limit_succ F α :
-    later_func_o_map_is_limit F (succ α) = is_limit_trans (eq_sym (later_func_o_map_succ F α)) (is_limit_at F α).
+    later_func_o_map_is_limit F (succ α) =
+    is_limit_trans (eq_sym (later_func_o_map_succ F α)) (is_limit_at F α).
   Proof.
     pose proof (projT2_eq (later_func_o_map_il_succ F α)) as Heq; simpl in *.
     rewrite -Heq.
@@ -565,10 +570,81 @@ Section Adjunction.
     MkIsoIc later_earlier_forward later_earlier_backward _.
   Next Obligation.
     split.
-    - intros [F G] η η' <- α; simpl in *.
-      admit.
-    - intros [F G] η η' <- α; simpl in *.
-      admit.
-  Admitted.
+    - intros [F G] η η' <- α; clear η'; simpl in *.
+      pose (extend_cone
+              (cone_of_is_cone (il_is_cone (later_func_o_map_is_limit G α)))
+              (η ₙ α)) as cn.
+      apply (hom_to_limit_unique _ _ _
+             (later_func_o_map_is_limit G α)
+             (cone_is_cone cn)); last done.
+      intros j; rewrite /= -comp_assoc.
+      rewrite_cone_hom_commutes_back.
+      rewrite /= !comp_assoc.
+      rewrite_cone_hom_commutes_back.
+      rewrite /= h_map_id left_id.
+      rewrite hom_trans_compose_take_in_r left_id /= hom_trans_refl.
+      rewrite (naturality η) /=.
+      rewrite hom_trans_compose hom_trans_refl.
+      f_equiv.
+      rewrite /proj_cone_hom.
+      rewrite later_func_o_map_is_limit_succ.
+      rewrite bang_of_is_limit_trans /= -hom_trans_trans.
+      match goal with
+        |- context [eq_trans (eq_sym ?A) ?B] => pose proof (ProofIrrelevance _ A B) as ->
+      end.
+      rewrite eq_trans_sym_inv_l hom_trans_refl /=.
+      rewrite /lift_in_lt_ds /=.
+      match goal with
+        |- ic_side _ _ ≡ ic_side _ (MkDS _ ?A) =>
+          replace A with (ds_in_dsp j) by by apply ProofIrrelevance
+      end.
+      by destruct j.
+    - intros [F G] η η' <- α; clear η'; simpl in *.
+      rewrite h_map_id right_id.
+      rewrite hom_trans_compose_take_in_r left_id /= hom_trans_refl.
+      symmetry; apply hom_trans_sym'; symmetry.
+      pose (hom_trans
+              (func_eq_o_map
+                 (later_succ (functor_compose (opposite_func (Succ SI)) F)) α)
+              eq_refl
+              (later ₕ η ₙ (succ α))) as f.
+      pose (extend_cone
+              (cone_of_is_cone
+                 (il_is_cone (later_func_o_map_is_limit G (succ α)))) f)
+        as cn.
+      apply (hom_to_limit_unique _ _ _
+             (later_func_o_map_is_limit G (succ α))
+             (cone_is_cone cn)).
+      + intros ?; rewrite /= -comp_assoc.
+        rewrite_cone_hom_commutes_back.
+        rewrite /= !comp_assoc.
+        rewrite_cone_hom_commutes_back.
+        rewrite /f /=.
+        rewrite hom_trans_compose_take_in_l /= hom_trans_refl.
+        rewrite_cone_hom_commutes_back.
+        rewrite /later_h_map_cone /=.
+        rewrite hom_trans_compose /= hom_trans_refl.
+        rewrite later_func_o_map_is_limit_succ.
+        rewrite /il_side trans_side_of_is_limit_trans.
+        rewrite -hom_trans_trans /=.
+        match goal with
+          |- context [eq_trans (eq_sym ?A) ?B] => pose proof (ProofIrrelevance _ A B) as ->
+        end.
+        rewrite eq_trans_sym_inv_l hom_trans_refl /=.
+        repeat f_equiv; done.
+      + intros ?; rewrite /= /f /=.
+        rewrite !hom_trans_compose_take_in_l /= !hom_trans_refl eq_sym_involutive.
+        rewrite_cone_hom_commutes_back.
+        rewrite /later_h_map_cone /=.
+        rewrite hom_trans_compose /= hom_trans_refl.
+        rewrite !later_func_o_map_is_limit_succ.
+        rewrite /il_side !trans_side_of_is_limit_trans /=.
+        rewrite -!hom_trans_trans /=.
+        repeat match goal with
+          |- context [eq_trans (eq_sym ?A) ?B] => pose proof (ProofIrrelevance _ A B) as ->
+        end.
+        rewrite !eq_trans_sym_inv_l !hom_trans_refl /=.
+        rewrite (naturality η) //.
+  Qed.
 
 End Adjunction.

@@ -574,6 +574,19 @@ Section Limit.
     done.
   Qed.
 
+  (* extending cones *)
+
+  Program Definition extend_cone {c cn} (f : hom C c (vertex cn)) : cone :=
+    MkCone c (λ j, side cn j ∘ f) _.
+  Next Obligation. intros ??????; rewrite /= -comp_assoc side_commutes //. Qed.
+  Fail Next Obligation.
+
+  Program Definition extend_cone_hom {c cn} (f : hom C c (vertex cn)) :
+    cone_hom (extend_cone f) cn :=
+    MkConeHom f _.
+  Next Obligation. intros ????; rewrite //. Qed.
+  Fail Next Obligation.
+
 End Limit.
 Global Arguments MkCone {_ _ _} _ _ _.
 Global Arguments vertex {_ _ _} _.
@@ -598,6 +611,8 @@ Global Arguments il_side_commutes {_ _ _ _} _ [_ _] _.
 Global Arguments cone_of_is_limit {_ _ _ _} _.
 Global Arguments is_limit_limiting_cone {_ _ _ _} _.
 Global Arguments limiting_cone_is_limit {_ _ _ _} _.
+Global Arguments extend_cone {_ _ _ _} _ _, {_ _ _ _ _} _.
+Global Arguments extend_cone_hom {_ _ _ _} _ _, {_ _ _ _ _} _.
 
 Class Complete C := complete : ∀ J (F : functor J C), limit F.
 Arguments complete {_ _ _} _, _ {_ _} _.
