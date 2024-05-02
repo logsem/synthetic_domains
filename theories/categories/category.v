@@ -66,9 +66,11 @@ Global Arguments o_map {C D} F a : rename.
 Global Arguments h_map {C D} F [a b] f : rename.
 
 Notation "( F ₒ)" := (o_map F) (format "( F ₒ)") : category_scope.
-Notation "F 'ₒ' a" := (o_map F a) (at level 40, no associativity, format "F ₒ  a") : category_scope.
+Notation "F 'ₒ' a" := (o_map F a) (at level 40, no associativity, format "F ₒ  a") :
+    category_scope.
 Notation "( F ₕ)" := (h_map F) (format "( F ₕ)") : category_scope.
-Notation "F 'ₕ' f" := (h_map F f) (at level 40, no associativity, format "F ₕ  f" ) : category_scope.
+Notation "F 'ₕ' f" := (h_map F f) (at level 40, no associativity, format "F ₕ  f" ) :
+    category_scope.
 
 Program Definition id_functor C : functor C C := MkFunc (λ c, c) (λ _ _ f, f) _ _ _.
 Solve All Obligations with done.
@@ -76,7 +78,8 @@ Fail Next Obligation.
 
 Program Definition functor_compose {C D E} (F : functor C D) (G : functor D E) : functor C E :=
 MkFunc (λ c, G ₒ (F ₒ c)) (λ _ _ f, G ₕ (F ₕ f)) _ _ _.
-Solve All Obligations with repeat intros ?; rewrite /= ?h_map_comp ?h_map_id; solve_by_equiv_rewrite.
+Solve All Obligations with
+  repeat intros ?; rewrite /= ?h_map_comp ?h_map_id; solve_by_equiv_rewrite.
 Fail Next Obligation.
 
 Definition hom_trans {C} {a b c d: obj C} (heq : a = c) (heq' : b = d) (f : hom a b) : hom c d :=
@@ -103,26 +106,32 @@ Proof. destruct heq; destruct heq'; done. Qed.
 
 Lemma hom_trans_trans {C a b c d c' d'}
   (heq1 : a = c) (heq1' : b = d) (heq2 : c = c') (heq2' : d = d') (f : hom C a b) :
-  hom_trans (eq_trans heq1 heq2) (eq_trans heq1' heq2') f ≡ hom_trans heq2 heq2' (hom_trans heq1 heq1' f).
+  hom_trans (eq_trans heq1 heq2) (eq_trans heq1' heq2') f ≡
+  hom_trans heq2 heq2' (hom_trans heq1 heq1' f).
 Proof. destruct heq1; destruct heq1'; destruct heq2; destruct heq2'; done. Qed.
 
-Lemma hom_trans_compose {C} {a b c d e : obj C} (heq : a = d) (heq' : c = e) (f : hom a b) (g : hom b c) :
+Lemma hom_trans_compose {C} {a b c d e : obj C} (heq : a = d) (heq' : c = e)
+  (f : hom a b) (g : hom b c) :
   hom_trans heq heq' (g ∘ f) ≡ hom_trans eq_refl heq' g ∘ hom_trans heq eq_refl f.
 Proof. destruct heq; destruct heq'; done. Qed.
 
-Lemma hom_trans_compose_l {C} {a b c d e : obj C} (heq : a = c) (heq' : b = d) (f : hom a b) (g : hom d e) :
+Lemma hom_trans_compose_l {C} {a b c d e : obj C} (heq : a = c) (heq' : b = d)
+  (f : hom a b) (g : hom d e) :
   g ∘ hom_trans heq heq' f ≡ hom_trans (eq_sym heq') eq_refl g ∘ hom_trans heq eq_refl f.
 Proof. destruct heq; destruct heq'; done. Qed.
 
-Lemma hom_trans_compose_r {C} {e a b c d : obj C} (heq : a = c) (heq' : b = d) (f : hom a b) (g : hom e c) :
+Lemma hom_trans_compose_r {C} {e a b c d : obj C} (heq : a = c) (heq' : b = d)
+  (f : hom a b) (g : hom e c) :
   hom_trans heq heq' f ∘ g ≡ hom_trans eq_refl heq' f ∘ hom_trans eq_refl (eq_sym heq) g.
 Proof. destruct heq; destruct heq'; done. Qed.
 
-Lemma hom_trans_compose_take_in_l {C} {a b c d e : obj C} (heq : a = c) (heq' : b = d) (f : hom a b) (g : hom d e) :
+Lemma hom_trans_compose_take_in_l {C} {a b c d e : obj C} (heq : a = c) (heq' : b = d)
+  (f : hom a b) (g : hom d e) :
   g ∘ hom_trans heq heq' f ≡ hom_trans heq eq_refl (hom_trans (eq_sym heq') eq_refl g ∘ f).
 Proof. destruct heq; destruct heq'; done. Qed.
 
-Lemma hom_trans_compose_take_in_r {C} {e a b c d : obj C} (heq : a = c) (heq' : b = d) (f : hom a b) (g : hom e c) :
+Lemma hom_trans_compose_take_in_r {C} {e a b c d : obj C} (heq : a = c) (heq' : b = d)
+  (f : hom a b) (g : hom e c) :
   hom_trans heq heq' f ∘ g ≡ hom_trans eq_refl heq' (f ∘ hom_trans eq_refl (eq_sym heq) g).
 Proof. destruct heq; destruct heq'; done. Qed.
 
@@ -155,10 +164,12 @@ Proof.
     intros ???; rewrite hom_trans_trans Hheq; done.
 Qed.
 
-Global Instance functor_compose_proepr C D E : Proper ((≡) ==> (≡) ==> (≡)) (@functor_compose C D E).
+Global Instance functor_compose_proepr C D E :
+  Proper ((≡) ==> (≡) ==> (≡)) (@functor_compose C D E).
 Proof.
   intros F G [Hoeq Hheq] F' G' [Hoeq' Hheq']; simpl in *.
-  pose (λ a, match Hoeq a in _ = z return F' ₒ (F ₒ a) = G' ₒ z with eq_refl => Hoeq' (F ₒ _) end) as Hcoeq.
+  pose (λ a, match Hoeq a in _ = z return F' ₒ (F ₒ a) =
+    G' ₒ z with eq_refl => Hoeq' (F ₒ _) end) as Hcoeq.
   refine (MkFuncEq (functor_compose F F') (functor_compose G G') (λ _, Hcoeq _) _).
   intros ???; simpl.
   transitivity (G' ₕ (hom_trans (Hoeq a) (Hoeq b) (F ₕ f))).
@@ -190,7 +201,8 @@ Program Definition cat_prod (C D : category) : category :=
     (λ _ _ _ f g, (g.1 ∘ f.1, g.2 ∘ f.2))
     (λ _ _ f g, f.1 ≡ g.1 ∧ f.2 ≡ g.2)
     _ _ _ _ _.
-Solve All Obligations with repeat first [intros []|intros ?]; simpl in *; try f_equiv; solve_by_equiv_rewrite.
+Solve All Obligations with
+  repeat first [intros []|intros ?]; simpl in *; try f_equiv; solve_by_equiv_rewrite.
 Fail Next Obligation.
 
 Program Definition cat_proj1 {C D} : functor (cat_prod C D) C :=
@@ -201,10 +213,12 @@ Program Definition cat_proj2 {C D} : functor (cat_prod C D) D :=
 Program Definition functor_prod {C D C' D'} (F : functor C D) (G : functor C' D') :
   functor (cat_prod C C') (cat_prod D D') :=
   MkFunc (λ ab, (F ₒ ab.1, G ₒ ab.2)) (λ _ _ f, (F ₕ f.1, G ₕ f.2)) _ _ _.
-Solve All Obligations with repeat intros ?; rewrite /=; f_equiv; rewrite ?h_map_comp ?h_map_id; solve_by_equiv_rewrite.
+Solve All Obligations with
+  repeat intros ?; rewrite /=; f_equiv; rewrite ?h_map_comp ?h_map_id; solve_by_equiv_rewrite.
 Fail Next Obligation.
 
-Program Definition const_functor {C} (c : obj C) : functor SingletonCat C := MkFunc (λ _, c) (λ _ _ _, id c) _ _ _.
+Program Definition const_functor {C} (c : obj C) : functor SingletonCat C :=
+  MkFunc (λ _, c) (λ _ _ _, id c) _ _ _.
 Solve All Obligations with repeat intros ?; rewrite /= ?left_id //.
 Fail Next Obligation.
 
@@ -217,7 +231,8 @@ Global Arguments nat_map {C D F G} η c : rename.
 Global Arguments naturality {C D F G} η [a b] f : rename.
 
 Notation "( η ₙ)" := (nat_map η) (format "( η ₙ)") : category_scope.
-Notation "η 'ₙ' c" := (nat_map η c) (at level 40, no associativity, format "η ₙ  c") : category_scope.
+Notation "η 'ₙ' c" := (nat_map η c) (at level 40, no associativity, format "η ₙ  c") :
+    category_scope.
 
 (* Functor categories *)
 
@@ -294,7 +309,8 @@ Notation "C 'ᵒᵖ'" := (opposite C) (at level 75, format "C ᵒᵖ").
 
 Program Definition opposite_func {C D} (F : functor C D) : functor (C ᵒᵖ) (D ᵒᵖ) :=
   MkFunc (λ c : obj (C ᵒᵖ), F ₒ c) (λ _ _ f, F ₕ f) _ _ _.
-Solve All Obligations with repeat intros ?; rewrite /= ?h_map_comp ?h_map_id; solve_by_equiv_rewrite.
+Solve All Obligations
+  with repeat intros ?; rewrite /= ?h_map_comp ?h_map_id; solve_by_equiv_rewrite.
 Fail Next Obligation.
 
 (* Isomorphisms *)
@@ -323,8 +339,8 @@ Infix "≃@{ C }" := (@isomorphic C) (at level 70, only parsing, no associativit
 Program Definition ismorphism_id {C} c : isomorphism (@id C c) (@id C c) := MkIso _ _.
 Solve All Obligations with by repeat intros ?; rewrite left_id.
 Fail Next Obligation.
-Definition ismorphism_swap {C a b} {f : hom C a b} {g : hom C b a} (iso : isomorphism f g) : isomorphism g f :=
-  MkIso (iso_rl iso) (iso_lr iso).
+Definition ismorphism_swap {C a b} {f : hom C a b} {g : hom C b a} (iso : isomorphism f g) :
+  isomorphism g f := MkIso (iso_rl iso) (iso_lr iso).
 Program Definition ismorphism_compose {C a b c}
   {f : hom C a b} {g : hom C b a} (iso : isomorphism f g)
   {h : hom C b c} {i : hom C c b} (iso : isomorphism h i) :
@@ -342,7 +358,8 @@ Fail Next Obligation.
 Definition isomorphic_refl {C} (c : obj C) : isomorphic c c := MkIsoIc _ _ (ismorphism_id _).
 Definition isomorphic_symm {C} (a b : obj C) : isomorphic a b → isomorphic b a :=
   λ iso, MkIsoIc _ _ (ismorphism_swap (is_iso iso)).
-Definition isomorphic_trans {C} (a b c : obj C) : isomorphic a b → isomorphic b c → isomorphic a c :=
+Definition isomorphic_trans {C} (a b c : obj C) :
+  isomorphic a b → isomorphic b c → isomorphic a c :=
   λ iso1 iso2, MkIsoIc _ _ (ismorphism_compose (is_iso iso1) (is_iso iso2)).
 
 (* Discrete categories *)
@@ -381,22 +398,26 @@ Record setoid_fun (A B : setoid) := MkSetoidFun {
 }.
 Global Existing Instance setoid_fun_map_proper.
 Arguments MkSetoidFun {_ _} _ _.
-Notation "'λset' x .. y , t" := (MkSetoidFun (λ x .. y, t) _) (at level 10, x binder, y binder, t at level 200,
+Notation "'λset' x .. y , t" :=
+  (MkSetoidFun (λ x .. y, t) _) (at level 10, x binder, y binder, t at level 200,
   format "'[ ' '[ ' 'λset' x .. y ']' , '/' t ']'").
 Global Instance setoid_fun_eq A B : Equiv (setoid_fun A B) := respectful (≡) (≡).
 Global Instance setoid_fun_eq_equiv A B : Equivalence (≡@{setoid_fun A B}).
 Proof. split; repeat intros ?; solve_by_equiv_rewrite. Qed.
 
-Global Instance setoid_fun_map_proper' : ∀ A B, Proper ((≡) ==> (≡) ==> (≡)) (@setoid_fun_map A B).
+Global Instance setoid_fun_map_proper' :
+  ∀ A B, Proper ((≡) ==> (≡) ==> (≡)) (@setoid_fun_map A B).
 Proof. intros ???? Heq ???; apply Heq; done. Qed.
-Program Definition setoid_compose {A B C} (f : setoid_fun A B) (g : setoid_fun B C) : setoid_fun A C :=
-  λset x, g (f x).
+Program Definition setoid_compose {A B C} (f : setoid_fun A B) (g : setoid_fun B C) :
+  setoid_fun A C := λset x, g (f x).
 Solve All Obligations with by intros ????????; setoid_subst.
 Fail Next Obligation.
-Global Instance setoid_compose_proper : ∀ A B C, Proper ((≡) ==> (≡) ==> (≡)) (@setoid_compose A B C).
+Global Instance setoid_compose_proper :
+  ∀ A B C, Proper ((≡) ==> (≡) ==> (≡)) (@setoid_compose A B C).
 Proof. intros ????????????; rewrite /=; solve_by_equiv_rewrite. Qed.
 
-Program Definition Setoid := MkCat setoid setoid_fun (λ _, λset x, x) (@setoid_compose) (λ _ _, (≡)) _ _ _ _ _.
+Program Definition Setoid :=
+  MkCat setoid setoid_fun (λ _, λset x, x) (@setoid_compose) (λ _ _, (≡)) _ _ _ _ _.
 Solve All Obligations with by repeat intros ?; rewrite /=; setoid_subst.
 Fail Next Obligation.
 
@@ -426,7 +447,8 @@ Proof. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
 
 Program Definition Hom C : functor (cat_prod (C ᵒᵖ) C) Setoid :=
   MkFunc (λ ab, hom_setoid C ab.1 ab.2) (λ _ _ f, compose_as_hom_setoid_map C f.1 f.2) _ _ _.
-Solve All Obligations with repeat intros ?; rewrite /= ?comp_assoc ?left_id ?right_id; solve_by_equiv_rewrite.
+Solve All Obligations
+  with repeat intros ?; rewrite /= ?comp_assoc ?left_id ?right_id; solve_by_equiv_rewrite.
 Fail Next Obligation.
 
 Definition adjunction {C D} (F : functor C D) (G : functor D C) : Type :=
@@ -459,8 +481,152 @@ Qed.
 Fail Next Obligation.
 
 Class HasTerm C := term_of : terminal C.
-
 Global Arguments term_of _ {_}.
+
+Record product {C} (a b : obj C) := MkProd {
+  prd : obj C;
+  prj1 : hom prd a;
+  prj2 : hom prd b;
+  prd_hom d (p1 : hom d a) (p2 : hom d b) : hom d prd;
+  prd_hom_commutes1 d p1 p2 : p1 ≡ prj1 ∘ (prd_hom d p1 p2);
+  prd_hom_commutes2 d p1 p2 : p2 ≡ prj2 ∘ (prd_hom d p1 p2);
+  prd_hom_unique d p1 p2 (h : hom d prd) :
+    p1 ≡ prj1 ∘ h → p2 ≡ prj2 ∘ h → h ≡ prd_hom d p1 p2;
+}.
+
+Global Arguments prd {_ _ _} _.
+Global Arguments prj1 {_ _ _} _.
+Global Arguments prj2 {_ _ _} _.
+Global Arguments prd_hom {_ _ _} _ {_} _ _.
+Global Arguments prd_hom_commutes1 {_ _ _} _ {_} _ _.
+Global Arguments prd_hom_commutes2 {_ _ _} _ {_} _ _.
+Global Arguments prd_hom_unique {_ _ _} _ {_} _ _ _.
+
+Global Instance prd_hom_proper {C a b p d} :
+  Proper ((≡) ==> (≡) ==> (≡)) (@prd_hom C a b p d).
+Proof.
+  intros ??????; apply prd_hom_unique;
+    by rewrite -?prd_hom_commutes1 -?prd_hom_commutes2.
+Qed.
+
+Class HasProducts C := product_of (a b : obj C) : product a b.
+Global Arguments product_of {_ _} _ _, _ {_} _ _.
+
+Definition obj_prod `{!HasProducts C} a b : obj C := prd (product_of a b).
+
+Definition hom_prod `{!HasProducts C} {a b c d} (f : hom a c) (g : hom b d) :
+  hom (obj_prod a b) (obj_prod c d) := prd_hom _ (f ∘ prj1 _) (g ∘ prj2 _).
+
+Infix "×ₒ@{ C }" := (obj_prod (C := C)) (at level 40, left associativity).
+Infix "×ₒ" := obj_prod (at level 40, left associativity).
+Infix "×ₕ@{ C }" := (hom_prod (C := C)) (at level 40, left associativity).
+Infix "×ₕ" := hom_prod (at level 40, left associativity).
+
+Global Instance hom_prod_proper `{!HasProducts C} {a b c d} :
+  Proper ((≡) ==> (≡) ==> (≡)) (@hom_prod C _ a b c d).
+Proof.
+  repeat intros ?; apply prd_hom_unique; setoid_subst;
+    by rewrite -?prd_hom_commutes1 -?prd_hom_commutes2.
+Qed.
+
+Lemma hom_prod_comp `{!HasProducts C} {a b c d e f}
+  (g1 : hom a c) (g2 : hom c e) (h1 : hom b d) (h2 : hom d f) :
+  (g2 ∘ g1) ×ₕ (h2 ∘ h1) ≡ (g2 ×ₕ h2) ∘ (g1 ×ₕ h1).
+Proof.
+  symmetry; apply prd_hom_unique.
+  - rewrite -!comp_assoc -prd_hom_commutes1 !comp_assoc -prd_hom_commutes1 //.
+  - rewrite -!comp_assoc -prd_hom_commutes2 !comp_assoc -prd_hom_commutes2 //.
+Qed.
+Lemma hom_prod_id `{!HasProducts C} {a b} : (id a) ×ₕ (id b) ≡ id (a ×ₒ b).
+Proof. symmetry; apply prd_hom_unique; rewrite left_id right_id //. Qed.
+
+Lemma hom_prod_split `{!HasProducts C} {a b c d} (f : hom a c) (g : hom b d) :
+  f ×ₕ g ≡ id _ ×ₕ g ∘ (f ×ₕ id _).
+Proof. rewrite -hom_prod_comp left_id right_id //. Qed.
+
+Program Definition prod_func `{!HasProducts C} : functor (cat_prod C C) C :=
+  MkFunc (λ ab, ab.1 ×ₒ ab.2) (λ _ _ h, h.1 ×ₕ h.2) _ _ _.
+Next Obligation. intros ??; repeat intros []; simpl in *; setoid_subst; done. Qed.
+Next Obligation. repeat intros ?; apply hom_prod_comp. Qed.
+Next Obligation. repeat intros ?; apply hom_prod_id. Qed.
+Fail Next Obligation.
+
+Record exponential `{!HasTerm C, !HasProducts C} (a b : obj C) := MkExp {
+  exp : obj C;
+  eval : hom (a ×ₒ exp) b;
+  exp_hom d (f : hom (a ×ₒ d) b) : hom d exp;
+  exp_hom_commutes d f : f ≡ eval ∘ (id a ×ₕ exp_hom d f);
+  exp_hom_unique d f h : f ≡ eval ∘ (id a ×ₕ h) → h ≡ exp_hom d f;
+}.
+
+Global Arguments exp {_ _ _ _ _} _.
+Global Arguments eval {_ _ _ _ _} _.
+Global Arguments exp_hom {_ _ _ _ _} _ {_} _.
+Global Arguments exp_hom_commutes {_ _ _ _ _} _ {_} _.
+Global Arguments exp_hom_unique {_ _ _ _ _} _ {_} _ _ _.
+
+Global Instance exp_hom_proper `{!HasTerm C, !HasProducts C} {a b e d} :
+  Proper ((≡) ==> (≡)) (@exp_hom C _ _ a b e d).
+Proof. intros ???; apply exp_hom_unique; by rewrite -?exp_hom_commutes. Qed.
+
+Lemma exp_hom_commutes_gen `{!HasTerm C, !HasProducts C} {a b c d}
+  (e : exponential a b) (g : hom d a) f :
+  eval e ∘ (g ×ₕ exp_hom e f) ≡ f ∘ (g ×ₕ id c).
+Proof. rewrite hom_prod_split -comp_assoc -exp_hom_commutes //. Qed.
+
+Class HasExponentials C `{!HasTerm C, !HasProducts C} :=
+  exponential_of (a b : obj C) : exponential a b.
+Global Arguments exponential_of {_ _ _ _} _ _, _ {_ _ _} _ _.
+
+Definition obj_exp `{!HasTerm C, !HasProducts C, !HasExponentials C} a b : obj C :=
+  exp (exponential_of a b).
+
+Definition hom_exp `{!HasTerm C, !HasProducts C, !HasExponentials C} {a b c d}
+  (f : hom a c) (g : hom b d) : hom (obj_exp c b) (obj_exp a d) :=
+  exp_hom _ (eval (exponential_of c d) ∘ (f ×ₕ (exp_hom _ (g ∘ eval _)))).
+
+Infix "↑ₒ@{ C }" := (obj_exp (C := C)) (at level 40, left associativity).
+Infix "↑ₒ" := obj_exp (at level 40, left associativity).
+Infix "↑ₕ@{ C }" := (hom_exp (C := C)) (at level 40, left associativity).
+Infix "↑ₕ" := hom_exp (at level 40, left associativity).
+
+Global Instance hom_exp_proper `{!HasTerm C, !HasProducts C, !HasExponentials C} {a b c d} :
+  Proper ((≡) ==> (≡) ==> (≡)) (@hom_exp C _ _ _ a b c d).
+Proof. by repeat intros ?; apply exp_hom_unique; setoid_subst; rewrite -exp_hom_commutes. Qed.
+
+Lemma hom_exp_comp `{!HasTerm C, !HasProducts C, !HasExponentials C} {a b c d e f}
+  (g1 : hom a c) (g2 : hom c e) (h1 : hom b d) (h2 : hom d f) :
+  (g2 ∘ g1) ↑ₕ (h2 ∘ h1) ≡ (g1 ↑ₕ h2) ∘ (g2 ↑ₕ h1).
+Proof.
+  rewrite /hom_exp.
+  symmetry; apply exp_hom_unique.
+  rewrite !exp_hom_commutes_gen.
+  rewrite -(left_id (id a)) hom_prod_comp -!comp_assoc -!exp_hom_commutes.
+  rewrite !comp_assoc -hom_prod_comp right_id -{2}(left_id g1) hom_prod_comp.
+  rewrite hom_prod_id left_id.
+  rewrite !exp_hom_commutes_gen.
+  rewrite !comp_assoc -hom_prod_comp left_id //.
+Qed.
+Lemma hom_exp_id `{!HasTerm C, !HasProducts C, !HasExponentials C} {a b} :
+  (id a) ↑ₕ (id b) ≡ id (a ↑ₒ b).
+Proof.
+  symmetry; apply exp_hom_unique.
+  rewrite -!exp_hom_commutes hom_prod_id left_id right_id //.
+Qed.
+
+Program Definition exp_func `{!HasTerm C, !HasProducts C, !HasExponentials C} :
+  functor (cat_prod (C ᵒᵖ) C) C :=
+  MkFunc (λ ab, ab.1 ↑ₒ@{C} ab.2) (λ _ _ h, h.1 ↑ₕ@{C} h.2) _ _ _.
+Next Obligation. intros ????; repeat intros []; simpl in *; setoid_subst; done. Qed.
+Next Obligation. repeat intros ?; simpl; apply hom_exp_comp. Qed.
+Next Obligation. repeat intros ?; simpl; apply hom_exp_id. Qed.
+Fail Next Obligation.
+
+Class CCC C := MkCCC {
+  CCC_HT :: HasTerm C;
+  CCC_HP :: HasProducts C;
+  CCC_HE :: HasExponentials C
+}.
 
 (* Limits *)
 Section Limit.
@@ -485,7 +651,8 @@ Section Limit.
   Proof. intros ???? Heq; exact Heq. Qed.
   Global Instance cone_hom_eq_equiv {cn cn'} : Equivalence (≡@{cone_hom cn cn'}).
   Proof.
-    split; repeat intros []; rewrite /equiv /cone_hom_eq /=; repeat intros ?; solve_by_equiv_rewrite.
+    split; repeat intros []; rewrite /equiv /cone_hom_eq /=;
+      repeat intros ?; solve_by_equiv_rewrite.
   Qed.
 
   Program Definition cone_hom_id cn : cone_hom cn cn := MkConeHom (id _) _.
@@ -675,7 +842,8 @@ Section setoid_limit.
 
   Program Definition setoid_fun_to_setoid_lim_cone (cn : cone F) :
     setoid_fun (vertex cn) (vertex setoid_lim_cone) :=
-    λset x, exist _ (λ j, side cn j x) (λ _ _ f, symmetry (side_commutes cn f x x (reflexivity _))).
+    λset x, exist _ (λ j, side cn j x)
+      (λ _ _ f, symmetry (side_commutes cn f x x (reflexivity _))).
   Solve All Obligations with repeat intros ?; rewrite /=; solve_by_equiv_rewrite.
   Fail Next Obligation.
 
@@ -688,7 +856,8 @@ Section setoid_limit.
     MkIsTerm setoid_lim_cone cone_hom_to_setoid_lim_cone _.
   Next Obligation.
   Proof.
-    intros cn [chm chmc] x y Heq j; pose proof (chmc j y x (symmetry Heq)) as Heq'; simpl in *; done.
+    intros cn [chm chmc] x y Heq j; pose proof (chmc j y x (symmetry Heq)) as Heq';
+      simpl in *; done.
   Qed.
   Fail Next Obligation.
 End setoid_limit.
@@ -701,7 +870,8 @@ Section psh_limit.
 
   Program Definition pointwise_func : ∀ c : obj C, functor J Setoid :=
     λ c, MkFunc (λ j, (F ₒ j) ₒ c) (λ _ _ f, F ₕ f ₙ c) _ _ _.
-  Solve All Obligations with repeat first [intros ->|intros ?]; rewrite /= ?h_map_comp ?h_map_id //=.
+  Solve All Obligations with
+    repeat first [intros ->|intros ?]; rewrite /= ?h_map_comp ?h_map_id //=.
   Fail Next Obligation.
 
   Program Definition pointwise_cone (cn : cone F) c : cone (pointwise_func c) :=
