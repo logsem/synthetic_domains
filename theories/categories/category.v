@@ -356,11 +356,30 @@ Qed.
 Fail Next Obligation.
 
 Definition isomorphic_refl {C} (c : obj C) : isomorphic c c := MkIsoIc _ _ (ismorphism_id _).
-Definition isomorphic_symm {C} (a b : obj C) : isomorphic a b → isomorphic b a :=
+Definition isomorphic_symm {C} {a b : obj C} : isomorphic a b → isomorphic b a :=
   λ iso, MkIsoIc _ _ (ismorphism_swap (is_iso iso)).
-Definition isomorphic_trans {C} (a b c : obj C) :
+Definition isomorphic_trans {C} {a b c : obj C} :
   isomorphic a b → isomorphic b c → isomorphic a c :=
   λ iso1 iso2, MkIsoIc _ _ (ismorphism_compose (is_iso iso1) (is_iso iso2)).
+
+Definition isomorphic_of {C a b} {f : hom C a b} {g : hom C b a} (iso : isomorphism f g) :
+  isomorphic a b := MkIsoIc _ _ iso.
+
+Lemma compose_along_iso_right {C} {a b : obj C} (iso : a ≃ b) {c} (f g : hom b c) :
+  f ∘ forward iso ≡ g ∘ forward iso → f ≡ g.
+Proof.
+  intros Heq.
+  rewrite -(right_id f) -(right_id g).
+  rewrite -(iso_rl (is_iso iso)) -!comp_assoc Heq //.
+Qed.
+
+Lemma compose_along_iso_left {C} {b c : obj C} (iso : b ≃ c) {a} (f g : hom a b) :
+  forward iso ∘ f ≡ forward iso ∘ g → f ≡ g.
+Proof.
+  intros Heq.
+  rewrite -(left_id f) -(left_id g).
+  rewrite -(iso_lr (is_iso iso)) !comp_assoc Heq //.
+Qed.
 
 (* Discrete categories *)
 
@@ -483,6 +502,23 @@ Fail Next Obligation.
 Class HasTerm C := term_of : terminal C.
 Global Arguments term_of _ {_}.
 
+Definition term_obj C `{!HasTerm C} : obj C := term (term_of C).
+
+Definition term_hom `{!HasTerm C} (c : obj C) : hom c (term_obj C) :=
+  bang (term_is_terminal (term_of C)) c.
+
+Notation "1ₒ@{ C }" := (term_obj C) (at level 20, no associativity) : category_scope.
+Notation "'1ₒ'" := (term_obj _) (at level 20, no associativity) : category_scope.
+Notation "'!ₕ'" := term_hom (at level 20, no associativity) : category_scope.
+
+Lemma term_hom_unique `{!HasTerm C} {c} (f : hom c (1ₒ)) : f ≡ !ₕ c.
+Proof. apply bang_unique. Qed.
+
+Lemma term_hom_unique' `{!HasTerm C} {c} (f g : hom c (1ₒ)) : f ≡ g.
+Proof. rewrite (term_hom_unique f) (term_hom_unique g) //. Qed.
+
+(* Products *)
+
 Record product {C} (a b : obj C) := MkProd {
   prd : obj C;
   prj1 : hom prd a;
@@ -509,6 +545,16 @@ Proof.
     by rewrite -?prd_hom_commutes1 -?prd_hom_commutes2.
 Qed.
 
+Lemma prd_hom_unique' {C} {a b : obj C} (p : product a b) {d : obj C}
+  (p1 : hom d a) (p2 : hom d b) (h1 h2 : hom d (prd p)) :
+  p1 ≡ prj1 p ∘ h1 → p2 ≡ prj2 p ∘ h1 → p1 ≡ prj1 p ∘ h2 → p2 ≡ prj2 p ∘ h2 → h1 ≡ h2.
+Proof.
+  intros.
+  rewrite (prd_hom_unique _ _ _ h1); [|eassumption|eassumption].
+  rewrite (prd_hom_unique _ _ _ h2); [|eassumption|eassumption].
+  done.
+Qed.
+
 Class HasProducts C := product_of (a b : obj C) : product a b.
 Global Arguments product_of {_ _} _ _, _ {_} _ _.
 
@@ -517,10 +563,10 @@ Definition obj_prod `{!HasProducts C} a b : obj C := prd (product_of a b).
 Definition hom_prod `{!HasProducts C} {a b c d} (f : hom a c) (g : hom b d) :
   hom (obj_prod a b) (obj_prod c d) := prd_hom _ (f ∘ prj1 _) (g ∘ prj2 _).
 
-Infix "×ₒ@{ C }" := (obj_prod (C := C)) (at level 40, left associativity).
-Infix "×ₒ" := obj_prod (at level 40, left associativity).
-Infix "×ₕ@{ C }" := (hom_prod (C := C)) (at level 40, left associativity).
-Infix "×ₕ" := hom_prod (at level 40, left associativity).
+Infix "×ₒ@{ C }" := (obj_prod (C := C)) (at level 40, left associativity) : category_scope.
+Infix "×ₒ" := obj_prod (at level 40, left associativity) : category_scope.
+Infix "×ₕ@{ C }" := (hom_prod (C := C)) (at level 40, left associativity) : category_scope.
+Infix "×ₕ" := hom_prod (at level 40, left associativity) : category_scope.
 
 Global Instance hom_prod_proper `{!HasProducts C} {a b c d} :
   Proper ((≡) ==> (≡) ==> (≡)) (@hom_prod C _ a b c d).
@@ -540,9 +586,23 @@ Qed.
 Lemma hom_prod_id `{!HasProducts C} {a b} : (id a) ×ₕ (id b) ≡ id (a ×ₒ b).
 Proof. symmetry; apply prd_hom_unique; rewrite left_id right_id //. Qed.
 
+Lemma hom_prod_comp_left_id `{!HasProducts C} {a b d f}
+  (h1 : hom b d) (h2 : hom d f) : (id a) ×ₕ (h2 ∘ h1) ≡ (id a ×ₕ h2) ∘ (id a ×ₕ h1).
+Proof. rewrite -{1}(left_id (id a)) hom_prod_comp //. Qed.
+Lemma hom_prod_comp_right_id `{!HasProducts C} {a b c e}
+  (g1 : hom a c) (g2 : hom c e) : (g2 ∘ g1) ×ₕ (id b) ≡ (g2 ×ₕ id b) ∘ (g1 ×ₕ id b).
+Proof. rewrite -{1}(left_id (id b)) hom_prod_comp //. Qed.
+
 Lemma hom_prod_split `{!HasProducts C} {a b c d} (f : hom a c) (g : hom b d) :
   f ×ₕ g ≡ id _ ×ₕ g ∘ (f ×ₕ id _).
 Proof. rewrite -hom_prod_comp left_id right_id //. Qed.
+
+Lemma hom_prod_prj1 `{!HasProducts C} {a b c d} (f : hom a c) (g : hom b d) :
+  prj1 _ ∘ (f ×ₕ g) ≡ f ∘ prj1 _.
+Proof. rewrite /hom_prod -prd_hom_commutes1 //. Qed.
+Lemma hom_prod_prj2 `{!HasProducts C} {a b c d} (f : hom a c) (g : hom b d) :
+  prj2 _ ∘ (f ×ₕ g) ≡ g ∘ prj2 _.
+Proof. rewrite /hom_prod -prd_hom_commutes2 //. Qed.
 
 Program Definition prod_func `{!HasProducts C} : functor (cat_prod C C) C :=
   MkFunc (λ ab, ab.1 ×ₒ ab.2) (λ _ _ h, h.1 ×ₕ h.2) _ _ _.
@@ -550,6 +610,212 @@ Next Obligation. intros ??; repeat intros []; simpl in *; setoid_subst; done. Qe
 Next Obligation. repeat intros ?; apply hom_prod_comp. Qed.
 Next Obligation. repeat intros ?; apply hom_prod_id. Qed.
 Fail Next Obligation.
+
+Definition term_times_proj `{!HasTerm C, !HasProducts C} (a : obj C) : hom (1ₒ ×ₒ a) a := prj2 _.
+Definition term_times_inj `{!HasTerm C, !HasProducts C} (a : obj C) : hom a (1ₒ ×ₒ a) :=
+  prd_hom _ (!ₕ _) (id _).
+
+Lemma term_times_proj_inj `{!HasTerm C, !HasProducts C} a :
+  term_times_proj a ∘ term_times_inj a ≡ id a.
+Proof. rewrite /term_times_proj /term_times_inj -prd_hom_commutes2 //. Qed.
+
+Lemma term_times_inj_proj `{!HasTerm C, !HasProducts C} a :
+  term_times_inj a ∘ term_times_proj a ≡ id (1ₒ ×ₒ a).
+Proof.
+  rewrite /term_times_proj /term_times_inj.
+  eapply prd_hom_unique'; [| | |].
+  - rewrite -comp_assoc -prd_hom_commutes1.
+    symmetry; apply term_hom_unique.
+  - rewrite -comp_assoc -prd_hom_commutes2 left_id; reflexivity.
+  - symmetry; apply term_hom_unique.
+  - rewrite right_id //.
+Qed.
+
+Definition term_times_isomorphic `{!HasTerm C, !HasProducts C} a : (1ₒ ×ₒ a) ≃ a :=
+  MkIsoIc _ _ (MkIso (term_times_inj_proj _) (term_times_proj_inj _)).
+
+Definition commutator `{!HasProducts C} (a b : obj C) : hom (a ×ₒ b) (b ×ₒ a) :=
+  prd_hom _ (prj2 _) (prj1 _).
+
+Lemma commutator_involutive `{!HasProducts C} a b : commutator a b ∘ commutator b a ≡ id (b ×ₒ a).
+Proof.
+  rewrite /commutator; eapply prd_hom_unique'; [| |by rewrite right_id|by rewrite right_id].
+  - by rewrite -comp_assoc -prd_hom_commutes1 -prd_hom_commutes2.
+  - by rewrite -comp_assoc -prd_hom_commutes2 -prd_hom_commutes1.
+Qed.
+
+Definition product_comm `{!HasProducts C} a b : (a ×ₒ b) ≃ (b ×ₒ a) :=
+  MkIsoIc _ _ (MkIso (commutator_involutive _ _) (commutator_involutive _ _)).
+
+Lemma commute_hom_prod `{!HasProducts C} {a b c d} (f : hom a c) (g : hom b d) :
+  (f ×ₕ g) ∘ commutator _ _ ≡ commutator _ _ ∘ (g ×ₕ f).
+Proof.
+  eapply prd_hom_unique';
+    [by rewrite -comp_assoc hom_prod_prj1|
+     by rewrite -comp_assoc hom_prod_prj2| |].
+  - rewrite /commutator -!comp_assoc -prd_hom_commutes1.
+    rewrite !comp_assoc -prd_hom_commutes1 hom_prod_prj2 //.
+  - rewrite /commutator -!comp_assoc -prd_hom_commutes2.
+    rewrite !comp_assoc -prd_hom_commutes2 hom_prod_prj1 //.
+Qed.
+
+Lemma commute_term_times_proj `{!HasTerm C, !HasProducts C} a :
+  (term_times_proj a) ∘ (commutator a (1ₒ)) ≡  prj1 (product_of a (1ₒ)).
+Proof. rewrite /commutator /term_times_proj -prd_hom_commutes2 //. Qed.
+
+Lemma proj_term_times_inj `{!HasTerm C, !HasProducts C} a :
+  term_times_inj a ∘ prj1 (product_of a (1ₒ)) ≡ commutator a (1ₒ).
+Proof.
+  rewrite /commutator /term_times_inj; apply prd_hom_unique.
+  - rewrite -!comp_assoc -prd_hom_commutes1.
+    apply term_hom_unique'.
+  - rewrite -!comp_assoc -prd_hom_commutes2 left_id //.
+Qed.
+
+Definition associator `{!HasProducts C} (a b c : obj C) : hom ((a ×ₒ b) ×ₒ c) (a ×ₒ (b ×ₒ c)) :=
+  prd_hom _ (prj1 _ ∘ prj1 _) (prd_hom _ (prj2 _ ∘ prj1 _) (prj2 _)).
+
+Definition associator' `{!HasProducts C} (a b c : obj C) : hom (a ×ₒ (b ×ₒ c)) ((a ×ₒ b) ×ₒ c) :=
+  prd_hom _ (prd_hom _ (prj1 _) (prj1 _ ∘ prj2 _)) (prj2 _ ∘ prj2 _).
+
+Lemma associator_associator' `{!HasProducts C} a b c :
+  associator a b c ∘ associator' a b c ≡ id (a ×ₒ (b ×ₒ c)).
+Proof.
+  rewrite /associator /associator';
+    eapply prd_hom_unique'; [| |by rewrite right_id|by rewrite right_id].
+  { rewrite -comp_assoc -prd_hom_commutes1 comp_assoc -!prd_hom_commutes1 //. }
+  rewrite -comp_assoc -!prd_hom_commutes2.
+  eapply prd_hom_unique'; [| |reflexivity|reflexivity].
+  - rewrite -comp_assoc -!prd_hom_commutes1 !comp_assoc
+      -!prd_hom_commutes1 -!prd_hom_commutes2 //.
+  - rewrite -comp_assoc -!prd_hom_commutes2 //.
+Qed.
+
+Lemma associator'_associator `{!HasProducts C} a b c :
+  associator' a b c ∘ associator a b c ≡ id ((a ×ₒ b) ×ₒ c).
+Proof.
+  rewrite /associator /associator';
+    eapply prd_hom_unique'; [| |by rewrite right_id|by rewrite right_id];
+    last first.
+  { rewrite -comp_assoc -prd_hom_commutes2 comp_assoc -!prd_hom_commutes2 //. }
+  rewrite -comp_assoc -!prd_hom_commutes1.
+  eapply prd_hom_unique'; [| |reflexivity|reflexivity]; last first.
+  - rewrite -comp_assoc -!prd_hom_commutes2 !comp_assoc
+      -!prd_hom_commutes2 -!prd_hom_commutes1 //.
+  - rewrite -comp_assoc -!prd_hom_commutes1 //.
+Qed.
+
+Definition product_assoc `{!HasProducts C} a b c :
+  (a ×ₒ (b ×ₒ c)) ≃ ((a ×ₒ b) ×ₒ c) :=
+  MkIsoIc _ _
+    (MkIso (associator_associator' _ _ _) (associator'_associator _ _ _)).
+
+Lemma associator_twist1 `{!HasProducts C} {a b c a' b' c'}
+ (f : hom a a') (g : hom b b') (h : hom c c') :
+  associator a' b' c' ∘ (f ×ₕ g ×ₕ h) ∘ associator' a b c ≡ (f ×ₕ (g ×ₕ h)).
+Proof.
+  rewrite /associator /associator'.
+  eapply prd_hom_unique'; [| |by rewrite hom_prod_prj1|by rewrite hom_prod_prj2].
+  - rewrite -!comp_assoc -prd_hom_commutes1.
+    rewrite !comp_assoc -(comp_assoc _ (f ×ₕ g ×ₕ h)) hom_prod_prj1.
+    rewrite comp_assoc -prd_hom_commutes1.
+    rewrite -comp_assoc -prd_hom_commutes1 comp_assoc -prd_hom_commutes1 //.
+  - rewrite -!comp_assoc -prd_hom_commutes2.
+    eapply prd_hom_unique';
+      [by rewrite -comp_assoc hom_prod_prj1|
+       by rewrite -comp_assoc hom_prod_prj2| |].
+    + rewrite -!comp_assoc -prd_hom_commutes1.
+      rewrite !comp_assoc -(comp_assoc _ (f ×ₕ g ×ₕ h)) hom_prod_prj1.
+      rewrite !comp_assoc -prd_hom_commutes1.
+      rewrite -!comp_assoc hom_prod_prj2.
+      rewrite !comp_assoc -prd_hom_commutes2 //.
+    + rewrite -!comp_assoc -prd_hom_commutes2.
+      rewrite !comp_assoc -(comp_assoc _ (f ×ₕ g ×ₕ h)) hom_prod_prj2.
+      rewrite !comp_assoc -prd_hom_commutes2 //.
+Qed.
+
+Lemma associator_twist2 `{!HasProducts C} {a b c a' b' c'}
+ (f : hom a a') (g : hom b b') (h : hom c c') :
+  associator a' b' c' ∘ (f ×ₕ g ×ₕ h) ≡ (f ×ₕ (g ×ₕ h)) ∘ associator a b c.
+Proof.
+  apply (compose_along_iso_right (product_assoc _ _ _)).
+  rewrite /= !comp_assoc associator_associator' right_id -comp_assoc.
+  apply associator_twist1.
+Qed.
+
+Lemma associator'_twist1 `{!HasProducts C} {a b c a' b' c'}
+ (f : hom a a') (g : hom b b') (h : hom c c') :
+  associator' a' b' c' ∘ (f ×ₕ (g ×ₕ h)) ∘ associator a b c ≡ (f ×ₕ g ×ₕ h).
+Proof.
+  apply (compose_along_iso_left (isomorphic_symm (product_assoc _ _ _))).
+  rewrite /= -!comp_assoc associator_associator' left_id.
+  apply (compose_along_iso_right (product_assoc _ _ _)).
+  rewrite /= comp_assoc associator_associator' right_id.
+  symmetry; apply associator_twist1.
+Qed.
+
+Lemma associator'_twist2 `{!HasProducts C} {a b c a' b' c'}
+ (f : hom a a') (g : hom b b') (h : hom c c') :
+  associator' a' b' c' ∘ (f ×ₕ (g ×ₕ h)) ≡ (f ×ₕ g ×ₕ h) ∘ associator' a b c.
+Proof.
+  apply (compose_along_iso_right (isomorphic_symm (product_assoc _ _ _))).
+  rewrite /= !comp_assoc associator'_associator right_id -comp_assoc.
+  apply associator'_twist1.
+Qed.
+
+Lemma associate'_term_times_inj `{!HasTerm C, !HasProducts C} a :
+  associator' a (1ₒ) (1ₒ) ∘ (id a ×ₕ term_times_inj (1ₒ)) ≡
+  (commutator _ _ ∘ term_times_inj a) ×ₕ id (1ₒ).
+Proof.
+  rewrite /associator' /commutator /term_times_inj.
+  eapply prd_hom_unique';
+    [|apply term_hom_unique'|by rewrite -prd_hom_commutes1|reflexivity].
+  eapply prd_hom_unique'; [|apply term_hom_unique'|reflexivity| reflexivity].
+  rewrite -!comp_assoc -!prd_hom_commutes1 -!prd_hom_commutes2.
+  rewrite !comp_assoc -(comp_assoc (_ ×ₕ _)) -!prd_hom_commutes1.
+  rewrite -!comp_assoc -!prd_hom_commutes1 //.
+Qed.
+
+(* Enrichment *)
+Class Enriched (C E : category) `{!HasTerm E, !HasProducts E} := MkEnr {
+  enr_hom : obj C → obj C → obj E;
+  enr_embed : ∀ a b (f : hom a b), hom (1ₒ) (enr_hom a b);
+  enr_comp : ∀ a b c, hom (enr_hom a b ×ₒ enr_hom b c) (enr_hom a c);
+  enr_embed_proper :: ∀ a b, Proper ((≡) ==> (≡)) (enr_embed a b);
+  enr_comp_comp : ∀ a b c (f : hom a b) (g : hom b c),
+    enr_embed _ _ (g ∘ f) ≡ (enr_comp _ _ _) ∘ ((enr_embed _ _ f) ×ₕ (enr_embed _ _ g)) ∘ (term_times_inj _);
+}.
+
+Arguments MkEnr {_ _ _ _} _ _ _ _ _.
+Arguments enr_hom {_ _ _ _ _} a b : rename.
+Arguments enr_embed {_ _ _ _ _ _ _} f.
+Arguments enr_comp {_ _ _ _ _} a b c.
+Arguments enr_comp_comp {_ _ _ _ _ _ _ _} f g.
+
+Notation "⌜ f ⌝" := (enr_embed f).
+
+Definition enr_comp_of {C} `{!HasTerm E, !HasProducts E, !Enriched C E} {a b c}
+  (f : hom (1ₒ) (enr_hom a b)) (g : hom (1ₒ) (enr_hom b c)) : hom (1ₒ) (enr_hom a c) :=
+  (enr_comp _ _ _) ∘ (f ×ₕ g) ∘ (term_times_inj _).
+
+Global Instance enr_comp_of_proper {C} `{!HasTerm E, !HasProducts E, Enriched C E} {a b c} :
+  Proper ((≡) ==> (≡) ==> (≡)) (@enr_comp_of C E _ _ _ a b c).
+Proof. repeat intros ?; rewrite /enr_comp_of; setoid_subst; done. Qed.
+
+Notation "g ∘ₑ{ C } f" := (enr_comp_of (C := C) f g) (at level 40, left associativity) : category_scope.
+Notation "g ∘ₑ f" := (enr_comp_of f g) (at level 40, left associativity) : category_scope.
+
+Lemma enr_left_id {C} `{!HasTerm E, !HasProducts E, Enriched C E} {a b} (f : hom a b) :
+  ⌜id b⌝ ∘ₑ ⌜f⌝ ≡ ⌜f⌝.
+Proof. rewrite /enr_comp_of -enr_comp_comp left_id //. Qed.
+Lemma enr_right_id {C} `{!HasTerm E, !HasProducts E, Enriched C E} {a b} (f : hom a b) :
+  ⌜f⌝ ∘ₑ ⌜id a⌝ ≡ ⌜f⌝.
+Proof. rewrite /enr_comp_of -enr_comp_comp right_id //. Qed.
+Lemma enr_comp_assoc {C} `{!HasTerm E, !HasProducts E, Enriched C E} {a b c d} (f : hom a b) (g : hom b c) (h : hom c d) :
+  ⌜h⌝ ∘ₑ ⌜g⌝ ∘ₑ ⌜f⌝ ≡ ⌜h⌝ ∘ₑ (⌜g⌝ ∘ₑ ⌜f⌝).
+Proof. rewrite /enr_comp_of -!enr_comp_comp comp_assoc //. Qed.
+
+(* Exponentials *)
 
 Record exponential `{!HasTerm C, !HasProducts C} (a b : obj C) := MkExp {
   exp : obj C;
@@ -574,21 +840,31 @@ Lemma exp_hom_commutes_gen `{!HasTerm C, !HasProducts C} {a b c d}
   eval e ∘ (g ×ₕ exp_hom e f) ≡ f ∘ (g ×ₕ id c).
 Proof. rewrite hom_prod_split -comp_assoc -exp_hom_commutes //. Qed.
 
+Lemma exp_hom_unique' `{!HasTerm C, !HasProducts C} {a b e d}
+  (f : hom (a ×ₒ d) b) (h1 h2 : hom d (exp e)) :
+  f ≡ eval e ∘ (id a ×ₕ h1) → f ≡ eval e ∘ (id a ×ₕ h2) → h1 ≡ h2.
+Proof.
+  intros. rewrite (exp_hom_unique _ _ h1) // (exp_hom_unique _ _ h2) //.
+Qed.
+
 Class HasExponentials C `{!HasTerm C, !HasProducts C} :=
   exponential_of (a b : obj C) : exponential a b.
 Global Arguments exponential_of {_ _ _ _} _ _, _ {_ _ _} _ _.
 
-Definition obj_exp `{!HasTerm C, !HasProducts C, !HasExponentials C} a b : obj C :=
+Definition obj_exp `{!HasTerm C, !HasProducts C, !HasExponentials C} b a : obj C :=
   exp (exponential_of a b).
 
 Definition hom_exp `{!HasTerm C, !HasProducts C, !HasExponentials C} {a b c d}
-  (f : hom a c) (g : hom b d) : hom (obj_exp c b) (obj_exp a d) :=
+  (g : hom b d) (f : hom a c) : hom (obj_exp b c) (obj_exp d a) :=
   exp_hom _ (eval (exponential_of c d) ∘ (f ×ₕ (exp_hom _ (g ∘ eval _)))).
 
-Infix "↑ₒ@{ C }" := (obj_exp (C := C)) (at level 40, left associativity).
-Infix "↑ₒ" := obj_exp (at level 40, left associativity).
-Infix "↑ₕ@{ C }" := (hom_exp (C := C)) (at level 40, left associativity).
-Infix "↑ₕ" := hom_exp (at level 40, left associativity).
+Infix "↑ₒ@{ C }" := (obj_exp (C := C)) (at level 40, left associativity) :
+    category_scope.
+Infix "↑ₒ" := obj_exp (at level 40, left associativity) :
+    category_scope.
+Infix "↑ₕ@{ C }" := (hom_exp (C := C)) (at level 40, left associativity) :
+    category_scope.
+Infix "↑ₕ" := hom_exp (at level 40, left associativity) : category_scope.
 
 Global Instance hom_exp_proper `{!HasTerm C, !HasProducts C, !HasExponentials C} {a b c d} :
   Proper ((≡) ==> (≡) ==> (≡)) (@hom_exp C _ _ _ a b c d).
@@ -596,12 +872,12 @@ Proof. by repeat intros ?; apply exp_hom_unique; setoid_subst; rewrite -exp_hom_
 
 Lemma hom_exp_comp `{!HasTerm C, !HasProducts C, !HasExponentials C} {a b c d e f}
   (g1 : hom a c) (g2 : hom c e) (h1 : hom b d) (h2 : hom d f) :
-  (g2 ∘ g1) ↑ₕ (h2 ∘ h1) ≡ (g1 ↑ₕ h2) ∘ (g2 ↑ₕ h1).
+  (h2 ∘ h1) ↑ₕ (g2 ∘ g1) ≡ (h2 ↑ₕ g1) ∘ (h1 ↑ₕ g2).
 Proof.
   rewrite /hom_exp.
   symmetry; apply exp_hom_unique.
   rewrite !exp_hom_commutes_gen.
-  rewrite -(left_id (id a)) hom_prod_comp -!comp_assoc -!exp_hom_commutes.
+  rewrite  hom_prod_comp_left_id -!comp_assoc -!exp_hom_commutes.
   rewrite !comp_assoc -hom_prod_comp right_id -{2}(left_id g1) hom_prod_comp.
   rewrite hom_prod_id left_id.
   rewrite !exp_hom_commutes_gen.
@@ -616,17 +892,111 @@ Qed.
 
 Program Definition exp_func `{!HasTerm C, !HasProducts C, !HasExponentials C} :
   functor (cat_prod (C ᵒᵖ) C) C :=
-  MkFunc (λ ab, ab.1 ↑ₒ@{C} ab.2) (λ _ _ h, h.1 ↑ₕ@{C} h.2) _ _ _.
+  MkFunc (λ ab, ab.2 ↑ₒ@{C} ab.1) (λ _ _ h, h.2 ↑ₕ@{C} h.1) _ _ _.
 Next Obligation. intros ????; repeat intros []; simpl in *; setoid_subst; done. Qed.
 Next Obligation. repeat intros ?; simpl; apply hom_exp_comp. Qed.
 Next Obligation. repeat intros ?; simpl; apply hom_exp_id. Qed.
 Fail Next Obligation.
+
+Definition transpose `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {a b c : obj C} (f : hom (b ×ₒ a) c) : hom a (c ↑ₒ b) :=
+  exp_hom (exponential_of b c) f.
+
+Definition untranspose `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {a b c : obj C} (f : hom a (c ↑ₒ b)) : hom (b ×ₒ a) c :=
+  eval (exponential_of b c) ∘ (id b ×ₕ f).
+
+Lemma transpose_untranspose `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {a b c : obj C} (f : hom a (c ↑ₒ b)) : transpose (untranspose f) ≡ f.
+Proof. rewrite /transpose /untranspose; symmetry; apply exp_hom_unique; done. Qed.
+Lemma untranspose_transpose `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {a b c : obj C} (f : hom (b ×ₒ a) c) : untranspose (transpose f) ≡ f.
+Proof. rewrite /transpose /untranspose -exp_hom_commutes //. Qed.
+
+Global Instance transpose_proper `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {a b c : obj C} : Proper ((≡) ==> (≡)) (@transpose C _ _ _ a b c).
+Proof. repeat intros ?; rewrite /transpose; setoid_subst; done. Qed.
+
+Global Instance untranspose_proper `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {a b c : obj C} : Proper ((≡) ==> (≡)) (@untranspose C _ _ _ a b c).
+Proof. repeat intros ?; rewrite /untranspose; setoid_subst; done. Qed.
+
+Lemma eval_transpose `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {a b c : obj C} (f : hom (b ×ₒ a) c) :
+  eval (exponential_of b c) ∘ (id _ ×ₕ transpose f) ≡ f.
+Proof. rewrite -exp_hom_commutes //. Qed.
+
+Definition transpose' `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {b c : obj C} (f : hom b c) : hom (1ₒ) (c ↑ₒ b) :=
+  transpose (f ∘ term_times_proj _ ∘ commutator _ _).
+
+Definition untranspose' `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {b c : obj C} (f : hom (1ₒ) (c ↑ₒ b)) : hom b c :=
+  untranspose f ∘ commutator _ _ ∘ term_times_inj _.
+
+Lemma transpose'_untranspose' `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {b c : obj C} (f : hom (1ₒ) (c ↑ₒ b)) : transpose' (untranspose' f) ≡ f.
+Proof.
+  rewrite /transpose' /untranspose' /transpose /untranspose.
+  rewrite !comp_assoc -(comp_assoc (commutator _ _)) term_times_inj_proj.
+  rewrite left_id commutator_involutive right_id.
+  symmetry; apply exp_hom_unique; done.
+Qed.
+Lemma untranspose'_transpose' `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {b c : obj C} (f : hom b c) : untranspose' (transpose' f) ≡ f.
+Proof.
+  rewrite /transpose' /untranspose' /transpose /untranspose.
+  rewrite exp_hom_commutes_gen hom_prod_id right_id.
+  rewrite !comp_assoc -(comp_assoc _ _ (commutator _ _)).
+  rewrite commutator_involutive left_id term_times_proj_inj right_id //.
+Qed.
+
+Global Instance transpose'_proper `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {a b : obj C} : Proper ((≡) ==> (≡)) (@transpose' C _ _ _ a b).
+Proof. repeat intros ?; rewrite /transpose'; setoid_subst; done. Qed.
+
+Global Instance untranspose'_proper `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {a b : obj C} : Proper ((≡) ==> (≡)) (@untranspose' C _ _ _ a b).
+Proof. repeat intros ?; rewrite /untranspose'; setoid_subst; done. Qed.
+
+Definition inner_comp `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  (a b c : obj C) : hom (b ↑ₒ a ×ₒ (c ↑ₒ b)) (c ↑ₒ a) :=
+  transpose (eval _ ∘ (eval _ ×ₕ id _) ∘ associator' _ _ _).
+
+Lemma inner_comp_transpose `{!HasTerm C, !HasProducts C, !HasExponentials C}
+  {a b c : obj C} (f : hom a b) (g : hom b c) :
+  transpose' (g ∘ f) ≡ inner_comp a b c ∘ (transpose' f ×ₕ transpose' g) ∘ term_times_inj (1ₒ).
+Proof.
+  rewrite /inner_comp.
+  eapply exp_hom_unique'.
+  { rewrite /transpose' eval_transpose; reflexivity. }
+  rewrite !hom_prod_comp_left_id -!comp_assoc eval_transpose.
+  rewrite !comp_assoc -hom_prod_comp left_id.
+  rewrite hom_prod_comp_left_id.
+  rewrite -!comp_assoc !(comp_assoc _ (associator' _ _ _)) associator'_twist2.
+  rewrite !comp_assoc -!(comp_assoc (_ ×ₕ _)).
+  rewrite -!(comp_assoc (associator' _ _ _)).
+  rewrite -hom_prod_comp left_id.
+  rewrite exp_hom_commutes_gen !comp_assoc.
+  f_equiv.
+  rewrite -exp_hom_commutes -!comp_assoc.
+  rewrite commute_term_times_proj !comp_assoc !commute_term_times_proj.
+  rewrite associate'_term_times_inj.
+  rewrite !hom_prod_comp_right_id -!hom_prod_comp hom_prod_prj1.
+  rewrite !comp_assoc; f_equiv.
+  rewrite proj_term_times_inj commutator_involutive right_id //.
+Qed.
 
 Class CCC C := MkCCC {
   CCC_HT :: HasTerm C;
   CCC_HP :: HasProducts C;
   CCC_HE :: HasExponentials C
 }.
+
+(* CCC's are self-enriched. Stated as Definition, not Instnace! *)
+Definition self_enriched `{!CCC C} : Enriched C C :=
+  MkEnr (λ a b, b ↑ₒ a) (λ _ _ f, transpose' f)
+    inner_comp _ (@inner_comp_transpose _ _ _ _).
 
 (* Limits *)
 Section Limit.
