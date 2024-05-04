@@ -429,7 +429,7 @@ Global Instance setoid_fun_map_proper' :
 Proof. intros ???? Heq ???; apply Heq; done. Qed.
 Program Definition setoid_compose {A B C} (f : setoid_fun A B) (g : setoid_fun B C) :
   setoid_fun A C := λset x, g (f x).
-Solve All Obligations with by intros ????????; setoid_subst.
+Solve All Obligations with by intros ????????; solve_by_equiv_rewrite.
 Fail Next Obligation.
 Global Instance setoid_compose_proper :
   ∀ A B C, Proper ((≡) ==> (≡) ==> (≡)) (@setoid_compose A B C).
@@ -437,7 +437,7 @@ Proof. intros ????????????; rewrite /=; solve_by_equiv_rewrite. Qed.
 
 Program Definition Setoid :=
   MkCat setoid setoid_fun (λ _, λset x, x) (@setoid_compose) (λ _ _, (≡)) _ _ _ _ _.
-Solve All Obligations with by repeat intros ?; rewrite /=; setoid_subst.
+Solve All Obligations with by repeat intros ?; rewrite /=; solve_by_equiv_rewrite.
 Fail Next Obligation.
 
 Program Definition empty_setoid : setoid := MkSetoid False (λ _ _, False) _.
@@ -445,18 +445,28 @@ Next Obligation. split; repeat intros ?; done. Qed.
 Fail Next Obligation.
 Definition singleton_setoid : setoid := MkSetoid unit (≡) _.
 
+(* Natural setoid : set of natural transformations as a setpid. *)
+
+Program Definition natural_set {C D} (F G : functor C D) : setoid :=
+  MkSetoid (natural F G) (≡) _.
+
 (* Presheaf categories *)
 
 Definition PreSheaf C := functor (C ᵒᵖ) Setoid.
 
 Definition PSh C := FuncCat (C ᵒᵖ) Setoid.
 
-(* hom functor *)
+(* A version of naturality tailored to presheaves useful for rewriting. *)
+Lemma psh_naturality {C} {F G : PreSheaf C} (η : natural F G) :
+  ∀ (a b : obj C) (f : hom a b) z , (η ₙ a) ((F ₕ f) z) ≡ ((G ₕ f)) ((η ₙ b) z).
+Proof. by repeat intros ?; apply (naturality η). Qed.
 
-Definition hom_setoid C (a b : obj C) : setoid := MkSetoid (hom C a b) _ _.
+(* Hom functor *)
 
-Program Definition compose_as_hom_setoid_map C {a b c d} (f : hom C a b) (g : hom C c d) :
-  setoid_fun (hom_setoid _ b c) (hom_setoid _ a d) := λset h, g ∘ h ∘ f.
+Definition hom_setoid {C} (a b : obj C) : setoid := MkSetoid (hom C a b) _ _.
+
+Program Definition compose_as_hom_setoid_map {C a b c d} (f : hom C a b) (g : hom C c d) :
+  setoid_fun (hom_setoid b c) (hom_setoid a d) := λset h, g ∘ h ∘ f.
 Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
 Fail Next Obligation.
 
@@ -465,15 +475,27 @@ Global Instance compose_as_hom_setoid_map_proper C {a b c d} :
 Proof. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
 
 Program Definition Hom C : functor (cat_prod (C ᵒᵖ) C) Setoid :=
-  MkFunc (λ ab, hom_setoid C ab.1 ab.2) (λ _ _ f, compose_as_hom_setoid_map C f.1 f.2) _ _ _.
+  MkFunc (λ ab, hom_setoid (C := C) ab.1 ab.2)
+    (λ _ _ f, compose_as_hom_setoid_map (C := C) f.1 f.2) _ _ _.
 Solve All Obligations
   with repeat intros ?; rewrite /= ?comp_assoc ?left_id ?right_id; solve_by_equiv_rewrite.
 Fail Next Obligation.
+
+(* Adjunctions. *)
 
 Definition adjunction {C D} (F : functor C D) (G : functor D C) : Type :=
   functor_compose (functor_prod (id_functor (C ᵒᵖ)) G) (Hom C)
   ≃@{FuncCat (cat_prod (C ᵒᵖ) D) Setoid}
   functor_compose (functor_prod (opposite_func F) (id_functor D)) (Hom D).
+
+(* Yoneda embedding *)
+
+Program Definition yoneda {C} (c : obj C) : PreSheaf C :=
+  MkFunc (λ a, hom_setoid (C := C) a c)
+    (λ _ _ f, compose_as_hom_setoid_map (C := C) f (id c)) _ _ _.
+Solve All Obligations
+  with repeat intros ?; rewrite /= ?comp_assoc ?left_id ?right_id; solve_by_equiv_rewrite.
+Fail Next Obligation.
 
 (* Terminal Object *)
 
@@ -517,6 +539,23 @@ Proof. apply bang_unique. Qed.
 Lemma term_hom_unique' `{!HasTerm C} {c} (f g : hom c (1ₒ)) : f ≡ g.
 Proof. rewrite (term_hom_unique f) (term_hom_unique g) //. Qed.
 
+(* Terminal object of Setoid and PSh. *)
+
+Global Program Instance setoid_has_term : HasTerm Setoid :=
+  MkTerm singleton_setoid (MkIsTerm _ (λ _, λset _, ()) _).
+Next Obligation. repeat intros ?; done. Qed.
+Fail Next Obligation.
+
+Program Definition term_psh C : PreSheaf C :=
+  MkFunc (λ _, 1ₒ) (λ _ _ _, !ₕ _) _ _ _.
+Solve All Obligations with done.
+Fail Next Obligation.
+
+Global Program Instance psh_has_term C : HasTerm (PSh C) :=
+  MkTerm (term_psh C) (MkIsTerm _ (λ _, MkNat (λ _, !ₕ _) _) _).
+Solve All Obligations with done.
+Fail Next Obligation.
+
 (* Products *)
 
 Record product {C} (a b : obj C) := MkProd {
@@ -530,6 +569,7 @@ Record product {C} (a b : obj C) := MkProd {
     p1 ≡ prj1 ∘ h → p2 ≡ prj2 ∘ h → h ≡ prd_hom d p1 p2;
 }.
 
+Global Arguments MkProd {_ _ _} _ _ _ _ _ _ _.
 Global Arguments prd {_ _ _} _.
 Global Arguments prj1 {_ _ _} _.
 Global Arguments prj2 {_ _ _} _.
@@ -571,8 +611,9 @@ Infix "×ₕ" := hom_prod (at level 40, left associativity) : category_scope.
 Global Instance hom_prod_proper `{!HasProducts C} {a b c d} :
   Proper ((≡) ==> (≡) ==> (≡)) (@hom_prod C _ a b c d).
 Proof.
-  repeat intros ?; apply prd_hom_unique; setoid_subst;
-    by rewrite -?prd_hom_commutes1 -?prd_hom_commutes2.
+  repeat intros ?; apply prd_hom_unique;
+    rewrite -?prd_hom_commutes1 -?prd_hom_commutes2;
+    solve_by_equiv_rewrite.
 Qed.
 
 Lemma hom_prod_comp `{!HasProducts C} {a b c d e f}
@@ -606,7 +647,7 @@ Proof. rewrite /hom_prod -prd_hom_commutes2 //. Qed.
 
 Program Definition prod_func `{!HasProducts C} : functor (cat_prod C C) C :=
   MkFunc (λ ab, ab.1 ×ₒ ab.2) (λ _ _ h, h.1 ×ₕ h.2) _ _ _.
-Next Obligation. intros ??; repeat intros []; simpl in *; setoid_subst; done. Qed.
+Next Obligation. intros ??; repeat intros []; solve_by_equiv_rewrite. Qed.
 Next Obligation. repeat intros ?; apply hom_prod_comp. Qed.
 Next Obligation. repeat intros ?; apply hom_prod_id. Qed.
 Fail Next Obligation.
@@ -776,6 +817,46 @@ Proof.
   rewrite -!comp_assoc -!prd_hom_commutes1 //.
 Qed.
 
+(* Products in Setoid and PSh. *)
+
+Definition setoid_prod (A B : setoid) : setoid := MkSetoid (A * B) (≡) _.
+
+Global Program Instance setoid_has_products : HasProducts Setoid :=
+  λ A B, MkProd (setoid_prod A B) (λset ab, ab.1) (λset ab, ab.2)
+    (λ _ p1 p2, λset x, (p1 x, p2 x)) _ _ _.
+Solve All Obligations with repeat intros ?; simpl in *; solve_by_equiv_rewrite.
+Fail Next Obligation.
+
+Program Definition psh_prod {C} (F G : PreSheaf C) : PreSheaf C :=
+  MkFunc (λ c, (F ₒ c) ×ₒ (G ₒ c)) (λ _ _ f, (F ₕ f) ×ₕ (G ₕ f)) _ _ _.
+Solve All Obligations with
+  repeat intros ?; rewrite ?h_map_comp ?h_map_id; solve_by_equiv_rewrite.
+Fail Next Obligation.
+
+Program Definition psh_prj1 {C} (F G : PreSheaf C) : natural (psh_prod F G) F :=
+  MkNat (λ c, prj1 _) _.
+Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
+Fail Next Obligation.
+
+Program Definition psh_prj2 {C} (F G : PreSheaf C) : natural (psh_prod F G) G :=
+  MkNat (λ c, prj2 _) _.
+Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
+Fail Next Obligation.
+
+Program Definition psh_prd_hom {C} (F G P : PreSheaf C)
+  (p1 : natural P F) (p2 : natural P G) : natural P (psh_prod F G) :=
+  MkNat (λ c, prd_hom _ (p1 ₙ c) (p2 ₙ c)) _.
+Next Obligation.
+  repeat intros ?; setoid_subst;
+    rewrite (psh_naturality p1) (psh_naturality p2) //.
+Qed.
+Fail Next Obligation.
+
+Global Program Instance psh_has_products C : HasProducts (PSh C) :=
+  λ F G, MkProd (psh_prod F G) (psh_prj1 F G) (psh_prj2 F G) (psh_prd_hom F G) _ _ _.
+Solve All Obligations with repeat intros ?; rewrite /=; solve_by_equiv_rewrite.
+Fail Next Obligation.
+
 (* Enrichment *)
 Class Enriched (C E : category) `{!HasTerm E, !HasProducts E} := MkEnr {
   enr_hom : obj C → obj C → obj E;
@@ -800,7 +881,7 @@ Definition enr_comp_of {C} `{!HasTerm E, !HasProducts E, !Enriched C E} {a b c}
 
 Global Instance enr_comp_of_proper {C} `{!HasTerm E, !HasProducts E, Enriched C E} {a b c} :
   Proper ((≡) ==> (≡) ==> (≡)) (@enr_comp_of C E _ _ _ a b c).
-Proof. repeat intros ?; rewrite /enr_comp_of; setoid_subst; done. Qed.
+Proof. repeat intros ?; rewrite /enr_comp_of; solve_by_equiv_rewrite. Qed.
 
 Notation "g ∘ₑ{ C } f" := (enr_comp_of (C := C) f g) (at level 40, left associativity) : category_scope.
 Notation "g ∘ₑ f" := (enr_comp_of f g) (at level 40, left associativity) : category_scope.
@@ -825,6 +906,7 @@ Record exponential `{!HasTerm C, !HasProducts C} (a b : obj C) := MkExp {
   exp_hom_unique d f h : f ≡ eval ∘ (id a ×ₕ h) → h ≡ exp_hom d f;
 }.
 
+Global Arguments MkExp {_ _ _ _ _} _ _ _ _ _.
 Global Arguments exp {_ _ _ _ _} _.
 Global Arguments eval {_ _ _ _ _} _.
 Global Arguments exp_hom {_ _ _ _ _} _ {_} _.
@@ -893,9 +975,85 @@ Qed.
 Program Definition exp_func `{!HasTerm C, !HasProducts C, !HasExponentials C} :
   functor (cat_prod (C ᵒᵖ) C) C :=
   MkFunc (λ ab, ab.2 ↑ₒ@{C} ab.1) (λ _ _ h, h.2 ↑ₕ@{C} h.1) _ _ _.
-Next Obligation. intros ????; repeat intros []; simpl in *; setoid_subst; done. Qed.
+Next Obligation. intros ????; repeat intros []; simpl in *; solve_by_equiv_rewrite. Qed.
 Next Obligation. repeat intros ?; simpl; apply hom_exp_comp. Qed.
 Next Obligation. repeat intros ?; simpl; apply hom_exp_id. Qed.
+Fail Next Obligation.
+
+(* Exponentials in Setoid and PSh. *)
+
+Definition setoid_exp (A B : setoid) : setoid := MkSetoid (setoid_fun A B) (≡) _.
+
+Global Program Instance setoid_has_exponentials : HasExponentials Setoid :=
+  λ A B, MkExp (setoid_exp A B) (λset af, af.2 af.1) (λ _ f, λset d, λset a, f (a, d))
+           _ _.
+Solve All Obligations with
+  repeat intros ?; setoid_subst;
+    by repeat match goal with A : _ * _ |- _ => destruct A; simpl end.
+Fail Next Obligation.
+
+Program Definition psh_exp {C} (F G : PreSheaf C) : PreSheaf C :=
+  MkFunc (λ c, natural_set ((yoneda (C := C) c) ×ₒ@{PSh C} F) G)
+    (λ _ _ f, λset η, MkNat (λ c, λset g, (η ₙ c) (f ∘ g.1, g.2)) _) _ _ _.
+Next Obligation.
+  repeat intros ?; simpl in *; solve_by_equiv_rewrite.
+Qed.
+Next Obligation.
+  intros ?????? η ??????; simpl in *; setoid_subst.
+  rewrite -(psh_naturality η) /= !left_id !comp_assoc //=.
+Qed.
+Next Obligation.
+  repeat intros ?; simpl in *; setoid_subst; done.
+Qed.
+Next Obligation.
+  repeat intros ?; simpl in *; setoid_subst; done.
+Qed.
+Next Obligation.
+  repeat intros ?; simpl in *; setoid_subst; rewrite !comp_assoc //.
+Qed.
+Next Obligation.
+  repeat intros ?; simpl in *; setoid_subst; rewrite left_id.
+  by repeat match goal with A : _ * _ |- _ => destruct A; simpl end.
+Qed.
+Fail Next Obligation.
+
+Program Definition psh_eval {C} (F G : PreSheaf C) : natural (F ×ₒ@{PSh C} psh_exp F G) G :=
+  MkNat (λ c, λset a, (a.2 ₙ c) (id c, a.1)) _.
+Next Obligation. repeat intros ?; simpl in *; setoid_subst; done. Qed.
+Next Obligation.
+  intros ??????? [? η] ->; simpl in *; setoid_subst.
+  rewrite -(psh_naturality η) /= !left_id right_id //.
+Qed.
+Fail Next Obligation.
+
+Program Definition psh_exp_hom {C} {F G : PreSheaf C} (H : PreSheaf C)
+  (η : natural (F ×ₒ@{PSh C} H) G) : natural H (psh_exp F G) :=
+  MkNat (λ c, λset h, MkNat (λ d, λset g, (η ₙ d) (g.2, (H ₕ g.1) h)) _) _.
+Next Obligation. repeat intros ?; simpl in *; solve_by_equiv_rewrite. Qed.
+Next Obligation.
+  repeat intros ?; simpl in *.
+  rewrite -(psh_naturality η) left_id /= h_map_comp.
+  solve_by_equiv_rewrite.
+Qed.
+Next Obligation. repeat intros ?; simpl in *; solve_by_equiv_rewrite. Qed.
+Next Obligation.
+  repeat intros ?; simpl in *; rewrite h_map_comp; solve_by_equiv_rewrite.
+Qed.
+Fail Next Obligation.
+
+Global Program Instance psh_has_exponentials C : HasExponentials (PSh C) :=
+  λ F G, MkExp (psh_exp F G) (psh_eval F G) (λ _ η, psh_exp_hom _ η) _ _.
+Next Obligation.
+  repeat intros ?; simpl in *; rewrite h_map_id /=.
+  repeat match goal with A : _ * _ |- _ => destruct A; simpl end.
+  solve_by_equiv_rewrite.
+Qed.
+Next Obligation.
+  repeat intros ?; simpl in *; setoid_subst; simpl in *.
+  rewrite (psh_naturality) /= right_id /=.
+  repeat match goal with A : _ * _ |- _ => destruct A; simpl end.
+  done.
+Qed.
 Fail Next Obligation.
 
 Definition transpose `{!HasTerm C, !HasProducts C, !HasExponentials C}
@@ -915,11 +1073,11 @@ Proof. rewrite /transpose /untranspose -exp_hom_commutes //. Qed.
 
 Global Instance transpose_proper `{!HasTerm C, !HasProducts C, !HasExponentials C}
   {a b c : obj C} : Proper ((≡) ==> (≡)) (@transpose C _ _ _ a b c).
-Proof. repeat intros ?; rewrite /transpose; setoid_subst; done. Qed.
+Proof. repeat intros ?; rewrite /transpose; solve_by_equiv_rewrite. Qed.
 
 Global Instance untranspose_proper `{!HasTerm C, !HasProducts C, !HasExponentials C}
   {a b c : obj C} : Proper ((≡) ==> (≡)) (@untranspose C _ _ _ a b c).
-Proof. repeat intros ?; rewrite /untranspose; setoid_subst; done. Qed.
+Proof. repeat intros ?; rewrite /untranspose; solve_by_equiv_rewrite. Qed.
 
 Lemma eval_transpose `{!HasTerm C, !HasProducts C, !HasExponentials C}
   {a b c : obj C} (f : hom (b ×ₒ a) c) :
@@ -953,11 +1111,11 @@ Qed.
 
 Global Instance transpose'_proper `{!HasTerm C, !HasProducts C, !HasExponentials C}
   {a b : obj C} : Proper ((≡) ==> (≡)) (@transpose' C _ _ _ a b).
-Proof. repeat intros ?; rewrite /transpose'; setoid_subst; done. Qed.
+Proof. repeat intros ?; rewrite /transpose'; solve_by_equiv_rewrite. Qed.
 
 Global Instance untranspose'_proper `{!HasTerm C, !HasProducts C, !HasExponentials C}
   {a b : obj C} : Proper ((≡) ==> (≡)) (@untranspose' C _ _ _ a b).
-Proof. repeat intros ?; rewrite /untranspose'; setoid_subst; done. Qed.
+Proof. repeat intros ?; rewrite /untranspose'; solve_by_equiv_rewrite. Qed.
 
 Definition inner_comp `{!HasTerm C, !HasProducts C, !HasExponentials C}
   (a b c : obj C) : hom (b ↑ₒ a ×ₒ (c ↑ₒ b)) (c ↑ₒ a) :=
@@ -992,6 +1150,11 @@ Class CCC C := MkCCC {
   CCC_HP :: HasProducts C;
   CCC_HE :: HasExponentials C
 }.
+
+(* Setoid and PSh are CCC categories. *)
+
+Global Instance setoid_ccc : CCC Setoid := MkCCC _ _ _ _.
+Global Instance psh_ccc C : CCC (PSh C) := MkCCC _ _ _ _.
 
 (* CCC's are self-enriched. Stated as Definition, not Instnace! *)
 Definition self_enriched `{!CCC C} : Enriched C C :=
@@ -1232,7 +1395,7 @@ Section setoid_limit.
   Fail Next Obligation.
 End setoid_limit.
 
-Program Instance setoid_complete : Complete Setoid :=
+Global Program Instance setoid_complete : Complete Setoid :=
   λ _ F, MkTerm (setoid_lim_cone F) (setoid_lim_cone_is_limiting_cone F).
 
 Section psh_limit.
@@ -1252,9 +1415,7 @@ Section psh_limit.
     λset x, exist _ (λ j, (F ₒ j ₕ f) (`x j)) _.
   Next Obligation.
   Proof.
-    intros ?? f x j ? g.
-    rewrite -(proj2_sig x _ _ g).
-    apply (naturality (F ₕ g) f (`x j) (`x j) (reflexivity _)).
+    intros ?? f x j ? g; rewrite -(proj2_sig x _ _ g) (psh_naturality (F ₕ g)) //.
   Qed.
   Next Obligation.
   Proof. intros ????? Heq z; rewrite /= (Heq z) //. Qed.
@@ -1287,7 +1448,9 @@ Section psh_limit.
         MkSetoidFun (λ x,
             setoid_fun_to_setoid_lim_cone (pointwise_func c) (pointwise_cone cn c) x) _) _.
   Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
-  Next Obligation. repeat intros ?; apply: (naturality (side cn _)); done. Qed.
+  Next Obligation.
+    repeat intros ?; setoid_subst; rewrite (psh_naturality (side cn _)) //.
+  Qed.
   Fail Next Obligation.
 
   Program Definition cone_hom_to_psh_lim_cone cn : cone_hom cn psh_lim_cone :=
@@ -1301,10 +1464,11 @@ Section psh_limit.
   Proof.
     intros ???????; simpl in *.
     apply: (bang_unique
-      (setoid_lim_cone_is_limiting_cone (pointwise_func _)) (pointwise_cone_hom f a)); done.
+      (setoid_lim_cone_is_limiting_cone
+         (pointwise_func _)) (pointwise_cone_hom f a)); done.
   Qed.
 
 End psh_limit.
 
-Program Instance presheaves_complete C : Complete (PSh C) :=
+Global Program Instance presheaves_complete C : Complete (PSh C) :=
   λ _ F, MkTerm (psh_lim_cone F) (psh_lim_cone_is_limiting_cone F).
