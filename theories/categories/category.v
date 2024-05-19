@@ -43,7 +43,7 @@ Delimit Scope category_scope with category.
 
 Local Open Scope category_scope.
 
-Notation "g ∘{ C } f" := (comp C f g) (at level 40, left associativity) : category_scope.
+Notation "g ∘@{ C } f" := (comp C f g) (at level 40, left associativity) : category_scope.
 Notation "g ∘ f" := (comp _ f g) : category_scope.
 
 Program Definition SingletonCat : category :=
@@ -419,7 +419,7 @@ Global Existing Instance setoid_fun_map_proper.
 Arguments MkSetoidFun {_ _} _ _.
 Notation "'λset' x .. y , t" :=
   (MkSetoidFun (λ x .. y, t) _) (at level 10, x binder, y binder, t at level 200,
-  format "'[ ' '[ ' 'λset' x .. y ']' , '/' t ']'").
+  format "'[ ' '[ ' 'λset'  x .. y ']' , '/' t ']'").
 Global Instance setoid_fun_eq A B : Equiv (setoid_fun A B) := respectful (≡) (≡).
 Global Instance setoid_fun_eq_equiv A B : Equivalence (≡@{setoid_fun A B}).
 Proof. split; repeat intros ?; solve_by_equiv_rewrite. Qed.
@@ -435,15 +435,44 @@ Global Instance setoid_compose_proper :
   ∀ A B C, Proper ((≡) ==> (≡) ==> (≡)) (@setoid_compose A B C).
 Proof. intros ????????????; rewrite /=; solve_by_equiv_rewrite. Qed.
 
+Definition setoid_id A : setoid_fun A A := λset x, x.
+
 Program Definition Setoid :=
-  MkCat setoid setoid_fun (λ _, λset x, x) (@setoid_compose) (λ _ _, (≡)) _ _ _ _ _.
+  MkCat setoid setoid_fun (λ _, setoid_id _) (@setoid_compose) (λ _ _, (≡)) _ _ _ _ _.
 Solve All Obligations with by repeat intros ?; rewrite /=; solve_by_equiv_rewrite.
 Fail Next Obligation.
+
+Definition setoid_conv {A B : setoid} (Heq : A = B) (a : A) : B :=
+  match Heq in _ = u return u with eq_refl => a end.
+
+Global Instance setoid_conv_proper {A B : setoid} (Heq : A = B) :
+  Proper ((≡) ==> (≡)) (setoid_conv Heq).
+Proof. destruct Heq; intros ?? ->; done. Qed.
+
+Lemma hom_trans_setoid_conv {A B C D : setoid}
+  (Heq : A = C) (Heq' : B = D) (f : setoid_fun A B) (x : C) :
+  hom_trans (C := Setoid) Heq Heq' f x =
+  hom_trans (C := Setoid) eq_refl Heq' f (setoid_conv (eq_sym Heq) x).
+Proof. destruct Heq; done. Qed.
+
+Lemma hom_trans_setoid_conv' {A B C D : setoid}
+  (Heq : A = C) (Heq' : B = D) (f : setoid_fun A B) (x : C) :
+  hom_trans (C := Setoid) Heq Heq' f x =
+  setoid_conv Heq' (f (setoid_conv (eq_sym Heq) x)).
+Proof. destruct Heq; destruct Heq'; done. Qed.
+
+Lemma setoid_conv_trans {A B C : setoid} (Heq : A = B) (Heq' : B = C) x :
+  setoid_conv (eq_trans Heq Heq') x = setoid_conv Heq' (setoid_conv Heq x).
+Proof. destruct Heq; destruct Heq'; done. Qed.
+
+Lemma setoid_conv_sym {A B : setoid} (Heq : A = B) (a : A) (b : B) :
+  setoid_conv Heq a ≡ b ↔ a ≡ setoid_conv (eq_sym Heq) b.
+Proof. destruct Heq; done. Qed.
 
 Program Definition empty_setoid : setoid := MkSetoid False (λ _ _, False) _.
 Next Obligation. split; repeat intros ?; done. Qed.
 Fail Next Obligation.
-Definition singleton_setoid : setoid := MkSetoid unit (≡) _.
+Definition terminal_setoid : setoid := MkSetoid unit (≡) _.
 
 (* Natural setoid : set of natural transformations as a setpid. *)
 
@@ -542,7 +571,7 @@ Proof. rewrite (term_hom_unique f) (term_hom_unique g) //. Qed.
 (* Terminal object of Setoid and PSh. *)
 
 Global Program Instance setoid_has_term : HasTerm Setoid :=
-  MkTerm singleton_setoid (MkIsTerm _ (λ _, λset _, ()) _).
+  MkTerm terminal_setoid (MkIsTerm _ (λ _, λset _, ()) _).
 Next Obligation. repeat intros ?; done. Qed.
 Fail Next Obligation.
 
@@ -603,10 +632,15 @@ Definition obj_prod `{!HasProducts C} a b : obj C := prd (product_of a b).
 Definition hom_prod `{!HasProducts C} {a b c d} (f : hom a c) (g : hom b d) :
   hom (obj_prod a b) (obj_prod c d) := prd_hom _ (f ∘ prj1 _) (g ∘ prj2 _).
 
+Definition hom_to_prod `{!HasProducts C} {a c d} (f : hom a c) (g : hom a d) :
+  hom a (obj_prod c d) := prd_hom _ f g.
+
 Infix "×ₒ@{ C }" := (obj_prod (C := C)) (at level 40, left associativity) : category_scope.
 Infix "×ₒ" := obj_prod (at level 40, left associativity) : category_scope.
 Infix "×ₕ@{ C }" := (hom_prod (C := C)) (at level 40, left associativity) : category_scope.
 Infix "×ₕ" := hom_prod (at level 40, left associativity) : category_scope.
+Notation "<< f , g >>" :=
+  (hom_to_prod f g) (at level 20, no associativity) : category_scope.
 
 Global Instance hom_prod_proper `{!HasProducts C} {a b c d} :
   Proper ((≡) ==> (≡) ==> (≡)) (@hom_prod C _ a b c d).
@@ -651,6 +685,34 @@ Next Obligation. intros ??; repeat intros []; solve_by_equiv_rewrite. Qed.
 Next Obligation. repeat intros ?; apply hom_prod_comp. Qed.
 Next Obligation. repeat intros ?; apply hom_prod_id. Qed.
 Fail Next Obligation.
+
+Lemma hom_to_prod_comp `{!HasProducts C} {a b c d e}
+  (g1 : hom a b) (g2 : hom b d) (h1 : hom a c) (h2 : hom c e) :
+  <<g2 ∘ g1, h2 ∘ h1>> ≡ (g2 ×ₕ h2) ∘ <<g1, h1>>.
+Proof.
+  symmetry; apply prd_hom_unique.
+  - rewrite -!comp_assoc -prd_hom_commutes1 !comp_assoc -prd_hom_commutes1 //.
+  - rewrite -!comp_assoc -prd_hom_commutes2 !comp_assoc -prd_hom_commutes2 //.
+Qed.
+Lemma hom_to_prod_prj1 `{!HasProducts C} {a b c} (f : hom a b) (g : hom a c) :
+  prj1 _ ∘ <<f, g>> ≡ f.
+Proof. rewrite /hom_prod -prd_hom_commutes1 //. Qed.
+Lemma hom_to_prod_prj2 `{!HasProducts C} {a b c} (f : hom a b) (g : hom a c) :
+  prj2 _ ∘ <<f, g>> ≡ g.
+Proof. rewrite /hom_prod -prd_hom_commutes2 //. Qed.
+Lemma hom_to_prod_comp_left_id `{!HasProducts C} {a b d}
+  (h1 : hom a b) (h2 : hom b d) : <<id a, h2 ∘ h1>> ≡ (id a ×ₕ h2) ∘ <<id a, h1>>.
+Proof. rewrite -hom_to_prod_comp left_id //. Qed.
+Lemma hom_to_prod_comp_right_id `{!HasProducts C} {a b d}
+  (h1 : hom a b) (h2 : hom b d) : <<h2 ∘ h1, id a>> ≡ (h2 ×ₕ id a) ∘ <<h1,id a>>.
+Proof. rewrite -hom_to_prod_comp right_id //. Qed.
+Lemma hom_to_prod_split `{!HasProducts C} {a b c} (f : hom a b) (g : hom a c) :
+  <<f, g>> ≡ (id b ×ₕ g) ∘ <<f, id a>>.
+Proof. rewrite -hom_to_prod_comp left_id right_id //. Qed.
+Lemma hom_to_prod_split' `{!HasProducts C} {a b c} (f : hom a b) (g : hom a c) :
+  <<f, g>> ≡ (f ×ₕ id c) ∘ <<id a, g>>.
+Proof. rewrite -hom_to_prod_comp left_id right_id //. Qed.
+
 
 Definition term_times_proj `{!HasTerm C, !HasProducts C} (a : obj C) : hom (1ₒ ×ₒ a) a := prj2 _.
 Definition term_times_inj `{!HasTerm C, !HasProducts C} (a : obj C) : hom a (1ₒ ×ₒ a) :=
@@ -698,6 +760,15 @@ Proof.
     rewrite !comp_assoc -prd_hom_commutes1 hom_prod_prj2 //.
   - rewrite /commutator -!comp_assoc -prd_hom_commutes2.
     rewrite !comp_assoc -prd_hom_commutes2 hom_prod_prj1 //.
+Qed.
+
+Lemma commute_hom_to_prod `{!HasProducts C} {a b c} (f : hom a b) (g : hom a c) :
+  commutator b c ∘ <<f, g>> ≡ <<g, f>>.
+Proof.
+  rewrite /commutator.
+  eapply prd_hom_unique.
+  - rewrite -comp_assoc -prd_hom_commutes1 hom_to_prod_prj2 //.
+  - rewrite -comp_assoc -prd_hom_commutes2 hom_to_prod_prj1 //.
 Qed.
 
 Lemma commute_term_times_proj `{!HasTerm C, !HasProducts C} a :
@@ -750,6 +821,29 @@ Definition product_assoc `{!HasProducts C} a b c :
   (a ×ₒ (b ×ₒ c)) ≃ ((a ×ₒ b) ×ₒ c) :=
   MkIsoIc _ _
     (MkIso (associator_associator' _ _ _) (associator'_associator _ _ _)).
+
+Lemma associate_hom_to_prod `{!HasProducts C} {a b c d} (f : hom a b) (g : hom a c) (h : hom a d) :
+  associator b c d ∘ <<<<f, g>>, h>> ≡ <<f, <<g, h>>>>.
+Proof.
+  rewrite /associator.
+  eapply prd_hom_unique.
+  { rewrite -comp_assoc -prd_hom_commutes1 comp_assoc !hom_to_prod_prj1 //. }
+  eapply prd_hom_unique'.
+  { rewrite !hom_to_prod_prj1 //. }
+  { rewrite !hom_to_prod_prj2 //. }
+  - repeat rewrite -(comp_assoc (prd_hom _ _ _)) -?prd_hom_commutes2 -?prd_hom_commutes1.
+    rewrite comp_assoc -prd_hom_commutes1.
+    rewrite hom_to_prod_prj2 //.
+  - repeat rewrite -(comp_assoc (prd_hom _ _ _)) -?prd_hom_commutes2 -?prd_hom_commutes1 //.
+Qed.
+
+Lemma associate'_hom_to_prod `{!HasProducts C} {a b c d} (f : hom a b) (g : hom a c) (h : hom a d) :
+  associator' b c d ∘ <<f, <<g, h>>>> ≡ <<<<f, g>>, h>>.
+Proof.
+  apply (compose_along_iso_left (isomorphic_symm (product_assoc _ _ _))).
+  rewrite /= -!comp_assoc associator_associator' left_id.
+  rewrite associate_hom_to_prod //.
+Qed.
 
 Lemma associator_twist1 `{!HasProducts C} {a b c a' b' c'}
  (f : hom a a') (g : hom b b') (h : hom c c') :
@@ -1242,6 +1336,22 @@ Section Limit.
     il_is_limiting_cone : is_limiting_cone (cone_of_is_cone il_is_cone);
   }.
 
+  Definition is_limit_trans
+    {a b : obj C} (Heq : a = b) (il : is_limit a) : is_limit b :=
+    match Heq in _ = Z return is_limit Z with eq_refl => il end.
+
+  Lemma trans_side_of_is_limit_trans {a b : obj C}
+    (Heq : a = b) (il : is_limit a) :
+    ∀ j, ic_side _ (il_is_cone _ (is_limit_trans Heq il)) j =
+           hom_trans Heq eq_refl (ic_side _ (il_is_cone _ il) j).
+  Proof. destruct Heq; done. Qed.
+
+  Lemma bang_of_is_limit_trans
+    {a b : obj C} (Heq : a = b) (il : is_limit a) c :
+    (cone_hom_map (bang (il_is_limiting_cone _ (is_limit_trans Heq il)) c)) =
+      hom_trans eq_refl Heq (cone_hom_map (bang (il_is_limiting_cone _ il) c)).
+  Proof. destruct Heq; done. Qed.
+
   Definition il_side {c} il := ic_side c (il_is_cone _ il).
   Definition il_side_commutes {c} il := ic_side_commutes c (il_is_cone _ il).
 
@@ -1313,6 +1423,9 @@ Global Arguments is_limit_limiting_cone {_ _ _ _} _.
 Global Arguments limiting_cone_is_limit {_ _ _ _} _.
 Global Arguments extend_cone {_ _ _ _} _ _, {_ _ _ _ _} _.
 Global Arguments extend_cone_hom {_ _ _ _} _ _, {_ _ _ _ _} _.
+Global Arguments is_limit_trans {_ _ _ _ _} _ _.
+Global Arguments trans_side_of_is_limit_trans {_ _ _ _ _} _ _ _.
+Global Arguments bang_of_is_limit_trans {_ _ _ _ _} _ _ _.
 
 Class Complete C := complete : ∀ J (F : functor J C), limit F.
 Arguments complete {_ _ _} _, _ {_ _} _.
@@ -1472,3 +1585,46 @@ End psh_limit.
 
 Global Program Instance presheaves_complete C : Complete (PSh C) :=
   λ _ F, MkTerm (psh_lim_cone F) (psh_lim_cone_is_limiting_cone F).
+
+(* special cases of lemmas for presheaves and setoids *)
+Lemma psh_side_commutes {J C : category} {F : functor J (PSh C)}
+  (cn : cone F) [j j' : obj J] (f : hom j j') (c : obj C) (x : vertex cn ₒ c) :
+  (side cn j' ₙ c) x ≡ ((F ₕ f)ₙ c) ((side cn j ₙ c) x).
+Proof. by apply (@side_commutes _ _ F). Qed.
+Lemma psh_cone_hom_commutes {J C : category} {F : functor J (PSh C)}
+  {cn cn' : cone F} (ch : cone_hom cn cn') (j : obj J)
+  (c : obj C) (x : vertex cn ₒ c) :
+  (side cn j ₙ c) x ≡ (side cn' j ₙ c) ((cone_hom_map ch ₙ c) x).
+Proof. by apply (@cone_hom_commutes _ _ F). Qed.
+Lemma psh_h_map_comp {C : category} {X : PreSheaf C}
+  (a b c : obj C) (f : hom a b) (g : hom b c) (x : X ₒ c) :
+  (X ₕ (g ∘ f)) x ≡ (X ₕ f) ((X ₕ g) x).
+Proof. by apply (@h_map_comp _ _ X). Qed.
+
+Lemma setoid_side_commutes {J : category} {F : functor J Setoid}
+  (cn : cone F) [j j' : obj J] (f : hom j j') (x : vertex cn) :
+  (side cn j') x ≡ (F ₕ f) ((side cn j) x).
+Proof. by apply (@side_commutes _ _ F). Qed.
+Lemma setoid_cone_hom_commutes {J : category} {F : functor J Setoid}
+  {cn cn' : cone F} (ch : cone_hom cn cn') (j : obj J) (x : vertex cn) :
+  (side cn j) x ≡ (side cn' j) ((cone_hom_map ch) x).
+Proof. by apply (@cone_hom_commutes _ _ F). Qed.
+
+Ltac rewrite_cone_hom_commutes_back :=
+  match goal with
+    |- context [side _ ?j ∘ cone_hom_map ?c] => rewrite -(cone_hom_commutes c j)
+  | |- context [il_side _ ?j ∘ cone_hom_map ?c] => rewrite -(cone_hom_commutes c j)
+  | |- context [ic_side _ ?j ∘ cone_hom_map ?c] => rewrite -(cone_hom_commutes c j)
+  | |- context [setoid_fun_map _ _ (side _ ?j)
+                  (setoid_fun_map _ _ (cone_hom_map ?c) _)] =>
+      rewrite -(setoid_cone_hom_commutes c j)
+  | |- context [setoid_fun_map _ _ (il_side _ ?j)
+                  (setoid_fun_map _ _ (cone_hom_map ?c) _)] =>
+      rewrite -(setoid_cone_hom_commutes c j)
+  | |- context [setoid_fun_map _ _ (ic_side _ ?j)
+                  (setoid_fun_map _ _ (cone_hom_map ?c) _)] =>
+      rewrite -(setoid_cone_hom_commutes c j)
+  | |- context [setoid_fun_map _ _ (setoid_lim_side _ ?j)
+                  (setoid_fun_map _ _ (cone_hom_map ?c) _)] =>
+      rewrite -(setoid_cone_hom_commutes c j)
+  end.

@@ -181,6 +181,7 @@ Section ord_definition.
     - apply succ_greater.
     - apply succ_least_greater.
     - apply succ_or_limit.
+    - intros; apply proof_irrelevance.
     Qed.
 
     Canonical Structure ordI@{i j} : indexT@{j} := IndexT (Ord@{i}) ord_lt zero succ ord_index_mixin.
