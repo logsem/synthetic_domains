@@ -540,7 +540,7 @@ Global Arguments term {_} _.
 Global Arguments term_is_terminal {_} _.
 
 Program Definition is_term_unique {C} (t t' : obj C) :
-  is_terminal t → is_terminal t' → isomorphic t t' :=
+  is_terminal t → is_terminal t' → t ≃ t' :=
   λ it it', MkIsoIc (bang it' t) (bang it t') _.
 Next Obligation.
 Proof.
@@ -567,6 +567,49 @@ Proof. apply bang_unique. Qed.
 
 Lemma term_hom_unique' `{!HasTerm C} {c} (f g : hom c (1ₒ)) : f ≡ g.
 Proof. rewrite (term_hom_unique f) (term_hom_unique g) //. Qed.
+
+(* Initial Object *)
+
+Record is_initial {C} (i : obj C) := MkIsInit {
+  inverted_bang : ∀ c, hom i c;
+  inverted_bang_unique : ∀ c (f : hom i c), f ≡ inverted_bang c }.
+Global Arguments MkIsInit {_} _ _.
+Global Arguments inverted_bang {_ _} _.
+Global Arguments inverted_bang_unique {_ _} _ [_] _.
+
+Record initial C := MkInit { init : obj C; init_is_initial : is_initial init; }.
+Global Arguments MkInit {_} _ _.
+Global Arguments init {_} _.
+Global Arguments init_is_initial {_} _.
+
+Program Definition is_initial_unique {C} (i i' : obj C) :
+  is_initial i → is_initial i' → i ≃ i' :=
+  λ ii ii', MkIsoIc (inverted_bang ii i') (inverted_bang ii' i) _.
+Next Obligation.
+Proof.
+  split.
+  - rewrite ?(inverted_bang_unique ii (id _)) ?(inverted_bang_unique ii (_ ∘ _)) //.
+  - rewrite ?(inverted_bang_unique ii' (id _)) ?(inverted_bang_unique ii' (_ ∘ _)) //.
+Qed.
+Fail Next Obligation.
+
+Class HasInit C := init_of : initial C.
+Global Arguments init_of _ {_}.
+
+Definition init_obj C `{!HasInit C} : obj C := init (init_of C).
+
+Definition init_hom `{!HasInit C} (c : obj C) : hom (init_obj C) c :=
+  inverted_bang (init_is_initial (init_of C)) c.
+
+Notation "0ₒ@{ C }" := (init_obj C) (at level 20, no associativity) : category_scope.
+Notation "'0ₒ'" := (init_obj _) (at level 20, no associativity) : category_scope.
+Notation "'¡ₕ'" := init_hom (at level 20, no associativity) : category_scope.
+
+Lemma init_hom_unique `{!HasInit C} {c} (f : hom (0ₒ) c) : f ≡ ¡ₕ c.
+Proof. apply inverted_bang_unique. Qed.
+
+Lemma init_hom_unique' `{!HasInit C} {c} (f g : hom (0ₒ) c) : f ≡ g.
+Proof. rewrite (init_hom_unique f) (init_hom_unique g) //. Qed.
 
 (* Terminal object of Setoid and PSh. *)
 
@@ -712,11 +755,17 @@ Proof. rewrite -hom_to_prod_comp left_id right_id //. Qed.
 Lemma hom_to_prod_split' `{!HasProducts C} {a b c} (f : hom a b) (g : hom a c) :
   <<f, g>> ≡ (f ×ₕ id c) ∘ <<id a, g>>.
 Proof. rewrite -hom_to_prod_comp left_id right_id //. Qed.
-
+Lemma hom_to_prod_to_hom_prod `{!HasProducts C} {a b c} (f : hom a b) (g : hom a c) :
+  <<f, g>> ≡ (f ×ₕ g) ∘ <<id a, id a>>.
+Proof. rewrite -hom_to_prod_comp !right_id //. Qed.
 
 Definition term_times_proj `{!HasTerm C, !HasProducts C} (a : obj C) : hom (1ₒ ×ₒ a) a := prj2 _.
 Definition term_times_inj `{!HasTerm C, !HasProducts C} (a : obj C) : hom a (1ₒ ×ₒ a) :=
   prd_hom _ (!ₕ _) (id _).
+
+Lemma hom_to_prod_bangs `{!HasTerm C, !HasProducts C} :
+  <<id (1ₒ), id (1ₒ)>> ≡ term_times_inj (1ₒ).
+Proof. apply prd_hom_unique; apply term_hom_unique'. Qed.
 
 Lemma term_times_proj_inj `{!HasTerm C, !HasProducts C} a :
   term_times_proj a ∘ term_times_inj a ≡ id a.
@@ -958,26 +1007,27 @@ Class Enriched (C E : category) `{!HasTerm E, !HasProducts E} := MkEnr {
   enr_comp : ∀ a b c, hom (enr_hom a b ×ₒ enr_hom b c) (enr_hom a c);
   enr_embed_proper :: ∀ a b, Proper ((≡) ==> (≡)) (enr_embed a b);
   enr_comp_comp : ∀ a b c (f : hom a b) (g : hom b c),
-    enr_embed _ _ (g ∘ f) ≡ (enr_comp _ _ _) ∘ ((enr_embed _ _ f) ×ₕ (enr_embed _ _ g)) ∘ (term_times_inj _);
+    enr_embed _ _ (g ∘ f) ≡
+    (enr_comp _ _ _) ∘ <<enr_embed _ _ f, enr_embed _ _ g>>;
 }.
-
-Arguments MkEnr {_ _ _ _} _ _ _ _ _.
-Arguments enr_hom {_ _ _ _ _} a b : rename.
-Arguments enr_embed {_ _ _ _ _ _ _} f.
-Arguments enr_comp {_ _ _ _ _} a b c.
-Arguments enr_comp_comp {_ _ _ _ _ _ _ _} f g.
+Global Arguments MkEnr {_ _ _ _} _ _ _ _ _.
+Global Arguments enr_hom {_ _ _ _ _} a b : rename.
+Global Arguments enr_embed {_ _ _ _ _ _ _} f.
+Global Arguments enr_comp {_ _ _ _ _} a b c.
+Global Arguments enr_comp_comp {_ _ _ _ _ _ _ _} f g.
 
 Notation "⌜ f ⌝" := (enr_embed f).
 
 Definition enr_comp_of {C} `{!HasTerm E, !HasProducts E, !Enriched C E} {a b c}
   (f : hom (1ₒ) (enr_hom a b)) (g : hom (1ₒ) (enr_hom b c)) : hom (1ₒ) (enr_hom a c) :=
-  (enr_comp _ _ _) ∘ (f ×ₕ g) ∘ (term_times_inj _).
+  (enr_comp _ _ _) ∘ <<f, g>>.
 
 Global Instance enr_comp_of_proper {C} `{!HasTerm E, !HasProducts E, Enriched C E} {a b c} :
   Proper ((≡) ==> (≡) ==> (≡)) (@enr_comp_of C E _ _ _ a b c).
 Proof. repeat intros ?; rewrite /enr_comp_of; solve_by_equiv_rewrite. Qed.
 
-Notation "g ∘ₑ{ C } f" := (enr_comp_of (C := C) f g) (at level 40, left associativity) : category_scope.
+Notation "g ∘ₑ{ C } f" := (enr_comp_of (C := C) f g) (at level 40, left associativity)
+    : category_scope.
 Notation "g ∘ₑ f" := (enr_comp_of f g) (at level 40, left associativity) : category_scope.
 
 Lemma enr_left_id {C} `{!HasTerm E, !HasProducts E, Enriched C E} {a b} (f : hom a b) :
@@ -986,9 +1036,19 @@ Proof. rewrite /enr_comp_of -enr_comp_comp left_id //. Qed.
 Lemma enr_right_id {C} `{!HasTerm E, !HasProducts E, Enriched C E} {a b} (f : hom a b) :
   ⌜f⌝ ∘ₑ ⌜id a⌝ ≡ ⌜f⌝.
 Proof. rewrite /enr_comp_of -enr_comp_comp right_id //. Qed.
-Lemma enr_comp_assoc {C} `{!HasTerm E, !HasProducts E, Enriched C E} {a b c d} (f : hom a b) (g : hom b c) (h : hom c d) :
+Lemma enr_comp_assoc {C} `{!HasTerm E, !HasProducts E, Enriched C E}
+  {a b c d} (f : hom a b) (g : hom b c) (h : hom c d) :
   ⌜h⌝ ∘ₑ ⌜g⌝ ∘ₑ ⌜f⌝ ≡ ⌜h⌝ ∘ₑ (⌜g⌝ ∘ₑ ⌜f⌝).
 Proof. rewrite /enr_comp_of -!enr_comp_comp comp_assoc //. Qed.
+
+Class EnrichedFunctor {C D} `{!HasTerm E, !HasProducts E, !Enriched C E, !Enriched D E}
+  (F : functor C D) := MkEnrFunc {
+  enr_func_h_map : ∀ a b : obj C, hom E (enr_hom a b) (enr_hom (F ₒ a) (F ₒ b));
+  enr_func_does_map : ∀ (a b : obj C) (f : hom a b), ⌜F ₕ f⌝ ≡ (enr_func_h_map a b) ∘ ⌜f⌝
+}.
+Global Arguments MkEnrFunc {_ _ _ _ _ _ _ _} _ _.
+Global Arguments enr_func_h_map {_ _ _ _ _ _ _} _ {_} _ _.
+Global Arguments enr_func_does_map {_ _ _ _ _ _ _} _ {_} [_ _] _.
 
 (* Exponentials *)
 
@@ -1217,14 +1277,14 @@ Definition inner_comp `{!HasTerm C, !HasProducts C, !HasExponentials C}
 
 Lemma inner_comp_transpose `{!HasTerm C, !HasProducts C, !HasExponentials C}
   {a b c : obj C} (f : hom a b) (g : hom b c) :
-  transpose' (g ∘ f) ≡ inner_comp a b c ∘ (transpose' f ×ₕ transpose' g) ∘ term_times_inj (1ₒ).
+  transpose' (g ∘ f) ≡ inner_comp a b c ∘ <<transpose' f, transpose' g>>.
 Proof.
   rewrite /inner_comp.
   eapply exp_hom_unique'.
   { rewrite /transpose' eval_transpose; reflexivity. }
   rewrite !hom_prod_comp_left_id -!comp_assoc eval_transpose.
-  rewrite !comp_assoc -hom_prod_comp left_id.
-  rewrite hom_prod_comp_left_id.
+  rewrite hom_to_prod_to_hom_prod.
+  rewrite !comp_assoc hom_prod_comp_left_id.
   rewrite -!comp_assoc !(comp_assoc _ (associator' _ _ _)) associator'_twist2.
   rewrite !comp_assoc -!(comp_assoc (_ ×ₕ _)).
   rewrite -!(comp_assoc (associator' _ _ _)).
@@ -1233,6 +1293,7 @@ Proof.
   f_equiv.
   rewrite -exp_hom_commutes -!comp_assoc.
   rewrite commute_term_times_proj !comp_assoc !commute_term_times_proj.
+  rewrite hom_to_prod_bangs.
   rewrite associate'_term_times_inj.
   rewrite !hom_prod_comp_right_id -!hom_prod_comp hom_prod_prj1.
   rewrite !comp_assoc; f_equiv.
@@ -1628,3 +1689,105 @@ Ltac rewrite_cone_hom_commutes_back :=
                   (setoid_fun_map _ _ (cone_hom_map ?c) _)] =>
       rewrite -(setoid_cone_hom_commutes c j)
   end.
+
+(* algebras *)
+
+Record algebra {C : category} (T : functor C C) := MkAlg {
+  car : obj C;
+  cons : hom (T ₒ car) car;
+}.
+Global Arguments MkAlg {_ _} _ _.
+Global Arguments car {_ _} _.
+Global Arguments cons {_ _} _.
+
+Record alg_hom {C : category} {T : functor C C} (A B : algebra T) := MkAlgHom {
+  alg_hom_map : hom (car A) (car B);
+  alg_hom_commutes : alg_hom_map ∘ cons A ≡ cons B ∘ (T ₕ alg_hom_map);
+}.
+Global Arguments MkAlgHom {_ _ _ _} _ _.
+Global Arguments alg_hom_map {_ _ _ _} _.
+Global Arguments alg_hom_commutes {_ _ _ _} _.
+
+Global Instance alg_hom_eq {C : category} {T : functor C C} (A B : algebra T) :
+  Equiv (alg_hom A B) := λ f g, alg_hom_map f ≡ alg_hom_map g.
+
+Global Instance alg_hom_eq_eq {C : category} {T : functor C C} (A B : algebra T) :
+  Equivalence (alg_hom_eq A B).
+Proof.
+  rewrite /alg_hom_eq.
+  split.
+  - intros []; reflexivity.
+  - intros [] []; simpl; done.
+  - intros [] [] []; simpl; intros ->; done.
+Qed.
+
+Global Instance alg_hom_map_proper {C : category} {T : functor C C}
+  (A B : algebra T) : Proper ((≡) ==> (≡)) (@alg_hom_map C T A B).
+Proof.
+  rewrite /equiv /alg_hom_eq.
+  intros [] []; simpl in *; solve_by_equiv_rewrite.
+Qed.
+
+Program Definition alg_hom_id {C : category} {T : functor C C} (A : algebra T) :
+  alg_hom A A :=
+  MkAlgHom (id (car A)) _.
+Next Obligation. repeat intros ?; rewrite left_id h_map_id right_id //. Qed.
+Fail Next Obligation.
+
+Program Definition alg_hom_comp {C : category} {T : functor C C} {A B D : algebra T}
+  (f : alg_hom A B) (g : alg_hom B D) : alg_hom A D :=
+  MkAlgHom ((alg_hom_map g) ∘ (alg_hom_map f)) _.
+Next Obligation.
+  repeat intros ?.
+  rewrite comp_assoc alg_hom_commutes.
+  rewrite -comp_assoc alg_hom_commutes.
+  rewrite comp_assoc -h_map_comp //.
+Qed.
+Fail Next Obligation.
+
+Global Instance alg_hom_comp_proper
+  {C : category} {T : functor C C} {A B D : algebra T} :
+  Proper ((≡) ==> (≡) ==> (≡)) (@alg_hom_comp C T A B D).
+Proof.
+  rewrite /alg_hom_comp /equiv /alg_hom_eq.
+  intros [] [] ? [] [] ?; simpl in *; setoid_subst; done.
+Qed.
+
+Lemma alg_hom_assoc {C : category} {T : functor C C} {A B D E : algebra T}
+  (f : alg_hom A B) (g : alg_hom B D) (h : alg_hom D E) :
+    alg_hom_comp f (alg_hom_comp g h) ≡ alg_hom_comp (alg_hom_comp f g) h.
+Proof. rewrite /alg_hom_comp /equiv /alg_hom_eq /= comp_assoc //. Qed.
+
+Lemma alg_hom_left_id {C : category} {T : functor C C} {A B : algebra T}
+  (f : alg_hom A B) : alg_hom_comp f (alg_hom_id B) ≡ f.
+Proof. rewrite /alg_hom_comp /equiv /alg_hom_eq /= left_id //. Qed.
+
+Lemma alg_hom_right_id {C : category} {T : functor C C} {A B : algebra T}
+  (f : alg_hom A B) : alg_hom_comp (alg_hom_id A) f ≡ f.
+Proof. rewrite /alg_hom_comp /equiv /alg_hom_eq /= right_id //. Qed.
+
+Definition alg_cat {C : category} (T : functor C C) : category :=
+ MkCat
+   (algebra T)
+   (@alg_hom _ T)
+   (@alg_hom_id _ T)
+   (@alg_hom_comp _ T)
+   _ _ _
+   (@alg_hom_assoc _ T)
+   (@alg_hom_left_id _ T)
+   (@alg_hom_right_id _ T).
+
+Lemma alg_hom_map_comp {C : category} {T : functor C C} {A B D : algebra T}
+  (f : alg_hom A B) (g : alg_hom B D) :
+  alg_hom_map (g ∘@{alg_cat T} f) ≡ alg_hom_map g ∘ alg_hom_map f.
+Proof. done. Qed.
+
+Program Definition alg_iso {C : category} {T : functor C C} {A B : algebra T}
+  (iso : A ≃@{alg_cat T} B) : (car A) ≃@{C} (car B) :=
+  MkIsoIc (alg_hom_map (forward iso)) (alg_hom_map (backward iso)) _.
+Next Obligation.
+  split.
+  - rewrite /= -alg_hom_map_comp (iso_lr (is_iso iso)) //.
+  - rewrite /= -alg_hom_map_comp (iso_rl (is_iso iso)) //.
+Qed.
+Fail Next Obligation.

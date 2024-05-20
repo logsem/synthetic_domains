@@ -658,20 +658,6 @@ Section Adjunction.
 
 End Adjunction.
 
-(* TODO: move *)
-Lemma le_zero_zero {SI : indexT} (α : SI) : α ⪯ zero → α = zero.
-Proof.
-  destruct (index_is_zero α) as [->|]; first done.
-  intros; exfalso; eapply index_le_lt_contradict; eauto.
-Qed.
-Lemma le_succ_dec {SI : indexT} {α β : SI} : α ⪯ succ β → {α ⪯ β} + {α = succ β}.
-Proof.
-  intros Hle.
-  destruct (index_le_lt_eq_dec α (succ β)); first done.
-  - left; by apply index_succ_iff.
-  - right; done.
-Qed.
-
 Section fixpoint.
   Context {SI : indexT}.
 

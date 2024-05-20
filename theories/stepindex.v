@@ -337,6 +337,20 @@ Section StepIndexProperties.
     - replace Hlt with Hlt' by apply proof_irrel; done.
   Qed.
 
+  Lemma le_zero_zero (α : I) : α ⪯ zero → α = zero.
+  Proof.
+    destruct (index_is_zero α) as [->|]; first done.
+    intros; exfalso; eapply index_le_lt_contradict; eauto.
+  Qed.
+  Lemma le_succ_dec {α β : I} : α ⪯ succ β → {α ⪯ β} + {α = succ β}.
+  Proof.
+    intros Hle.
+    destruct (index_le_lt_eq_dec α (succ β)); first done.
+    - left; by apply index_succ_iff.
+    - right; done.
+  Qed.
+
+
 End StepIndexProperties.
 
 Hint Immediate index_zero_minimum : core.
@@ -434,6 +448,68 @@ Section ordinal_recursor.
     - simpl. symmetry. apply index_rec_lim_ext_proofs.
   Qed.
 End ordinal_recursor.
+
+Record index_rect {SI : indexT} (T : SI → Type) := MkIR {
+  IR_zero : T zero;
+  IR_succ : ∀ α, T α → T (succ α);
+  IR_lim : ∀ α : limit_idx SI, (∀ β, β ≺ α → T β) → T α;
+  IR_lim_ext : index_rec_lim_ext IR_lim;
+  IR_ev :> ∀ α, T α := index_rec T IR_zero IR_succ IR_lim;
+  index_rect_zero : IR_ev zero = IR_zero :=
+    index_rec_zero T IR_zero IR_succ IR_lim;
+  index_rect_succ α : IR_ev (succ α) = IR_succ α (IR_ev α) :=
+    index_rec_succ T IR_zero IR_succ IR_lim α;
+  index_rect_lim (α : limit_idx SI): IR_ev α = IR_lim α (λ β _, IR_ev β) :=
+    index_rec_lim T IR_zero IR_succ IR_lim α;
+}.
+Arguments MkIR {_ _} _ _ _ _, {_} _ _ _ _ _.
+Arguments IR_zero {_ _} _.
+Arguments IR_succ {_ _} _ [_] _.
+Arguments IR_lim {_ _} _ [_] _.
+
+Ltac simpl_index_rect_zero :=
+  rewrite ?index_rect_zero;
+  match goal with
+    |- context [@IR_zero _ _ ?A] => simpl (@IR_zero _ _ A)
+  end.
+Ltac simpl_index_rect_succ :=
+  rewrite ?index_rect_succ;
+  match goal with
+    |- context [@IR_succ _ _ ?A _ _] => simpl (@IR_succ _ _ A _ _)
+  end.
+Ltac simpl_index_rect_lim :=
+  rewrite ?index_rect_lim;
+  match goal with
+    |- context [@IR_lim _ _ ?A _ _] => simpl (@IR_lim _ _  A _ _)
+  end.
+
+Ltac simpl_index_rect :=
+  repeat first
+    [simpl_index_rect_zero|
+     simpl_index_rect_succ|
+     simpl_index_rect_lim].
+
+Tactic Notation "simpl_index_rect_zero" "in" hyp(H) :=
+  rewrite ?index_rect_zero in H;
+  match type of H with
+  | context [@IR_zero _ _ ?A] => simpl (@IR_zero _ _ A) in H
+  end.
+Tactic Notation "simpl_index_rect_succ" "in" hyp(H) :=
+  rewrite ?index_rect_succ in H;
+  match type of H with
+  | context [@IR_succ _ _ ?A _ _] => simpl (@IR_succ _ _ A _ _) in H
+  end.
+Tactic Notation "simpl_index_rect_lim" "in" hyp(H) :=
+  rewrite ?index_rect_lim in H;
+  match type of H with
+  | context [@IR_lim _ _ ?A _ _] => simpl (@IR_lim _ _ A _ _) in H
+  end.
+
+Tactic Notation "simpl_index_rect" "in" hyp(H) :=
+  repeat first
+    [simpl_index_rect_zero in H|
+     simpl_index_rect_succ in H|
+     simpl_index_rect_lim in H].
 
 Section ordinal_cumulative_recursor.
 
@@ -797,68 +873,6 @@ Lemma index_destruct {SI : indexT} (P : SI → Prop) :
   (∀ α : limit_idx SI, P α) →
   ∀ α, P α.
 Proof. intros; apply index_ind; done. Qed.
-
-Record index_rect {SI : indexT} (T : SI → Type) := MkIR {
-  IR_zero : T zero;
-  IR_succ : ∀ α, T α → T (succ α);
-  IR_lim : ∀ α : limit_idx SI, (∀ β, β ≺ α → T β) → T α;
-  IR_lim_ext : index_rec_lim_ext IR_lim;
-  IR_ev :> ∀ α, T α := index_rec T IR_zero IR_succ IR_lim;
-  index_rect_zero : IR_ev zero = IR_zero :=
-    index_rec_zero T IR_zero IR_succ IR_lim;
-  index_rect_succ α : IR_ev (succ α) = IR_succ α (IR_ev α) :=
-    index_rec_succ T IR_zero IR_succ IR_lim α;
-  index_rect_lim (α : limit_idx SI): IR_ev α = IR_lim α (λ β _, IR_ev β) :=
-    index_rec_lim T IR_zero IR_succ IR_lim α;
-}.
-Arguments MkIR {_ _} _ _ _ _, {_} _ _ _ _ _.
-Arguments IR_zero {_ _} _.
-Arguments IR_succ {_ _} _ [_] _.
-Arguments IR_lim {_ _} _ [_] _.
-
-Ltac simpl_index_rect_zero :=
-  rewrite ?index_rect_zero;
-  match goal with
-    |- context [@IR_zero _ _ ?A] => simpl (@IR_zero _ _ A)
-  end.
-Ltac simpl_index_rect_succ :=
-  rewrite ?index_rect_succ;
-  match goal with
-    |- context [@IR_succ _ _ ?A _ _] => simpl (@IR_succ _ _ A _ _)
-  end.
-Ltac simpl_index_rect_lim :=
-  rewrite ?index_rect_lim;
-  match goal with
-    |- context [@IR_lim _ _ ?A _ _] => simpl (@IR_lim _ _  A _ _)
-  end.
-
-Ltac simpl_index_rect :=
-  repeat first
-    [simpl_index_rect_zero|
-     simpl_index_rect_succ|
-     simpl_index_rect_lim].
-
-Tactic Notation "simpl_index_rect_zero" "in" hyp(H) :=
-  rewrite ?index_rect_zero in H;
-  match type of H with
-  | context [@IR_zero _ _ ?A] => simpl (@IR_zero _ _ A) in H
-  end.
-Tactic Notation "simpl_index_rect_succ" "in" hyp(H) :=
-  rewrite ?index_rect_succ in H;
-  match type of H with
-  | context [@IR_succ _ _ ?A _ _] => simpl (@IR_succ _ _ A _ _) in H
-  end.
-Tactic Notation "simpl_index_rect_lim" "in" hyp(H) :=
-  rewrite ?index_rect_lim in H;
-  match type of H with
-  | context [@IR_lim _ _ ?A _ _] => simpl (@IR_lim _ _ A _ _) in H
-  end.
-
-Tactic Notation "simpl_index_rect" "in" hyp(H) :=
-  repeat first
-    [simpl_index_rect_zero in H|
-     simpl_index_rect_succ in H|
-     simpl_index_rect_lim in H].
 
 (** ** Automation *)
 
