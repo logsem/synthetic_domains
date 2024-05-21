@@ -494,7 +494,7 @@ Section Adjunction.
   Qed.
   Fail Next Obligation.
 
-  Program Definition to_later_F_succ_cone (F : functor (OrdCat SI ᵒᵖ) C) α :
+  Program Definition to_later_F_succ_cone (F : functor ((OrdCat SI) ᵒᵖ) C) α :
     is_cone (lift_func (lt_dsp α) (functor_compose (opposite_func (Succ SI)) F)) (F ₒ α) :=
     MkIsCone (λ β, F ₕ (index_succ_iff_proj_r2l _ _ _ (index_lt_succ_mono _ _ (ds_in_dsp β)))) _.
   Next Obligation. repeat intros ?; rewrite /= -h_map_comp; f_equiv; done. Qed.
@@ -519,10 +519,10 @@ Section Adjunction.
   Fail Next Obligation.
 
   Program Definition cone_for_later_earlier_backward
-    {F1 : functor (OrdCat SI ᵒᵖ) C}
-    {G1 : functor (OrdCat SI ᵒᵖ) C}
-    {F2 : functor (OrdCat SI ᵒᵖ) C}
-    {G2 : functor (OrdCat SI ᵒᵖ) C}
+    {F1 : functor ((OrdCat SI) ᵒᵖ) C}
+    {G1 : functor ((OrdCat SI) ᵒᵖ) C}
+    {F2 : functor ((OrdCat SI) ᵒᵖ) C}
+    {G2 : functor ((OrdCat SI) ᵒᵖ) C}
     (η1 : natural F2 F1)
     (η2 : natural G1 G2)
     (δ : natural (functor_compose (opposite_func (Succ SI)) F1) G1)
@@ -694,7 +694,7 @@ Section fixpoint.
     psh_conv X Heq x ≡ setoid_conv (f_equal (X ₒ) Heq) x.
   Proof. destruct Heq; done. Qed.
   Lemma psh_exp_push_conv (X Y : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ X) Y) {β} (Hle : β ⪯ α) (x : X ₒ β)
+    (η : natural (yoneda ₒ α ×ₒ X) Y) {β} (Hle : β ⪯ α) (x : X ₒ β)
     {γ} (Heq : β = γ) :
     psh_conv Y Heq ((η ₙ β) (Hle, x)) ≡ (η ₙ γ) (le_conv_l Heq Hle, psh_conv X Heq x).
   Proof. destruct Heq; done. Qed.
@@ -745,19 +745,19 @@ Section fixpoint.
   Qed.
 
   Definition fx_raw_zero (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ (later ₒ X)) X) : X ₒ zero :=
+    (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X) : X ₒ zero :=
     (η ₙ zero)
       (index_zero_minimum _,
        setoid_conv (eq_sym (later_func_o_map_zero X)) ()).
 
   Lemma fx_raw_zero_ext X
-    {α} (η : natural (yoneda α ×ₒ (later ₒ X)) X)
-    {α'} (η' : natural (yoneda α' ×ₒ (later ₒ X)) X) :
+    {α} (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X)
+    {α'} (η' : natural (yoneda ₒ α' ×ₒ (later ₒ X)) X) :
     (∀ Hle Hle' x, (η ₙ zero) (Hle, x) ≡ (η' ₙ zero) (Hle', x)) →
     fx_raw_zero X η ≡ fx_raw_zero X η'.
   Proof. rewrite /fx_raw_zero; intros ->; done. Qed.
 
-  Lemma fx_raw_zero_ext' X {α} (η η' : natural (yoneda α ×ₒ (later ₒ X)) X) :
+  Lemma fx_raw_zero_ext' X {α} (η η' : natural (yoneda ₒ α ×ₒ (later ₒ X)) X) :
     (η ₙ zero ≡ η' ₙ zero) →
     fx_raw_zero X η ≡ fx_raw_zero X η'.
   Proof.
@@ -765,20 +765,20 @@ Section fixpoint.
   Qed.
 
   Program Definition fx_raw_succ (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ (later ₒ X)) X)
+    (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X)
     {β} (Hβ : succ β ⪯ α) (x : X ₒ β) : X ₒ (succ β) :=
     (η ₙ (succ β))
       (Hβ, setoid_conv (eq_sym (later_func_o_map_succ X β)) x).
 
   Lemma fx_raw_succ_ext X
-    {α} (η : natural (yoneda α ×ₒ (later ₒ X)) X)
-    {α'} (η' : natural (yoneda α' ×ₒ (later ₒ X)) X)
+    {α} (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X)
+    {α'} (η' : natural (yoneda ₒ α' ×ₒ (later ₒ X)) X)
     {β} (Hβ : succ β ⪯ α) (Hβ' : succ β ⪯ α') x y :
     (∀ Hle Hle' x, (η ₙ (succ β)) (Hle, x) ≡ (η' ₙ (succ β)) (Hle', x)) →
     x ≡ y → fx_raw_succ X η Hβ x ≡ fx_raw_succ X η' Hβ' y.
   Proof. rewrite /fx_raw_succ; intros -> ->; f_equiv; split; done. Qed.
 
-  Lemma fx_raw_succ_ext' X {α} (η η' : natural (yoneda α ×ₒ (later ₒ X)) X)
+  Lemma fx_raw_succ_ext' X {α} (η η' : natural (yoneda ₒ α ×ₒ (later ₒ X)) X)
     {β} (Hβ Hβ' : succ β ⪯ α) x y :
     (η ₙ (succ β) ≡ η' ₙ (succ β)) →
     x ≡ y → fx_raw_succ X η Hβ x ≡ fx_raw_succ X η' Hβ' y.
@@ -787,12 +787,12 @@ Section fixpoint.
   Qed.
 
   Global Instance fx_raw_succ_proper (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ (later ₒ X)) X) {β} (Hβ : succ β ⪯ α) :
+    (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X) {β} (Hβ : succ β ⪯ α) :
     Proper ((≡) ==> (≡)) (fx_raw_succ X η Hβ).
   Proof. repeat intros ?; eapply fx_raw_succ_ext'; done. Qed.
 
   Global Instance fx_raw_succ_proper' (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ (later ₒ X)) X) β :
+    (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X) β :
     Proper ((≡) ==> (≡) ==> (≡)) (fx_raw_succ X η (β := β)).
   Proof. repeat intros ?; eapply fx_raw_succ_ext'; done. Qed.
 
@@ -803,7 +803,7 @@ Section fixpoint.
   Fail Next Obligation.
 
   Definition fx_raw_lim (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X)
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X)
     {β : limit_idx SI} (Hβ : β ⪯ α) (fx : fx_raw X (lt_dsp β)) : X ₒ (β : SI) :=
     (η ₙ (β : SI))
       (Hβ,
@@ -815,8 +815,8 @@ Section fixpoint.
                (fx_raw_cone X β fx))
             ())).
 
-  Lemma fx_raw_lim_ext (X : PreSheaf (OrdCat SI)) {α} (η : natural (yoneda α ×ₒ (later ₒ X)) X)
-    {α'} (η' : natural (yoneda α' ×ₒ (later ₒ X)) X)
+  Lemma fx_raw_lim_ext (X : PreSheaf (OrdCat SI)) {α} (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X)
+    {α'} (η' : natural (yoneda ₒ α' ×ₒ (later ₒ X)) X)
     {β : limit_idx SI} (Hβ : β ⪯ α) (Hβ' : β ⪯ α') (fx fx' : fx_raw X (lt_dsp β)) :
     (∀ Hle Hle' x, (η ₙ (β : SI)) (Hle, x) ≡ (η' ₙ (β : SI)) (Hle', x)) →
     (∀ γ (Hγ : γ ≺ β), fx (MkDS (lt_dsp β) Hγ) ≡ fx' (MkDS (lt_dsp β) Hγ)) →
@@ -834,7 +834,7 @@ Section fixpoint.
   Qed.
 
   Lemma fx_raw_lim_ext' (X : PreSheaf (OrdCat SI)) {α}
-    (η η': natural (yoneda α ×ₒ later_func X) X)
+    (η η': natural (yoneda ₒ α ×ₒ later_func X) X)
     {β : limit_idx SI} (Hβ Hβ' : β ⪯ α) (fx fx' : fx_raw X (lt_dsp β)) :
     (η ₙ (β : SI) ≡ η' ₙ (β : SI)) →
     (∀ γ (Hγ : γ ≺ β), fx (MkDS (lt_dsp β) Hγ) ≡ fx' (MkDS (lt_dsp β) Hγ)) →
@@ -844,12 +844,12 @@ Section fixpoint.
   Qed.
 
   Definition fx_raw_compat_zero (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X)
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X)
     {dsp} (fx : fx_raw X dsp) (Hz : dsp zero) : Prop :=
     fx (MkDS Hz) ≡ fx_raw_zero X η.
 
   Definition fx_raw_compat_succ (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X)
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X)
     {dsp} (fx : fx_raw X dsp) {β}
     (Hsβ : dsp (succ β)) (Hβα : succ β ⪯ α) : Prop :=
     fx (MkDS Hsβ) ≡
@@ -858,13 +858,13 @@ Section fixpoint.
            (index_lt_le_subrel _ _ (index_succ_greater β)) Hsβ))).
 
   Definition fx_raw_compat_lim (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X)
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X)
     {dsp} (fx : fx_raw X dsp) {β : limit_idx SI}
     (Hβ : dsp β) (Hβα : β ⪯ α) : Prop :=
     fx (MkDS Hβ) ≡ fx_raw_lim X η Hβα (fx_raw_down_lt X fx Hβ).
 
   Program Definition fx_raw_compat (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X)
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X)
     {dsp} (fx : fx_raw X dsp) :
     index_rect (λ β, dsp β → β ⪯ α → Prop) :=
     MkIR
@@ -887,7 +887,7 @@ Section fixpoint.
   Qed.
 
   Lemma fx_raw_compat_equiv (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X)
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X)
     {dsp} (fx : fx_raw X dsp) {dsp'} (fx' : fx_raw X dsp')
     {β} (Hβid : dsp β) (Hβid' : dsp' β) (Hβle : β ⪯ α) :
     (∀ γ (Hγ : dsp γ) (Hγ' : dsp' γ), fx (MkDS Hγ) ≡ fx' (MkDS Hγ')) →
@@ -904,7 +904,7 @@ Section fixpoint.
   Qed.
 
   Record fx_data (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X) (dsp : downset_pred SI) := Mkfxd
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X) (dsp : downset_pred SI) := Mkfxd
     { fxd_fx :> fx_raw X dsp;
       fxd_compat : ∀ β Hβid Hβle, fx_raw_compat X η fxd_fx β Hβid Hβle;
     }.
@@ -940,7 +940,7 @@ Section fixpoint.
     end.
 
   Lemma fx_data_succ_back (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ (later ₒ X)) X) {dsp : downset_pred SI}
+    (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X) {dsp : downset_pred SI}
     (fxd : fx_data X η dsp) :
     ∀ (β : downset dsp) (Hsβ : succ β ⪯ α),
       (X ₕ (index_lt_le_subrel _ _ (index_succ_greater β)))
@@ -1046,7 +1046,7 @@ Section fixpoint.
   Qed.
 
   Lemma fx_data_lim_back (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ (later ₒ X)) X)
+    (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X)
     {β : limit_idx SI} (Hβ : β ⪯ α)
     (fxd : fx_data X η (lt_dsp β))
     {γ} (Hγβ : γ ≺ β) :
@@ -1137,7 +1137,7 @@ Section fixpoint.
   Qed.
 
   Lemma fx_data_agree (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X) (dsp dsp' : downset_pred SI)
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X) (dsp dsp' : downset_pred SI)
     (fx : fx_data X η dsp) (fx' : fx_data X η dsp') {β}
     (Hle : β ⪯ α) (Hβ : dsp β) (Hβ' : dsp' β) :
     fx (MkDS Hβ) ≡ fx' (MkDS Hβ').
@@ -1158,7 +1158,7 @@ Section fixpoint.
   Qed.
 
   Program Definition fx_data_zero (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X) :
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X) :
     fx_data X η (le_dsp zero) :=
     Mkfxd (Mkfxr
       (λ δ, psh_conv X (eq_sym (le_zero_zero _ (ds_in_dsp δ)))
@@ -1192,7 +1192,7 @@ Section fixpoint.
   Fail Next Obligation.
 
   Program Definition fx_data_succ (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X) {β} (Hsβ : succ β ⪯ α)
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X) {β} (Hsβ : succ β ⪯ α)
     (fxd : fx_data X η (le_dsp β)) : fx_data X η (le_dsp (succ β)) :=
     Mkfxd (Mkfxr
       (λ δ, match le_succ_dec (ds_in_dsp δ) return X ₒ (δ : SI) with
@@ -1254,7 +1254,7 @@ Section fixpoint.
   Fail Next Obligation.
 
   Program Definition fx_data_glue (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X) {β}
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X) {β}
     (Hle : β ⪯ α)
     (fxds : ∀ γ, γ ≺ β → fx_data X η (le_dsp γ)) : fx_data X η (lt_dsp β) :=
     Mkfxd (Mkfxr (λ γ, fxds _ (ds_in_dsp γ) (MkDS (reflexivity _))) _) _.
@@ -1277,7 +1277,7 @@ Section fixpoint.
   Fail Next Obligation.
 
   Program Definition fx_data_lim' (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X) {β : limit_idx SI} (Hβ : β ⪯ α)
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X) {β : limit_idx SI} (Hβ : β ⪯ α)
     (fxd : fx_data X η (lt_dsp β)) : fx_data X η (le_dsp β) :=
     Mkfxd (Mkfxr
       (λ δ, match index_le_lt_eq_dec _ _ (ds_in_dsp δ) return X ₒ (δ : SI) with
@@ -1326,14 +1326,14 @@ Section fixpoint.
   Fail Next Obligation.
 
   Definition fx_data_lim (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X) {β : limit_idx SI} (Hβ : β ⪯ α)
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X) {β : limit_idx SI} (Hβ : β ⪯ α)
     (fxds : ∀ γ, γ ≺ β → γ ⪯ α → fx_data X η (le_dsp γ)) : fx_data X η (le_dsp β) :=
     fx_data_lim' X η Hβ
       (fx_data_glue X η Hβ
          (λ γ Hγ, fxds γ Hγ (transitivity (index_lt_le_subrel _ _ Hγ) Hβ))).
 
   Program Definition make_fx_data (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X) :
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X) :
     index_rect (λ β, β ⪯ α → fx_data X η (le_dsp β)) :=
     MkIR
       (λ _, fx_data_zero X η)
@@ -1356,8 +1356,8 @@ Section fixpoint.
   Qed.
 
   Lemma make_fx_data_ext (X : PreSheaf (OrdCat SI))
-    {α} (η : natural (yoneda α ×ₒ (later ₒ X)) X)
-    {α'} (η' : natural (yoneda α' ×ₒ (later ₒ X)) X)
+    {α} (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X)
+    {α'} (η' : natural (yoneda ₒ α' ×ₒ (later ₒ X)) X)
     β Hβα Hβα' γ :
     (∀ δ, δ ⪯ β → ∀ Hle Hle' x, (η ₙ δ) (Hle, x) ≡ (η' ₙ δ) (Hle', x)) →
     make_fx_data X η β Hβα γ ≡ make_fx_data X η' β Hβα' γ.
@@ -1391,7 +1391,7 @@ Section fixpoint.
   Qed.
 
   Lemma make_fx_data_ext' (X : PreSheaf (OrdCat SI)) {α}
-    (η η' : natural (yoneda α ×ₒ later_func X) X) β Hle γ :
+    (η η' : natural (yoneda ₒ α ×ₒ later_func X) X) β Hle γ :
     (∀ δ, δ ⪯ β → η ₙ δ ≡ η' ₙ δ) →
     make_fx_data X η β Hle γ ≡ make_fx_data X η' β Hle γ.
   Proof.
@@ -1400,7 +1400,7 @@ Section fixpoint.
   Qed.
 
   Lemma make_fx_data_stable (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X) β Hle β' Hle' {γ} (Hγ : γ ⪯ β) (Hγ' : γ ⪯ β')
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X) β Hle β' Hle' {γ} (Hγ : γ ⪯ β) (Hγ' : γ ⪯ β')
     (Hβ'β : β' ⪯ β) :
     make_fx_data X η β Hle (MkDS (le_dsp _) Hγ) ≡ make_fx_data X η β' Hle' (MkDS (le_dsp _) Hγ').
   Proof.
@@ -1428,7 +1428,7 @@ Section fixpoint.
   Qed.
 
   Lemma make_fx_data_stable' (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X) β Hle (γ : downset (le_dsp β)):
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X) β Hle (γ : downset (le_dsp β)):
     make_fx_data X η β Hle γ ≡
     make_fx_data X η γ (transitivity (ds_in_dsp γ) Hle) (MkDS (le_dsp _) (reflexivity _)).
   Proof.
@@ -1437,7 +1437,7 @@ Section fixpoint.
   Qed.
 
   Lemma make_fx_data_natural (X : PreSheaf (OrdCat SI)) {α}
-    (η : natural (yoneda α ×ₒ later_func X) X) β (Hβα : β ⪯ α) γ (Hγβ : γ ⪯ β) δ (Hδγ : δ ⪯ γ) :
+    (η : natural (yoneda ₒ α ×ₒ later_func X) X) β (Hβα : β ⪯ α) γ (Hγβ : γ ⪯ β) δ (Hδγ : δ ⪯ γ) :
     make_fx_data X η β Hβα (MkDS (le_dsp _) (transitivity Hδγ Hγβ)) ≡
     (X ₕ Hδγ) (make_fx_data X η β Hβα (MkDS (le_dsp _) Hγβ)).
   Proof.

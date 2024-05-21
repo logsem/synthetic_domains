@@ -199,7 +199,7 @@ Program Definition cat_prod (C D : category) : category :=
     (λ cd cd', hom C cd.1 cd'.1 * hom D cd.2 cd'.2)%type
     (λ cd, (id cd.1, id cd.2))
     (λ _ _ _ f g, (g.1 ∘ f.1, g.2 ∘ f.2))
-    (λ _ _ f g, f.1 ≡ g.1 ∧ f.2 ≡ g.2)
+    (λ _ _, (≡))
     _ _ _ _ _.
 Solve All Obligations with
   repeat first [intros []|intros ?]; simpl in *; try f_equiv; solve_by_equiv_rewrite.
@@ -273,6 +273,73 @@ Solve All Obligations with
   by auto using natrual_comp_assoc, natrual_comp_left_id, natrual_comp_right_id.
 Fail Next Obligation.
 
+Program Definition functor_fix_left_o_map
+  {C D E : category} (F : functor (cat_prod C D) E) (c : obj C) : functor D E :=
+  MkFunc
+    (λ d, @o_map (cat_prod C D) E F (c, d))
+    (λ d d' f, @h_map (cat_prod C D) E F (c, d) (c, d') (id c, f)) _ _ _.
+Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
+Next Obligation. repeat intros ?; rewrite -h_map_comp /= left_id //. Qed.
+Next Obligation. repeat intros ?; rewrite /= h_map_id //. Qed.
+Fail Next Obligation.
+
+Program Definition functor_fix_left_h_map
+  {C D E : category} (F : functor (cat_prod C D) E) [c c': obj C] (h : hom c c') :
+  natural (functor_fix_left_o_map F c) (functor_fix_left_o_map F c') :=
+  MkNat
+    (λ d, @h_map (cat_prod C D) E F (c, d) (c', d) (h, id d))
+    _.
+Next Obligation. repeat intros ?; rewrite /= -!h_map_comp /= !left_id !right_id //. Qed.
+Fail Next Obligation.
+
+Global Instance functor_fix_left_h_map_proper
+  {C D E : category} (F : functor (cat_prod C D) E) (c c': obj C) :
+  Proper ((≡) ==> (≡)) (@functor_fix_left_h_map C D E F c c').
+Proof. repeat intros ?; rewrite /functor_fix_left_h_map /=; solve_by_equiv_rewrite. Qed.
+
+Program Definition functor_fix_left
+  {C D E : category} (F : functor (cat_prod C D) E) :
+  functor C (FuncCat D E) :=
+  MkFunc
+    (functor_fix_left_o_map F)
+    (functor_fix_left_h_map F) _ _ _.
+Next Obligation. repeat intros ?; rewrite /= -h_map_comp /= left_id //. Qed.
+Next Obligation. repeat intros ?; rewrite /= h_map_id //. Qed.
+Fail Next Obligation.
+
+Program Definition functor_fix_right_o_map
+  {C D E : category} (F : functor (cat_prod C D) E) (d : obj D) : functor C E :=
+  MkFunc
+    (λ c, @o_map (cat_prod C D) E F (c, d))
+    (λ c c' f, @h_map (cat_prod C D) E F (c, d) (c', d) (f, id d)) _ _ _.
+Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
+Next Obligation. repeat intros ?; rewrite -h_map_comp /= left_id //. Qed.
+Next Obligation. repeat intros ?; rewrite /= h_map_id //. Qed.
+Fail Next Obligation.
+
+Program Definition functor_fix_right_h_map
+  {C D E : category} (F : functor (cat_prod C D) E) [d d': obj D] (h : hom d d') :
+  natural (functor_fix_right_o_map F d) (functor_fix_right_o_map F d') :=
+  MkNat
+    (λ c, @h_map (cat_prod C D) E F (c, d) (c, d') (id c, h))
+    _.
+Next Obligation. repeat intros ?; rewrite /= -!h_map_comp /= !left_id !right_id //. Qed.
+Fail Next Obligation.
+
+Global Instance functor_fix_right_h_map_proper
+  {C D E : category} (F : functor (cat_prod C D) E) (d d': obj D) :
+  Proper ((≡) ==> (≡)) (@functor_fix_right_h_map C D E F d d').
+Proof. repeat intros ?; rewrite /functor_fix_left_h_map /=; solve_by_equiv_rewrite. Qed.
+
+Program Definition functor_fix_right
+  {C D E : category} (F : functor (cat_prod C D) E) :
+  functor D (FuncCat C E) :=
+  MkFunc
+    (functor_fix_right_o_map F)
+    (functor_fix_right_h_map F) _ _ _.
+Next Obligation. repeat intros ?; rewrite /= -h_map_comp /= left_id //. Qed.
+Next Obligation. repeat intros ?; rewrite /= h_map_id //. Qed.
+
 Program Definition hor_comp {C D E} {F G : functor C D} {F' G' : functor D E}
   (η : natural F G) (η' : natural F' G') : natural (functor_compose F F') (functor_compose G G') :=
   MkNat (λ a, (η' ₙ (G ₒ a)) ∘ (F' ₕ (η ₙ a))) _.
@@ -280,6 +347,7 @@ Next Obligation.
   repeat intros ?; rewrite /=.
   rewrite !naturality !comp_assoc !naturality -!comp_assoc -!h_map_comp !naturality //.
 Qed.
+Fail Next Obligation.
 
 Global Instance hor_comp_proper {C D E F G F' G'} :
   Proper ((≡) ==> (≡) ==> (≡)) (@hor_comp C D E F G F' G').
@@ -296,6 +364,7 @@ Next Obligation.
   rewrite -hom_trans_trans /= eq_trans_refl_l.
   apply Heq.
 Qed.
+Fail Next Obligation.
 
 Definition opposite C :=
   MkCat (obj C) (λ a b, hom C b a) id (λ a b c, flip (comp C)) (λ _ _, (≡))
@@ -305,7 +374,7 @@ Definition opposite C :=
   (λ _ _ f, right_id f)
   (λ _ _ f, left_id f).
 
-Notation "C 'ᵒᵖ'" := (opposite C) (at level 75, format "C ᵒᵖ").
+Notation "C 'ᵒᵖ'" := (opposite C) (at level 1, format "C ᵒᵖ").
 
 Program Definition opposite_func {C D} (F : functor C D) : functor (C ᵒᵖ) (D ᵒᵖ) :=
   MkFunc (λ c : obj (C ᵒᵖ), F ₒ c) (λ _ _ f, F ₕ f) _ _ _.
@@ -519,12 +588,44 @@ Definition adjunction {C D} (F : functor C D) (G : functor D C) : Type :=
 
 (* Yoneda embedding *)
 
-Program Definition yoneda {C} (c : obj C) : PreSheaf C :=
-  MkFunc (λ a, hom_setoid (C := C) a c)
-    (λ _ _ f, compose_as_hom_setoid_map (C := C) f (id c)) _ _ _.
-Solve All Obligations
-  with repeat intros ?; rewrite /= ?comp_assoc ?left_id ?right_id; solve_by_equiv_rewrite.
+Program Definition yoneda {C} : functor C (PSh C) := functor_fix_right (Hom C).
+
+Program Definition yoneda_lemma_forward {C} (F : PreSheaf C) :
+  natural
+    (functor_compose (opposite_func yoneda) (functor_fix_right (Hom (PSh C)) ₒ F))
+    F :=
+  MkNat (λ c, λset f, (f ₙ c) (id c)) _.
+Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
+Next Obligation.
+  intros ????? η' η ->; clear η'; simpl in *.
+  rewrite !right_id -(psh_naturality η) /= !left_id //.
+Qed.
 Fail Next Obligation.
+Program Definition yoneda_lemma_backward {C} (F : PreSheaf C) :
+  natural
+    F
+    (functor_compose (opposite_func yoneda) (functor_fix_right (Hom (PSh C)) ₒ F)) :=
+  MkNat (λ c, λset x, (MkNat (λ w, λset f, (F ₕ f) x) _)) _.
+Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
+Next Obligation.
+  repeat intros ?; simpl in *; setoid_subst; rewrite left_id h_map_comp //.
+Qed.
+Next Obligation. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
+Next Obligation.
+  repeat intros ?; simpl in *; setoid_subst; rewrite right_id h_map_comp //.
+Qed.
+Fail Next Obligation.
+
+Program Definition yoneda_lemma {C} (F : PreSheaf C) :
+  functor_compose (opposite_func yoneda) (functor_fix_right (Hom (PSh C)) ₒ F)
+  ≃@{PSh C} F :=
+  MkIsoIc (yoneda_lemma_forward F) (yoneda_lemma_backward F) _.
+Next Obligation.
+  repeat intros ?; split.
+  - intros ? η' η ->; clear η'; intros ??? ->; simpl in *.
+    rewrite -(psh_naturality η) /= !left_id //.
+  - repeat intros ?; simpl in *; rewrite h_map_id; solve_by_equiv_rewrite.
+Qed.
 
 (* Terminal Object *)
 
@@ -1147,7 +1248,7 @@ Solve All Obligations with
 Fail Next Obligation.
 
 Program Definition psh_exp {C} (F G : PreSheaf C) : PreSheaf C :=
-  MkFunc (λ c, natural_set ((yoneda (C := C) c) ×ₒ@{PSh C} F) G)
+  MkFunc (λ c, natural_set ((yoneda (C := C) ₒ c) ×ₒ@{PSh C} F) G)
     (λ _ _ f, λset η, MkNat (λ c, λset g, (η ₙ c) (f ∘ g.1, g.2)) _) _ _ _.
 Next Obligation.
   repeat intros ?; simpl in *; solve_by_equiv_rewrite.
