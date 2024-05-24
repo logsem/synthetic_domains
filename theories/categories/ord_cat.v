@@ -433,6 +433,80 @@ End earlier.
 Section Adjunction.
   Context {SI : indexT} {C : category} `{!HasTerm C} `{!Complete C}.
 
+  Program Definition to_later_F_succ_cone (F : functor ((OrdCat SI) ᵒᵖ) C) α :
+    is_cone (lift_func (lt_dsp α) (functor_compose (opposite_func (Succ SI)) F)) (F ₒ α) :=
+    MkIsCone (λ β, F ₕ (index_succ_iff_proj_r2l _ _ _ (index_lt_succ_mono _ _ (ds_in_dsp β)))) _.
+  Next Obligation. repeat intros ?; rewrite /= -h_map_comp; f_equiv; done. Qed.
+
+  Program Definition to_later_F_succ F :
+    natural F (later_func (functor_compose (opposite_func (Succ SI)) F)) :=
+    MkNat (λ α,
+        cone_hom_map
+          (bang (is_limit_limiting_cone (later_func_o_map_is_limit _ α))
+             (cone_of_is_cone (to_later_F_succ_cone F α)))) _.
+  Next Obligation.
+    intros ??? Hle; rewrite /=.
+    apply (hom_to_limit_unique _ _ _
+             (later_func_o_map_is_limit
+                (functor_compose (opposite_func (Succ SI)) _) _)
+             (cone_is_cone (proj_cone _ Hle (cone_of_is_cone (to_later_F_succ_cone _ _))))).
+    - intros ?; rewrite /= -comp_assoc. rewrite_cone_hom_commutes_back.
+      rewrite /to_later_F_succ_cone /= -h_map_comp.
+      f_equiv; done.
+    - intros ?; rewrite /= -comp_assoc; repeat (rewrite_cone_hom_commutes_back; simpl); done.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition cone_for_later_earlier_forward
+    {F1 : functor ((OrdCat SI) ᵒᵖ) C}
+    {G1 : functor ((OrdCat SI) ᵒᵖ) C}
+    {F2 : functor ((OrdCat SI) ᵒᵖ) C}
+    {G2 : functor ((OrdCat SI) ᵒᵖ) C}
+    (η1 : natural F2 F1)
+    (η2 : natural G1 G2)
+    (δ : natural (functor_compose (opposite_func (Succ SI)) F1) G1)
+    (α : SI)
+    : cone (lift_func (lt_dsp α) G2) :=
+    MkCone (F2 ₒ α)
+      (λ j, (η2 ₙ (j : SI)) ∘ (δ ₙ (j : SI)) ∘ (η1 ₙ (succ j)) ∘
+              (F2 ₕ (index_succ_least _ _ (ds_in_dsp j)))) _.
+  Next Obligation.
+    intros ???? η1 η2 δ ????; rewrite /=.
+    rewrite -!comp_assoc -!(naturality η2) !comp_assoc. f_equiv.
+    rewrite -!comp_assoc -(naturality δ) /= !comp_assoc. f_equiv.
+    rewrite -!comp_assoc -(naturality η1) /= !comp_assoc. f_equiv.
+    rewrite -h_map_comp. f_equiv.
+    done.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition later_earlier_forward :
+    natural
+      (in_left_of_hom (FuncCat (OrdCat SI)ᵒᵖ C) (FuncCat (OrdCat SI)ᵒᵖ C) ₒ earlier)
+      (in_right_of_hom (FuncCat (OrdCat SI)ᵒᵖ C) (FuncCat (OrdCat SI)ᵒᵖ C) ₒ later) :=
+    MkNat (λ FG, λset η, natural_comp (to_later_F_succ FG.1) (later ₕ η)) _.
+  Next Obligation. intros ??? ->; done. Qed.
+  Next Obligation.
+    intros [F1 G1] [F2 G2] [η1 η2] z δ -> α; clear z; simpl in *.
+    apply (hom_to_limit_unique _ _ _
+             (later_func_o_map_is_limit G2 α)
+             (cone_is_cone (cone_for_later_earlier_forward η1 η2 δ α))).
+    - intros ?; rewrite /=.
+      rewrite -!comp_assoc; rewrite_cone_hom_commutes_back.
+      rewrite !comp_assoc; rewrite_cone_hom_commutes_back.
+      rewrite h_map_id left_id /=; repeat f_equiv; done.
+    - intros ?; rewrite /=.
+      rewrite -!comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite !comp_assoc; f_equiv.
+      rewrite -!comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite !comp_assoc; f_equiv.
+      rewrite -!comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite naturality; repeat f_equiv; done.
+  Qed.
+
   Lemma later_succ F : functor_compose (opposite_func (Succ SI)) (later_func F) ≡ F.
   Proof.
     refine (MkFuncEq
@@ -455,14 +529,10 @@ Section Adjunction.
       rewrite /ic_side /= -h_map_comp; f_equiv; done.
   Qed.
 
-  Program Definition later_earlier_forward :
+  Program Definition later_earlier_backward :
     natural
-    (functor_compose
-      (functor_prod (id_functor ((FuncCat ((OrdCat SI)ᵒᵖ) C) ᵒᵖ)) later)
-      (Hom (FuncCat ((OrdCat SI)ᵒᵖ) C)))
-    (functor_compose
-       (functor_prod (opposite_func earlier) (id_functor (FuncCat ((OrdCat SI)ᵒᵖ) C)))
-       (Hom (FuncCat ((OrdCat SI)ᵒᵖ) C))) :=
+      (in_right_of_hom (FuncCat (OrdCat SI)ᵒᵖ C) (FuncCat (OrdCat SI)ᵒᵖ C) ₒ later)
+      (in_left_of_hom (FuncCat (OrdCat SI)ᵒᵖ C) (FuncCat (OrdCat SI)ᵒᵖ C) ₒ earlier) :=
     MkNat (λ FG, λset η,
         natural_comp
           (hor_comp (natural_id (opposite_func (Succ _))) η)
@@ -494,118 +564,10 @@ Section Adjunction.
   Qed.
   Fail Next Obligation.
 
-  Program Definition to_later_F_succ_cone (F : functor ((OrdCat SI) ᵒᵖ) C) α :
-    is_cone (lift_func (lt_dsp α) (functor_compose (opposite_func (Succ SI)) F)) (F ₒ α) :=
-    MkIsCone (λ β, F ₕ (index_succ_iff_proj_r2l _ _ _ (index_lt_succ_mono _ _ (ds_in_dsp β)))) _.
-  Next Obligation. repeat intros ?; rewrite /= -h_map_comp; f_equiv; done. Qed.
-
-  Program Definition to_later_F_succ F :
-    natural F (later_func (functor_compose (opposite_func (Succ SI)) F)) :=
-    MkNat (λ α,
-        cone_hom_map
-          (bang (is_limit_limiting_cone (later_func_o_map_is_limit _ α))
-             (cone_of_is_cone (to_later_F_succ_cone F α)))) _.
-  Next Obligation.
-    intros ??? Hle; rewrite /=.
-    apply (hom_to_limit_unique _ _ _
-             (later_func_o_map_is_limit
-                (functor_compose (opposite_func (Succ SI)) _) _)
-             (cone_is_cone (proj_cone _ Hle (cone_of_is_cone (to_later_F_succ_cone _ _))))).
-    - intros ?; rewrite /= -comp_assoc. rewrite_cone_hom_commutes_back.
-      rewrite /to_later_F_succ_cone /= -h_map_comp.
-      f_equiv; done.
-    - intros ?; rewrite /= -comp_assoc; repeat (rewrite_cone_hom_commutes_back; simpl); done.
-  Qed.
-  Fail Next Obligation.
-
-  Program Definition cone_for_later_earlier_backward
-    {F1 : functor ((OrdCat SI) ᵒᵖ) C}
-    {G1 : functor ((OrdCat SI) ᵒᵖ) C}
-    {F2 : functor ((OrdCat SI) ᵒᵖ) C}
-    {G2 : functor ((OrdCat SI) ᵒᵖ) C}
-    (η1 : natural F2 F1)
-    (η2 : natural G1 G2)
-    (δ : natural (functor_compose (opposite_func (Succ SI)) F1) G1)
-    (α : SI)
-    : cone (lift_func (lt_dsp α) G2) :=
-    MkCone (F2 ₒ α)
-      (λ j, (η2 ₙ (j : SI)) ∘ (δ ₙ (j : SI)) ∘ (η1 ₙ (succ j)) ∘
-              (F2 ₕ (index_succ_least _ _ (ds_in_dsp j)))) _.
-  Next Obligation.
-    intros ???? η1 η2 δ ????; rewrite /=.
-    rewrite -!comp_assoc -!(naturality η2) !comp_assoc. f_equiv.
-    rewrite -!comp_assoc -(naturality δ) /= !comp_assoc. f_equiv.
-    rewrite -!comp_assoc -(naturality η1) /= !comp_assoc. f_equiv.
-    rewrite -h_map_comp. f_equiv.
-    done.
-  Qed.
-  Fail Next Obligation.
-
-  Program Definition later_earlier_backward :
-    natural
-    (functor_compose
-       (functor_prod (opposite_func earlier) (id_functor (FuncCat ((OrdCat SI)ᵒᵖ) C)))
-       (Hom (FuncCat ((OrdCat SI)ᵒᵖ) C)))
-    (functor_compose
-      (functor_prod (id_functor ((FuncCat ((OrdCat SI)ᵒᵖ) C) ᵒᵖ)) later)
-      (Hom (FuncCat ((OrdCat SI)ᵒᵖ) C))) :=
-    MkNat (λ FG, λset η, natural_comp (to_later_F_succ FG.1) (later ₕ η)) _.
-  Next Obligation. intros ??? ->; done. Qed.
-  Next Obligation.
-    intros [F1 G1] [F2 G2] [η1 η2] z δ -> α; clear z; simpl in *.
-    apply (hom_to_limit_unique _ _ _
-             (later_func_o_map_is_limit G2 α)
-             (cone_is_cone (cone_for_later_earlier_backward η1 η2 δ α))).
-    - intros ?; rewrite /=.
-      rewrite -!comp_assoc; rewrite_cone_hom_commutes_back.
-      rewrite !comp_assoc; rewrite_cone_hom_commutes_back.
-      rewrite h_map_id left_id /=; repeat f_equiv; done.
-    - intros ?; rewrite /=.
-      rewrite -!comp_assoc.
-      rewrite_cone_hom_commutes_back; simpl.
-      rewrite !comp_assoc; f_equiv.
-      rewrite -!comp_assoc.
-      rewrite_cone_hom_commutes_back; simpl.
-      rewrite !comp_assoc; f_equiv.
-      rewrite -!comp_assoc.
-      rewrite_cone_hom_commutes_back; simpl.
-      rewrite naturality; repeat f_equiv; done.
-  Qed.
-
   Program Definition later_adj : adjunction (@earlier SI C) later :=
     MkIsoIc later_earlier_forward later_earlier_backward _.
   Next Obligation.
     split.
-    - intros [F G] η η' <- α; clear η'; simpl in *.
-      pose (extend_cone
-              (cone_of_is_cone (il_is_cone (later_func_o_map_is_limit G α)))
-              (η ₙ α)) as cn.
-      apply (hom_to_limit_unique _ _ _
-             (later_func_o_map_is_limit G α)
-             (cone_is_cone cn)); last done.
-      intros j; rewrite /= -comp_assoc.
-      rewrite_cone_hom_commutes_back.
-      rewrite /= !comp_assoc.
-      rewrite_cone_hom_commutes_back.
-      rewrite /= h_map_id left_id.
-      rewrite hom_trans_compose_take_in_r left_id /= hom_trans_refl.
-      rewrite (naturality η) /=.
-      rewrite hom_trans_compose hom_trans_refl.
-      f_equiv.
-      rewrite /proj_cone_hom.
-      rewrite later_func_o_map_is_limit_succ.
-      rewrite bang_of_is_limit_trans /= -hom_trans_trans.
-      match goal with
-        |- context [eq_trans (eq_sym ?A) ?B] =>
-          pose proof (proof_irrelevance _ A B) as ->
-      end.
-      rewrite eq_trans_sym_inv_l hom_trans_refl /=.
-      rewrite /lift_in_lt_ds /=.
-      match goal with
-        |- ic_side _ _ ≡ ic_side _ (MkDS _ ?A) =>
-          replace A with (ds_in_dsp j) by by apply proof_irrelevance
-      end.
-      by destruct j.
     - intros [F G] η η' <- α; clear η'; simpl in *.
       rewrite h_map_id right_id.
       rewrite hom_trans_compose_take_in_r left_id /= hom_trans_refl.
@@ -654,9 +616,126 @@ Section Adjunction.
         end.
         rewrite !eq_trans_sym_inv_l !hom_trans_refl /=.
         rewrite (naturality η) //.
+    - intros [F G] η η' <- α; clear η'; simpl in *.
+      pose (extend_cone
+              (cone_of_is_cone (il_is_cone (later_func_o_map_is_limit G α)))
+              (η ₙ α)) as cn.
+      apply (hom_to_limit_unique _ _ _
+             (later_func_o_map_is_limit G α)
+             (cone_is_cone cn)); last done.
+      intros j; rewrite /= -comp_assoc.
+      rewrite_cone_hom_commutes_back.
+      rewrite /= !comp_assoc.
+      rewrite_cone_hom_commutes_back.
+      rewrite /= h_map_id left_id.
+      rewrite hom_trans_compose_take_in_r left_id /= hom_trans_refl.
+      rewrite (naturality η) /=.
+      rewrite hom_trans_compose hom_trans_refl.
+      f_equiv.
+      rewrite /proj_cone_hom.
+      rewrite later_func_o_map_is_limit_succ.
+      rewrite bang_of_is_limit_trans /= -hom_trans_trans.
+      match goal with
+        |- context [eq_trans (eq_sym ?A) ?B] =>
+          pose proof (proof_irrelevance _ A B) as ->
+      end.
+      rewrite eq_trans_sym_inv_l hom_trans_refl /=.
+      rewrite /lift_in_lt_ds /=.
+      match goal with
+        |- ic_side _ _ ≡ ic_side _ (MkDS _ ?A) =>
+          replace A with (ds_in_dsp j) by by apply proof_irrelevance
+      end.
+      by destruct j.
   Qed.
 
 End Adjunction.
+
+Section later_preserves.
+  Context {SI : indexT}.
+
+  Local Opaque later next.
+
+  Definition later_preserves_prods_nat :
+  functor_compose (prod_func (PSh (OrdCat SI))) later
+  ≃@{FuncCat (cat_prod (PSh (OrdCat SI)) (PSh (OrdCat SI))) (PSh (OrdCat SI))}
+  functor_compose (functor_prod later later) (prod_func (PSh (OrdCat SI))) :=
+    right_adj_preserves_prods later_adj.
+
+  Program Definition later_prod (F G : PreSheaf (OrdCat SI)) :
+    later ₒ (F ×ₒ@{PSh (OrdCat SI)} G)
+    ≃@{PSh (OrdCat SI)}
+    (later ₒ F) ×ₒ (later ₒ G) :=
+    MkIsoIc
+      (forward later_preserves_prods_nat ₙ (F, G))
+      (backward later_preserves_prods_nat ₙ (F, G)) _.
+  Next Obligation.
+    intros F G; split.
+    - pose proof (is_iso later_preserves_prods_nat) as [Hfb _].
+      apply (Hfb (F, G)).
+    - pose proof (is_iso later_preserves_prods_nat) as [_ Hbf].
+      apply (Hbf (F, G)).
+  Qed.
+
+  Lemma later_prod_next {F F' G G' : PreSheaf (OrdCat SI)}
+   (ηF : natural F F') (ηG : natural G G') :
+    backward (later_prod F' G') ∘
+    (next ₙ F' ∘@{PSh (OrdCat SI)} ηF ×ₕ@{PSh (OrdCat SI)}
+      (next ₙ G' ∘@{PSh (OrdCat SI)} ηG))
+    ≡
+    next ₙ (F' ×ₒ@{PSh (OrdCat SI)} G') ∘ (ηF ×ₕ ηG).
+  Proof.
+    apply (compose_along_iso_left (later_prod _ _)).
+    rewrite -comp_assoc.
+    pose proof (is_iso (later_prod F' G')) as [_ ->].
+    rewrite left_id.
+    rewrite /later_prod; simpl (forward _).
+    rewrite /later_preserves_prods_nat.
+    rewrite right_adj_preserves_prods_forward.
+    rewrite /right_adj_preserves_prods_simpler_forward.
+    simpl (nat_map (MkNat _ _)).
+    eapply prd_hom_unique'.
+    { rewrite hom_prod_prj1; reflexivity. }
+    { rewrite hom_prod_prj2; reflexivity. }
+    - rewrite -!comp_assoc /=.
+      pose proof (@hom_to_prod_prj1 (PSh (OrdCat SI)) _) as Hhtp1;
+        simpl in Hhtp1; rewrite Hhtp1; clear Hhtp1.
+      pose proof (naturality (@next SI Setoid _ _)) as Hn.
+      simpl in Hn; rewrite -Hn /=; clear Hn.
+      rewrite !natural_comp_assoc.
+      pose proof (@hom_prod_prj1 (PSh (OrdCat SI)) _ _ _ _ _ ηF ηG) as Hhp1;
+        simpl in Hhp1; rewrite Hhp1; done.
+    - rewrite -!comp_assoc /=.
+      pose proof (@hom_to_prod_prj2 (PSh (OrdCat SI)) _) as Hhtp2;
+        simpl in Hhtp2; rewrite Hhtp2; clear Hhtp2.
+      pose proof (naturality (@next SI Setoid _ _)) as Hn.
+      simpl in Hn; rewrite -Hn /=; clear Hn.
+      rewrite !natural_comp_assoc.
+      pose proof (@hom_prod_prj2 (PSh (OrdCat SI)) _ _ _ _ _ ηF ηG) as Hhp2;
+        simpl in Hhp2; rewrite Hhp2; done.
+  Qed.
+
+  Definition later_preserves_terminal_nat :
+  functor_compose (const_functor (1ₒ)) later
+  ≃@{FuncCat SingletonCat (PSh (OrdCat SI))}
+  (const_functor (1ₒ)) :=
+    right_adj_preserves_terminal later_adj.
+
+  Program Definition later_term :
+    later ₒ (1ₒ) ≃@{PSh (OrdCat SI)} (1ₒ) :=
+    MkIsoIc
+      (forward later_preserves_terminal_nat ₙ ())
+      (backward later_preserves_terminal_nat ₙ ()) _.
+  Next Obligation.
+    split.
+    - pose proof (is_iso later_preserves_terminal_nat) as [Hfb _].
+      apply (Hfb ()).
+    - pose proof (is_iso later_preserves_terminal_nat) as [_ Hbf].
+      apply (Hbf ()).
+  Qed.
+
+End later_preserves.
+Global Arguments later_preserves_prods_nat _ : clear implicits.
+Global Arguments later_preserves_terminal_nat _ : clear implicits.
 
 Section fixpoint.
   Context {SI : indexT}.
@@ -1718,3 +1797,4 @@ Section fixpoint.
   Qed.
 
 End fixpoint.
+ 
