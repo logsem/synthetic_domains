@@ -676,43 +676,43 @@ Section later_preserves.
       apply (Hbf (F, G)).
   Qed.
 
-  Lemma later_prod_next {F F' G G' : PreSheaf (OrdCat SI)}
-   (ηF : natural F F') (ηG : natural G G') :
-    backward (later_prod F' G') ∘
-    (next ₙ F' ∘@{PSh (OrdCat SI)} ηF ×ₕ@{PSh (OrdCat SI)}
-      (next ₙ G' ∘@{PSh (OrdCat SI)} ηG))
-    ≡
-    next ₙ (F' ×ₒ@{PSh (OrdCat SI)} G') ∘ (ηF ×ₕ ηG).
-  Proof.
-    apply (compose_along_iso_left (later_prod _ _)).
-    rewrite -comp_assoc.
-    pose proof (is_iso (later_prod F' G')) as [_ ->].
-    rewrite left_id.
-    rewrite /later_prod; simpl (forward _).
-    rewrite /later_preserves_prods_nat.
-    rewrite right_adj_preserves_prods_forward.
-    rewrite /right_adj_preserves_prods_simpler_forward.
-    simpl (nat_map (MkNat _ _)).
-    eapply prd_hom_unique'.
-    { rewrite hom_prod_prj1; reflexivity. }
-    { rewrite hom_prod_prj2; reflexivity. }
-    - rewrite -!comp_assoc /=.
-      pose proof (@hom_to_prod_prj1 (PSh (OrdCat SI)) _) as Hhtp1;
-        simpl in Hhtp1; rewrite Hhtp1; clear Hhtp1.
-      pose proof (naturality (@next SI Setoid _ _)) as Hn.
-      simpl in Hn; rewrite -Hn /=; clear Hn.
-      rewrite !natural_comp_assoc.
-      pose proof (@hom_prod_prj1 (PSh (OrdCat SI)) _ _ _ _ _ ηF ηG) as Hhp1;
-        simpl in Hhp1; rewrite Hhp1; done.
-    - rewrite -!comp_assoc /=.
-      pose proof (@hom_to_prod_prj2 (PSh (OrdCat SI)) _) as Hhtp2;
-        simpl in Hhtp2; rewrite Hhtp2; clear Hhtp2.
-      pose proof (naturality (@next SI Setoid _ _)) as Hn.
-      simpl in Hn; rewrite -Hn /=; clear Hn.
-      rewrite !natural_comp_assoc.
-      pose proof (@hom_prod_prj2 (PSh (OrdCat SI)) _ _ _ _ _ ηF ηG) as Hhp2;
-        simpl in Hhp2; rewrite Hhp2; done.
-  Qed.
+  (* Lemma later_prod_next {F F' G G' : PreSheaf (OrdCat SI)} *)
+  (*  (ηF : natural F F') (ηG : natural G G') : *)
+  (*   backward (later_prod F' G') ∘ *)
+  (*   (next ₙ F' ∘@{PSh (OrdCat SI)} ηF ×ₕ@{PSh (OrdCat SI)} *)
+  (*     (next ₙ G' ∘@{PSh (OrdCat SI)} ηG)) *)
+  (*   ≡ *)
+  (*   next ₙ (F' ×ₒ@{PSh (OrdCat SI)} G') ∘ (ηF ×ₕ ηG). *)
+  (* Proof. *)
+  (*   apply (compose_along_iso_left (later_prod _ _)). *)
+  (*   rewrite -comp_assoc. *)
+  (*   pose proof (is_iso (later_prod F' G')) as [_ ->]. *)
+  (*   rewrite left_id. *)
+  (*   rewrite /later_prod; simpl (forward _). *)
+  (*   rewrite /later_preserves_prods_nat. *)
+  (*   rewrite right_adj_preserves_prods_forward. *)
+  (*   rewrite /right_adj_preserves_prods_simpler_forward. *)
+  (*   simpl (nat_map (MkNat _ _)). *)
+  (*   eapply prd_hom_unique'. *)
+  (*   { rewrite hom_prod_prj1; reflexivity. } *)
+  (*   { rewrite hom_prod_prj2; reflexivity. } *)
+  (*   - rewrite -!comp_assoc /=. *)
+  (*     pose proof (@hom_to_prod_prj1 (PSh (OrdCat SI)) _) as Hhtp1; *)
+  (*       simpl in Hhtp1; rewrite Hhtp1; clear Hhtp1. *)
+  (*     pose proof (naturality (@next SI Setoid _ _)) as Hn. *)
+  (*     simpl in Hn; rewrite -Hn /=; clear Hn. *)
+  (*     rewrite !natural_comp_assoc. *)
+  (*     pose proof (@hom_prod_prj1 (PSh (OrdCat SI)) _ _ _ _ _ ηF ηG) as Hhp1; *)
+  (*       simpl in Hhp1; rewrite Hhp1; done. *)
+  (*   - rewrite -!comp_assoc /=. *)
+  (*     pose proof (@hom_to_prod_prj2 (PSh (OrdCat SI)) _) as Hhtp2; *)
+  (*       simpl in Hhtp2; rewrite Hhtp2; clear Hhtp2. *)
+  (*     pose proof (naturality (@next SI Setoid _ _)) as Hn. *)
+  (*     simpl in Hn; rewrite -Hn /=; clear Hn. *)
+  (*     rewrite !natural_comp_assoc. *)
+  (*     pose proof (@hom_prod_prj2 (PSh (OrdCat SI)) _ _ _ _ _ ηF ηG) as Hhp2; *)
+  (*       simpl in Hhp2; rewrite Hhp2; done. *)
+  (* Qed. *)
 
   Definition later_preserves_terminal_nat :
   functor_compose (const_functor (1ₒ)) later
@@ -736,6 +736,36 @@ Section later_preserves.
 End later_preserves.
 Global Arguments later_preserves_prods_nat _ : clear implicits.
 Global Arguments later_preserves_terminal_nat _ : clear implicits.
+
+Class Contractive
+  {SI : indexT} {F G : PreSheaf (OrdCat SI)} (η : natural F G) := MkContr {
+  contr_hom : natural (later ₒ F) G;
+  contr_hom_after_next : η ≡ contr_hom ∘ (next ₙ F);
+}.
+Global Arguments MkContr {_ _ _ _} _ _.
+Global Arguments contr_hom {_ _ _} _ {_}.
+Global Arguments contr_hom_after_next {_ _ _} _ {_}.
+
+Global Program Instance Contractive_comp_l {SI : indexT} {F G H : PreSheaf (OrdCat SI)}
+  (η : natural F G) `{!Contractive η} (η' : natural G H) :
+  Contractive (η' ∘@{PSh _} η) :=
+  MkContr (η' ∘@{PSh _} contr_hom η) _.
+Next Obligation.
+  intros ???? η ? η'.
+  rewrite {1}(contr_hom_after_next η) comp_assoc //.
+Qed.
+Fail Next Obligation.
+
+Global Program Instance Contractive_comp_r {SI : indexT} {F G H : PreSheaf (OrdCat SI)}
+  (η : natural F G) `{!Contractive η} (η' : natural H F) :
+  Contractive (η ∘@{PSh _} η') :=
+  MkContr (contr_hom η ∘@{PSh _} (later ₕ η')) _.
+Next Obligation.
+  intros ???? η ? η'.
+  rewrite {1}(contr_hom_after_next η) !comp_assoc.
+  rewrite -naturality //.
+Qed.
+Fail Next Obligation.
 
 Section fixpoint.
   Context {SI : indexT}.
@@ -1796,5 +1826,28 @@ Section fixpoint.
     intros ? ?; rewrite (fixpoint_unique' _ FX) // (fixpoint_unique' _ FX') //.
   Qed.
 
+  Definition contr_fix {X : PreSheaf (OrdCat SI)} (η : natural X X) `{!Contractive η} :
+    natural (1ₒ) X := fixpoint (contr_hom η ∘ prj1 (product_of (later ₒ X) (1ₒ))).
+
+  Lemma contr_fix_unfold {X : PreSheaf (OrdCat SI)} (η : natural X X) `{!Contractive η} :
+    η ∘@{PSh _} contr_fix η ≡ contr_fix η.
+  Proof.
+    rewrite {2}(contr_hom_after_next η) /contr_fix.
+    remember (contr_hom η ∘ prj1 (product_of (later ₒ X) (1ₒ))) as f.
+    rewrite {2}fixpoint_unfold.
+    rewrite {3}Heqf !comp_assoc hom_to_prod_prj1 //.
+  Qed.
+
+  Lemma contr_fix_unique {X : PreSheaf (OrdCat SI)} (η : natural X X) `{!Contractive η}
+    (f1 f2 : natural (1ₒ) X) :
+    η ∘@{PSh _} f1 ≡ f1 →
+    η ∘@{PSh _} f2 ≡ f2 →
+    f1 ≡ f2.
+  Proof.
+    intros ??.
+    eapply (fixpoint_unique (contr_hom η ∘ prj1 (product_of (later ₒ X) (1ₒ)))).
+    - rewrite comp_assoc hom_to_prod_prj1 -comp_assoc -(contr_hom_after_next η) //.
+    - rewrite comp_assoc hom_to_prod_prj1 -comp_assoc -(contr_hom_after_next η) //.
+  Qed.
+
 End fixpoint.
- 

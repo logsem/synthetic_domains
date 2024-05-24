@@ -1296,60 +1296,111 @@ Fail Next Obligation.
 Class Enriched (C E : category) `{!HasTerm E, !HasProducts E} := MkEnr {
   enr_hom : obj C → obj C → obj E;
   enr_embed : ∀ a b (f : hom a b), hom (1ₒ) (enr_hom a b);
+  enr_project : ∀ a b (f : hom (1ₒ) (enr_hom a b)), hom a b;
   enr_comp : ∀ a b c, hom (enr_hom a b ×ₒ enr_hom b c) (enr_hom a c);
   enr_embed_proper :: ∀ a b, Proper ((≡) ==> (≡)) (enr_embed a b);
-  enr_comp_comp : ∀ a b c (f : hom a b) (g : hom b c),
-    enr_embed _ _ (g ∘ f) ≡
-    (enr_comp _ _ _) ∘ <<enr_embed _ _ f, enr_embed _ _ g>>;
+  enr_project_proper :: ∀ a b, Proper ((≡) ==> (≡)) (enr_project a b);
+  enr_embed_project :
+    ∀ a b (f : hom a b), enr_project _ _ (enr_embed _ _ f) ≡ f;
+  enr_project_embed :
+    ∀ a b (f : hom (1ₒ) (enr_hom a b)), enr_embed _ _ (enr_project _ _ f) ≡ f;
+  enr_comp_comp :
+    ∀ a b c (f : hom (1ₒ) (enr_hom a b)) (g : hom (1ₒ) (enr_hom b c)),
+    enr_embed _ _ (enr_project _ _ g ∘ (enr_project _ _ f)) ≡
+    (enr_comp _ _ _) ∘ <<f, g>>;
 }.
-Global Arguments MkEnr {_ _ _ _} _ _ _ _ _.
+Global Arguments MkEnr {_ _ _ _} _ _ _ _ _ _ _ _ _.
 Global Arguments enr_hom {_ _ _ _ _} a b : rename.
 Global Arguments enr_embed {_ _ _ _ _ _ _} f.
+Global Arguments enr_project {_ _ _ _ _ _ _} f.
 Global Arguments enr_comp {_ _ _ _ _} a b c.
+Global Arguments enr_embed_project {_ _ _ _ _ _ _} f.
+Global Arguments enr_project_embed {_ _ _ _ _ _ _} f.
 Global Arguments enr_comp_comp {_ _ _ _ _ _ _ _} f g.
 
 Notation "⌜ f ⌝" := (enr_embed f).
+Notation "⌞ f ⌟" := (enr_project f).
 
-Definition enr_comp_of {C} `{!HasTerm E, !HasProducts E, !Enriched C E} {a b c}
-  (f : hom (1ₒ) (enr_hom a b)) (g : hom (1ₒ) (enr_hom b c)) : hom (1ₒ) (enr_hom a c) :=
-  (enr_comp _ _ _) ∘ <<f, g>>.
+Definition enr_comp_r {C} `{!HasTerm E, !HasProducts E, !Enriched C E} {a b c}
+  (f : hom a b) : hom (enr_hom b c) (enr_hom a c) :=
+  enr_comp a b c ∘ (⌜f⌝ ×ₕ id (enr_hom b c)) ∘ term_times_inj (enr_hom b c).
 
-Global Instance enr_comp_of_proper {C} `{!HasTerm E, !HasProducts E, Enriched C E} {a b c} :
-  Proper ((≡) ==> (≡) ==> (≡)) (@enr_comp_of C E _ _ _ a b c).
-Proof. repeat intros ?; rewrite /enr_comp_of; solve_by_equiv_rewrite. Qed.
+Lemma enr_comp_r_comp {C} `{!HasTerm E, !HasProducts E, !Enriched C E} {a b c}
+  (f : hom a b) (g : hom (1ₒ) (enr_hom b c)) :
+  enr_comp_r f ∘ g ≡ enr_comp _ _ _ ∘ <<⌜f⌝, g>>.
+Proof.
+  rewrite /enr_comp_r !comp_assoc.
+  f_equiv.
+  apply prd_hom_unique.
+  - rewrite -!comp_assoc hom_prod_prj1.
+    rewrite !comp_assoc -{1}(right_id ⌜f⌝); f_equiv.
+    apply term_hom_unique'.
+  - rewrite -!comp_assoc hom_prod_prj2 left_id.
+    rewrite -prd_hom_commutes2 left_id //.
+Qed.
 
-Notation "g ∘ₑ{ C } f" := (enr_comp_of (C := C) f g) (at level 40, left associativity)
-    : category_scope.
-Notation "g ∘ₑ f" := (enr_comp_of f g) (at level 40, left associativity) : category_scope.
+Global Instance enr_comp_r_proper {C} `{!HasTerm E, !HasProducts E, !Enriched C E} {a b c} :
+  Proper ((≡) ==> (≡)) (@enr_comp_r C _ _ _ _ a b c).
+Proof. repeat intros ?; rewrite /enr_comp_r; solve_by_equiv_rewrite. Qed.
 
-Lemma enr_left_id {C} `{!HasTerm E, !HasProducts E, Enriched C E} {a b} (f : hom a b) :
-  ⌜id b⌝ ∘ₑ ⌜f⌝ ≡ ⌜f⌝.
-Proof. rewrite /enr_comp_of -enr_comp_comp left_id //. Qed.
-Lemma enr_right_id {C} `{!HasTerm E, !HasProducts E, Enriched C E} {a b} (f : hom a b) :
-  ⌜f⌝ ∘ₑ ⌜id a⌝ ≡ ⌜f⌝.
-Proof. rewrite /enr_comp_of -enr_comp_comp right_id //. Qed.
-Lemma enr_comp_assoc {C} `{!HasTerm E, !HasProducts E, Enriched C E}
-  {a b c d} (f : hom a b) (g : hom b c) (h : hom c d) :
-  ⌜h⌝ ∘ₑ ⌜g⌝ ∘ₑ ⌜f⌝ ≡ ⌜h⌝ ∘ₑ (⌜g⌝ ∘ₑ ⌜f⌝).
-Proof. rewrite /enr_comp_of -!enr_comp_comp comp_assoc //. Qed.
+Definition enr_comp_l {C} `{!HasTerm E, !HasProducts E, !Enriched C E} {a b c}
+  (g : hom b c) : hom (enr_hom a b) (enr_hom a c) :=
+  enr_comp a b c ∘ (id (enr_hom a b) ×ₕ ⌜g⌝) ∘ commutator _ _ ∘ term_times_inj (enr_hom a b).
+
+Lemma enr_comp_l_comp {C} `{!HasTerm E, !HasProducts E, !Enriched C E} {a b c}
+  (f : hom (1ₒ) (enr_hom a b)) (g : hom b c) :
+  enr_comp_l g ∘ f ≡ enr_comp _ _ _ ∘ <<f, ⌜g⌝>>.
+Proof.
+  rewrite /enr_comp_l !comp_assoc.
+  f_equiv.
+  apply prd_hom_unique.
+  - rewrite -!comp_assoc hom_prod_prj1 left_id.
+    rewrite -{1}(left_id f); f_equiv.
+    rewrite -prd_hom_commutes1 -prd_hom_commutes2 //.
+  - rewrite -!comp_assoc hom_prod_prj2 !comp_assoc.
+    rewrite -{1}(right_id ⌜g⌝); f_equiv.
+    apply term_hom_unique'.
+Qed.
+
+Global Instance enr_comp_l_proper {C} `{!HasTerm E, !HasProducts E, !Enriched C E} {a b c} :
+  Proper ((≡) ==> (≡)) (@enr_comp_l C _ _ _ _ a b c).
+Proof. repeat intros ?; rewrite /enr_comp_l; solve_by_equiv_rewrite. Qed.
 
 Class EnrichedFunctor {C D} `{!HasTerm E, !HasProducts E, !Enriched C E, !Enriched D E}
   (F : functor C D) := MkEnrFunc {
-  enr_func_h_map : ∀ a b : obj C, hom E (enr_hom a b) (enr_hom (F ₒ a) (F ₒ b));
-  enr_func_does_map : ∀ (a b : obj C) (f : hom a b), ⌜F ₕ f⌝ ≡ (enr_func_h_map a b) ∘ ⌜f⌝
+  enr_func_h_map : ∀ a b : obj C, hom (enr_hom a b) (enr_hom (F ₒ a) (F ₒ b));
+  enr_func_h_map_is_h_map : ∀ (a b : obj C) (f : hom (1ₒ) (enr_hom a b)),
+    ⌜F ₕ ⌞f⌟⌝ ≡ enr_func_h_map a b ∘ f;
+  enr_func_h_map_comp : ∀ (a b c : obj C),
+     enr_func_h_map a c ∘ (enr_comp a b c) ≡
+       (enr_comp (F ₒ a) (F ₒ b) (F ₒ c)) ∘ (enr_func_h_map a b ×ₕ enr_func_h_map b c);
+  enr_func_h_map_id : ∀ (a : obj C),
+     enr_func_h_map a a ∘ ⌜id a⌝ ≡ ⌜id (F ₒ a)⌝;
 }.
 Global Arguments MkEnrFunc {_ _ _ _ _ _ _ _} _ _.
 Global Arguments enr_func_h_map {_ _ _ _ _ _ _} _ {_} _ _.
-Global Arguments enr_func_does_map {_ _ _ _ _ _ _} _ {_} [_ _] _.
+Global Arguments enr_func_h_map_is_h_map {_ _ _ _ _ _ _} _ {_} [_ _] _.
+Global Arguments enr_func_h_map_comp {_ _ _ _ _ _ _} _ {_} _ _ _.
+Global Arguments enr_func_h_map_id {_ _ _ _ _ _ _} _ {_} _.
 
 Global Program Instance EnrichedFunctor_comp {A B C E}
   `{!HasTerm E, !HasProducts E, !Enriched A E, !Enriched B E, !Enriched C E}
   (F : functor A B) (G : functor B C) `{!EnrichedFunctor F} `{!EnrichedFunctor G}
   : EnrichedFunctor (functor_compose F G) :=
-  MkEnrFunc (λ a b : obj A, enr_func_h_map G (F ₒ a) (F ₒ b) ∘ enr_func_h_map F a b) _.
+  MkEnrFunc (λ a b : obj A, enr_func_h_map G (F ₒ a) (F ₒ b) ∘ enr_func_h_map F a b) _ _ _.
 Next Obligation.
-  intros ????????? F G ???? f; rewrite /=.
-  rewrite comp_assoc -!enr_func_does_map //.
+  intros ????????? F G ?????; rewrite /=.
+  rewrite comp_assoc -!enr_func_h_map_is_h_map enr_embed_project //.
+Qed.
+Next Obligation.
+  intros ????????? F G ?????; rewrite /=.
+  rewrite comp_assoc enr_func_h_map_comp.
+  rewrite -!comp_assoc enr_func_h_map_comp.
+  rewrite !hom_prod_comp -!comp_assoc //.
+Qed.
+Next Obligation.
+  intros ????????? F G ???; rewrite /=.
+  rewrite comp_assoc !enr_func_h_map_id //.
 Qed.
 Fail Next Obligation.
 
@@ -1579,12 +1630,17 @@ Definition inner_comp `{!HasTerm C, !HasProducts C, !HasExponentials C}
   transpose (eval _ ∘ (eval _ ×ₕ id _) ∘ associator' _ _ _).
 
 Lemma inner_comp_transpose `{!HasTerm C, !HasProducts C, !HasExponentials C}
-  {a b c : obj C} (f : hom a b) (g : hom b c) :
-  transpose' (g ∘ f) ≡ inner_comp a b c ∘ <<transpose' f, transpose' g>>.
+  {a b c : obj C} (f : hom (1ₒ) (b ↑ₒ a)) (g : hom (1ₒ) (c ↑ₒ b)) :
+  transpose' (untranspose' g ∘ untranspose' f) ≡ inner_comp a b c ∘ << f, g >>.
 Proof.
+  rewrite -(transpose'_untranspose' f).
+  rewrite -(transpose'_untranspose' g).
+  rewrite !untranspose'_transpose'.
+  generalize (untranspose' f); clear f; intros f.
+  generalize (untranspose' g); clear g; intros g.
   rewrite /inner_comp.
   eapply exp_hom_unique'.
-  { rewrite /transpose' eval_transpose; reflexivity. }
+  { rewrite /transpose' eval_transpose ; reflexivity. }
   rewrite !hom_prod_comp_left_id -!comp_assoc eval_transpose.
   rewrite hom_to_prod_to_hom_prod.
   rewrite !comp_assoc hom_prod_comp_left_id.
@@ -1592,7 +1648,8 @@ Proof.
   rewrite !comp_assoc -!(comp_assoc (_ ×ₕ _)).
   rewrite -!(comp_assoc (associator' _ _ _)).
   rewrite -hom_prod_comp left_id.
-  rewrite exp_hom_commutes_gen !comp_assoc.
+  rewrite exp_hom_commutes_gen.
+  rewrite !comp_assoc.
   f_equiv.
   rewrite -exp_hom_commutes -!comp_assoc.
   rewrite commute_term_times_proj !comp_assoc !commute_term_times_proj.
@@ -1616,8 +1673,14 @@ Global Instance psh_ccc C : CCC (PSh C) := MkCCC _ _ _ _.
 
 (* CCC's are self-enriched. Stated as Definition, not Instnace! *)
 Definition self_enriched C `{!CCC C} : Enriched C C :=
-  MkEnr (λ a b, b ↑ₒ a) (λ _ _ f, transpose' f)
-    inner_comp _ (@inner_comp_transpose _ _ _ _).
+  MkEnr
+    (λ a b, b ↑ₒ a)
+    (λ _ _ f, transpose' f)
+    (λ _ _ f, untranspose' f)
+    inner_comp _ _
+    (@untranspose'_transpose' _ _ _ _)
+    (@transpose'_untranspose' _ _ _ _)
+    (@inner_comp_transpose _ _ _ _).
 
 (* Right adjoints preserve products. *)
 
@@ -1835,6 +1898,8 @@ Qed.
 
 Global Opaque right_adj_preserves_prods.
 
+(* Right adjoints preserve terminal objects. *)(* Right adjoints preserve products. *)
+
 Program Definition hom_to_term_iso {A B C} `{!HasTerm B} `{!HasTerm C}
   (F : functor A (B ᵒᵖ)) (G : functor A (C ᵒᵖ)) :
   functor_compose (functor_prod F (const_functor (1ₒ))) (Hom B)
@@ -1844,7 +1909,6 @@ Program Definition hom_to_term_iso {A B C} `{!HasTerm B} `{!HasTerm C}
 Next Obligation. repeat intros ?; apply term_hom_unique'. Qed.
 Next Obligation. repeat intros ?; apply term_hom_unique'. Qed.
 Next Obligation. split; simpl; repeat intros ?; apply term_hom_unique'. Qed.
-
 
 Definition right_adj_preserves_terminal
   `{!HasTerm C} `{!HasTerm D} {F : functor C D} {U : functor D C}
