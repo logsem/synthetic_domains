@@ -1,285 +1,201 @@
 From SynthDom Require Import prelude.
-From SynthDom.categories Require Import category.
+From SynthDom.categories Require Import category ord_cat.
 From SynthDom Require Import stepindex.
 
-Open Scope category_scope.
+Opaque later next.
 
-Class Dist (SI: indexT) A := dist : SI → relation A.
-
-Instance: Params (@dist) 4 := {}.
-Notation "x ≡{ α }≡ y" := (dist α x y)
-  (at level 70, α at next level, format "x  ≡{ α }≡  y").
-Notation "x ≡{ α }@{ A }≡ y" := (dist (A:=A) α x y)
-  (at level 70, α at next level, only parsing).
-
-Hint Extern 0 (_ ≡{_}≡ _) => reflexivity : core.
-Hint Extern 0 (_ ≡{_}≡ _) => symmetry; assumption : core.
-Notation NonExpansive f := (∀ α, Proper (dist α ==> dist α) f).
-Notation NonExpansive2 f := (∀ α, Proper (dist α ==> dist α ==> dist α) f).
-
-(* Helper tactic. *)
-Ltac solve_by_dist_rewrite :=
-  by repeat match goal with Hd : context [dist _ _ _] |- _ => first [rewrite Hd| rewrite (Hd _)] end; eauto.
-
-
-Class Distance A `{!Equiv A, !Dist SI A} := {
-  dist_equiv : ∀ x y, (∀ α, x ≡{α}≡ y) ↔ x ≡ y;
-  dist_equivalence :: ∀ α, Equivalence (dist α);
-  dist_downwards : ∀ α β x y, x ≡{α}≡ y → β ⪯ α → x ≡{β}≡ y;
+Class LocallyContractiveFunctor {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  (F : functor C C) := MkLocContrFunc {
+  contr_enriched :: EnrichedFunctor F;
+  contr_func_h_map : ∀ a b : obj C, hom (later ₒ (enr_hom a b)) (enr_hom (F ₒ a) (F ₒ b));
+  contr_func_h_map_is_h_map :
+  ∀ a b : obj C, enr_func_h_map F a b ≡ (contr_func_h_map a b) ∘ (next ₙ (enr_hom a b));
+  contr_func_h_map_comp : ∀ a b c,
+    contr_func_h_map a c ∘
+    (later ₕ (enr_comp a b c)) ∘
+    (backward (later_prod (enr_hom a b) (enr_hom b c)))
+    ≡
+    (enr_comp (F ₒ a) (F ₒ b) (F ₒ c)) ∘
+    ((contr_func_h_map a b) ×ₕ (contr_func_h_map b c));
+  contr_func_h_map_id : ∀ a,
+  (contr_func_h_map a a) ∘ (later ₕ ⌜id a⌝) ∘ (next ₙ (1ₒ)) ≡ ⌜id (F ₒ a)⌝
 }.
+Global Arguments MkLocContrFunc {_ _ _ _ _} _ _ _ _.
+Global Arguments contr_func_h_map {_ _ _} _ {_} _ _.
+Global Arguments contr_func_h_map_is_h_map {_ _ _} _ {_} _ _.
+Global Arguments contr_func_h_map_comp {_ _ _} _ {_} _ _ _.
+Global Arguments contr_func_h_map_id {_ _ _} _ {_} _.
 
-Global Instance dist_ne `{!Equiv A, !Dist SI A, !Distance A} α : Proper (dist α ==> dist α ==> iff) (@dist SI A _ α).
-Proof. intros ?? Heq ?? Heq'; rewrite Heq Heq'; done. Qed.
+Global Instance locally_contractive_contractive
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} (F : functor C C)
+  `{!LocallyContractiveFunctor F} a b :
+  Contractive (enr_func_h_map F a b) :=
+  MkContr (contr_func_h_map F a b) (contr_func_h_map_is_h_map F a b).
 
-Global Instance dist_proper `{!Equiv A, !Dist SI A, !Distance A} α : Proper ((≡) ==> (≡) ==> iff) (@dist SI A _ α).
-Proof. intros ?? Heq ?? Heq'. eapply dist_equiv in Heq, Heq'; rewrite Heq Heq'; done. Qed.
-Global Instance dist_proper_2 `{!Equiv A, !Dist SI A, !Distance A} α x : Proper ((≡) ==> iff) (dist α x).
-Proof. apply dist_proper, dist_equiv; done. Qed.
-
-Lemma dist_le `{!Equiv A, !Dist SI A, !Distance A} α α' x y : x ≡{α}≡ y → α' ⪯ α → x ≡{α'}≡ y.
-Proof. destruct 2; eauto using dist_downwards; congruence. Qed.
-Lemma dist_le' `{!Equiv A, !Dist SI A, !Distance A} α α' x y : α' ⪯ α → x ≡{α}≡ y → x ≡{α'}≡ y.
-Proof. intros; eauto using dist_le. Qed.
-Global Instance ne_proper
-  `{!Equiv A, !Dist SI A, !Distance A}
-  `{!Equiv B, !Dist SI B, !Distance B} (f : A → B) `{!NonExpansive f} :
-  Proper ((≡) ==> (≡)) f | 100.
-Proof. by intros x1 x2; rewrite -!dist_equiv; intros Hx n; rewrite (Hx n). Qed.
-Global Instance ne_proper_2
-  `{!Equiv A, !Dist SI A, !Distance A}
-  `{!Equiv B, !Dist SI B, !Distance B}
-  `{!Equiv C, !Dist SI C, !Distance C} (f : A → B → C) `{!NonExpansive2 f} :
-  Proper ((≡) ==> (≡) ==> (≡)) f | 100.
-Proof.
-  unfold Proper, respectful; setoid_rewrite <- dist_equiv.
-  by intros x1 x2 Hx y1 y2 Hy n; rewrite (Hx n) (Hy n).
+Global Program Instance LocallyContractiveFunctor_comp_l
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} (F G : functor C C)
+  `{!LocallyContractiveFunctor F} `{!EnrichedFunctor G} :
+  LocallyContractiveFunctor (functor_compose F G) :=
+  MkLocContrFunc (λ a b, enr_func_h_map G (F ₒ a) (F ₒ b) ∘ contr_func_h_map F a b) _ _ _.
+Next Obligation.
+  intros ??? F G ?? a b α f g Heq; simpl in *.
+  pose proof (contr_func_h_map_is_h_map F a b α f g Heq) as Heq'.
+  simpl in Heq'; rewrite -Heq' //.
 Qed.
-
-Definition dist_later `{!Dist SI A} (α : SI) (x y : A) : Prop := ∀ β, β ≺ α → x ≡{β}≡ y.
-
-Global Instance dist_later_equivalence `{!Dist SI A, !Equiv A} `{!Distance A} α : Equivalence (@dist_later SI A _ α).
-Proof.
-  split.
-  - now intros ???.
-  - unfold dist_later; intros ?? H ??; now rewrite H.
-  - unfold dist_later; intros ??? H1 H2 ??; now rewrite H1 ?H2.
+Next Obligation.
+  intros ??? F G ?? a b c α [la lb] [z1 z2] [<- <-]; clear z1 z2; simpl in *.
+  pose proof (contr_func_h_map_comp F a b c α (la, lb) _ (reflexivity _))
+    as Hfg; simpl in Hfg; rewrite Hfg; clear Hfg.
+  epose proof (enr_func_h_map_comp G _ _ _ α _ _ (reflexivity _)) as Hcmp;
+    simpl in Hcmp; rewrite Hcmp; clear Hcmp.
+  simpl; done.
 Qed.
-
-Lemma dist_dist_later `{!Dist SI A, !Equiv A} `{!Distance A} α (x y : A) : dist α x y → dist_later α x y.
-Proof. intros Heq ??; eapply dist_downwards; eauto. Qed.
-
-Lemma dist_later_dist `{!Dist SI A, !Equiv A} `{!Distance A} α β (x y : A) : β ≺ α → dist_later α x y → dist β x y.
-Proof. intros ? H; by apply H.  Qed.
-
-Lemma dist_later_zero `{!Dist SI A, !Equiv A} `{!Distance A} (x y : A): dist_later zero x y.
-Proof. intros ? [] % index_lt_zero_is_normal. Qed.
-
-Global Instance ne_dist_later `{!Dist SI A, !Equiv A} `{!Distance A} `{!Dist SI B, !Equiv B} `{!Distance B} (f : A → B) :
-  NonExpansive f → ∀ α, Proper (dist_later α ==> dist_later α) f.
-Proof. intros Hf ??????; by eapply Hf, H. Qed.
-
-Global Instance ne2_dist_later_l
-  `{!Dist SI A, !Equiv A} `{!Distance A}
-  `{!Dist SI B, !Equiv B} `{!Distance B}
-  `{!Dist SI C, !Equiv C} `{!Distance C} (f : A → B → C) :
-  NonExpansive2 f → ∀ α, Proper (dist_later α ==> dist α ==> dist_later α) f.
-Proof. intros H α a b H1 c d H2 β Hβ. apply H; eapply dist_downwards; eauto. Qed.
-Global Instance ne2_dist_later_r
-  `{!Dist SI A, !Equiv A} `{!Distance A}
-  `{!Dist SI B, !Equiv B} `{!Distance B}
-  `{!Dist SI C, !Equiv C} `{!Distance C} (f : A → B → C) :
-  NonExpansive2 f → ∀ α, Proper (dist α ==> dist_later α ==> dist_later α) f.
-Proof. intros H α a b H1 c d H2 β Hβ. apply H; eapply dist_downwards; eauto. Qed.
-
-Notation Contractive f := (∀ α, Proper (dist_later α ==> dist α) f).
-
-Global Instance const_contractive `{!Dist SI A, !Equiv A} `{!Distance A} `{!Dist SI B, !Equiv B} `{!Distance A} (x : A) :
-  Contractive (@const A B x).
-Proof. by intros α y1 y2. Qed.
-
-Section contractive.
-  Local Set Default Proof Using "Type*".
-  Context `{!Dist SI A, !Equiv A} `{!Distance A} `{!Dist SI B, !Equiv B} `{!Distance B} (f : A → B) `{!Contractive f}.
-  Implicit Types x y : A.
-
-  Lemma contractive_0 x y : f x ≡{zero}≡ f y.
-  Proof. by apply (_ : Contractive f), dist_later_zero. Qed.
-  Lemma contractive_mono α x y : dist_later α x y → f x ≡{α}≡ f y.
-  Proof. by apply (_ : Contractive f). Qed.
-
-  Global Instance contractive_ne : NonExpansive f | 100.
-  Proof.
-    intros n x y ?; eapply dist_downwards with (α := succ n).
-    - eapply contractive_mono.
-      intros ??. eapply dist_le; eauto.
-    - apply index_lt_le_subrel, index_succ_greater.
-  Qed.
-
-  Global Instance contractive_proper : Proper ((≡) ==> (≡)) f | 100.
-  Proof. intros ??; apply (ne_proper _). Qed.
-End contractive.
-
-(* Enriched categories and functors. *)
-
-Polymorphic Class EnrichedCategory SI (C : category) := MkEnrCat {
-  hom_dist :: ∀ a b, Dist SI (hom C a b);
-  hom_dist_distance :: ∀ a b, Distance (hom C a b);
-  comp_ne :: ∀ a b c, NonExpansive2 (@comp C a b c);
-}.
-Global Arguments MkEnrCat {_ _} _ _ _.
-
-Polymorphic Class EnrichedFunctor `{!EnrichedCategory SI C, !EnrichedCategory SI D} (F : functor C D) := {
-  h_map_ne :: ∀ a b, NonExpansive (@h_map _ _ F a b)
-}.
-
-Polymorphic Class LocallyContractiveFunctor `{!EnrichedCategory SI C, !EnrichedCategory SI D} (F : functor C D) := {
-  h_map_contr :: ∀ a b, Contractive (@h_map _ _ F a b)
-}.
-
-Global Instance enriched_compose
-  `{!EnrichedCategory SI C, !EnrichedCategory SI D, !EnrichedCategory SI E}
-  (F : functor C D) `{!EnrichedFunctor F} (G : functor D E) `{!EnrichedFunctor G} : EnrichedFunctor (functor_compose F G).
-Proof. constructor; intros ??????; rewrite /=; solve_by_dist_rewrite. Qed.
-
-Global Instance enriched_locally_contractive_compose
-  `{!EnrichedCategory SI C, !EnrichedCategory SI D, !EnrichedCategory SI E}
-  (F : functor C D) `{!EnrichedFunctor F} (G : functor D E) `{!LocallyContractiveFunctor G} :
-  LocallyContractiveFunctor (functor_compose F G).
-Proof.
-  constructor; intros ????? Hdist; rewrite /=.
-  apply h_map_contr; intros ??; apply h_map_ne; apply Hdist; done.
+Next Obligation.
+  intros ??? F G ?? a α [] [] _; simpl in *.
+  pose proof (contr_func_h_map_id F a α () _ (reflexivity _)) as Hid;
+    simpl in Hid; rewrite Hid; clear Hid.
+  epose proof (enr_func_h_map_id G _ α () _ (reflexivity _)) as Hg;
+    simpl in Hg; rewrite -!Hg; clear Hg.
+  done.
 Qed.
+Fail Next Obligation.
 
-Global Instance locally_contractive_enriched_compose
-  `{!EnrichedCategory SI C, !EnrichedCategory SI D, !EnrichedCategory SI E}
-  (F : functor C D) `{!LocallyContractiveFunctor F} (G : functor D E) `{!EnrichedFunctor G} :
-  LocallyContractiveFunctor (functor_compose F G).
-Proof.
-  constructor; intros ????? Hdist; rewrite /=.
-  apply h_map_ne; apply h_map_contr; intros ??; apply Hdist; done.
+Global Program Instance LocallyContractiveFunctor_comp_r
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} (F G : functor C C)
+  `{!LocallyContractiveFunctor F} `{!EnrichedFunctor G} :
+  LocallyContractiveFunctor (functor_compose G F) :=
+  MkLocContrFunc
+    (λ a b, contr_func_h_map F (G ₒ a) (G ₒ b) ∘ (later ₕ (enr_func_h_map G a b))) _ _ _.
+Next Obligation.
+  intros ??? F G ?? a b α f g <-; clear g; simpl in *.
+  pose proof (contr_func_h_map_is_h_map
+    F (G ₒ a) (G ₒ b) α ((enr_func_h_map G a b ₙ α) f) _ (reflexivity _))
+    as Heq; simpl in Heq; rewrite Heq; clear Heq.
+  f_equiv.
+  pose proof (naturality next (enr_func_h_map G a b) α f _ (reflexivity _)); done.
 Qed.
-
-Global Program Instance SingletonCat_enriched {SI} : EnrichedCategory SI SingletonCat :=
-  MkEnrCat (λ _ _ _ _ _, True) _ _.
-Next Obligation. repeat intros ?; constructor; [done|apply _|done]. Qed.
-
-Global Instance const_functor_locally_contractive `{!EnrichedCategory SI C} c : LocallyContractiveFunctor (const_functor c).
-Proof. constructor; repeat intros ?; rewrite /=; done. Qed.
-
-Global Instance id_functor_enriched `{!EnrichedCategory SI C} : EnrichedFunctor (id_functor C).
-Proof. constructor; repeat intros ?; rewrite /=; done. Qed.
+Next Obligation.
+  intros ??? F G ?? a b c α [la lb] [z1 z2] [<- <-]; clear z1 z2; simpl in *.
+  epose proof (h_map_comp _ _ later _ _ _
+    (enr_comp a b c) (enr_func_h_map G a c) α _ _ (reflexivity _)) as Hlc;
+    simpl in Hlc; rewrite -Hlc; clear Hlc.
+  epose proof (enr_func_h_map_comp G _ _ _) as Hcmp.
+  simpl in Hcmp; rewrite Hcmp; clear Hcmp.
+  epose proof (h_map_comp _ _ later _ _ _
+    _ (enr_comp _ _ _) α _ _ (reflexivity _)) as Hlc;
+    simpl in Hlc; rewrite Hlc; clear Hlc.
+  epose proof (@naturality _ _ _ _ (backward (later_preserves_prods_nat SI))
+                 (_, _) (_, _) (_, _) _ (_, _) _ (reflexivity _)) as Hn;
+    simpl in Hn; rewrite -Hn; clear Hn.
+  epose proof (contr_func_h_map_comp F _ _ _ _ _ _ (reflexivity _)) as Hcmp;
+  simpl in Hcmp; rewrite Hcmp; clear Hcmp.
+  done.
+Qed.
+Next Obligation.
+  intros ??? F G ?? a α [] [] _; simpl in *.
+  pose proof (naturality next ⌜ id a ⌝ α () _ (reflexivity _)) as Hn;
+    simpl in Hn; rewrite -Hn; clear Hn.
+  epose proof (naturality next (enr_func_h_map G a a) α _ _ (reflexivity _)) as Hn;
+    simpl in Hn; rewrite -Hn; clear Hn.
+  epose proof (enr_func_h_map_id G _ α () _ (reflexivity _)) as Hg;
+    simpl in Hg; rewrite !Hg; clear Hg.
+  pose proof (naturality next ⌜ id (G ₒ a) ⌝ α () _ (reflexivity _)) as Hn;
+    simpl in Hn; rewrite Hn; clear Hn.
+  pose proof (contr_func_h_map_id F (G ₒ a) α () _ (reflexivity _)) as Hid;
+    simpl in Hid; rewrite Hid; done.
+Qed.
+Fail Next Obligation.
 
 (* α-isomorphism *)
 
-Record Aisomorphism `{!EnrichedCategory SI C} (α : SI) {a b} (f : hom C a b) (g : hom C b a) :=
-MkAIso {
-  Aiso_lr : g ∘ f ≡{α}≡ id _;
-  Aiso_rl : f ∘ g ≡{α}≡ id _;
+Record iso_at
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (α : SI) := MkIsoAt
+{
+  inv_at : (enr_hom b a) ₒ α;
+  inv_at_lr : (enr_comp a b a ₙ α) ((⌜f⌝ ₙ α) (), inv_at) ≡ (⌜id a⌝ ₙ α) ();
+  inv_at_rl : (enr_comp b a b ₙ α) (inv_at, (⌜f⌝ ₙ α) ()) ≡ (⌜id b⌝ ₙ α) ();
 }.
-Global Arguments MkAIso {_ _ _ _ _ _ _ _} _ _.
-Global Arguments Aiso_lr {_ _ _ _ _ _ _ _} _.
-Global Arguments Aiso_rl {_ _ _ _ _ _ _ _} _.
+Global Arguments MkIsoAt {_ _ _ _ _ _ _} _ _ _.
+Global Arguments inv_at {_ _ _ _ _ _ _} _.
+Global Arguments inv_at_lr {_ _ _ _ _ _ _} _.
+Global Arguments inv_at_rl {_ _ _ _ _ _ _} _.
 
-Record Aisomorphic `{!EnrichedCategory SI C} α a b := MkAIsoIc {
-  Aforward : hom C a b;
-  Abackward : hom C b a;
-  Ais_iso : Aisomorphism α Aforward Abackward
-}.
-Global Arguments MkAIsoIc {_ _ _ _ _ _} _ _ _.
-Global Arguments Aforward {_ _ _ _ _ _} _.
-Global Arguments Abackward {_ _ _ _ _ _} _.
-Global Arguments Ais_iso {_ _ _ _ _ _} _.
+Definition iso_upto {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (dsp : downset_pred SI) :=
+  ∀ β : downset dsp, iso_at f β.
 
-Infix "≃{ α }≃" := (Aisomorphic α) (at level 70, no associativity) : category_scope.
-Infix "≃{ α }@{ C }≃" := (@Aisomorphic C _ α)
-  (at level 70, only parsing, no associativity) : category_scope.
-
-Hint Extern 1 (_ ≡{_}≡ _) => apply dist_equiv; assumption : core.
-
-Lemma enr_func_iso_ne `{!EnrichedCategory SI C, EnrichedCategory SI D} (F : functor C D) `{!EnrichedFunctor F}
-  α {a b} {f : hom C a b} {g : hom C b a} (aiso : Aisomorphism α f g) :
-  Aisomorphism α (F ₕ f) (F ₕ g).
-Proof.
-  split.
-  - rewrite -h_map_comp (Aiso_lr aiso) h_map_id //.
-  - rewrite -h_map_comp (Aiso_rl aiso) h_map_id //.
-Qed.
-
-Global Instance locally_contractive_enriched
-  `{!EnrichedCategory SI C, EnrichedCategory SI D} (F : functor C D) `{!LocallyContractiveFunctor F} : EnrichedFunctor F.
-Proof.
-  constructor; intros ??????.
-  apply h_map_contr.
-  intros ? ?; eapply dist_le; first eassumption.
-  apply index_lt_le_subrel; done.
-Qed.
-
-Lemma contr_func_iso_contr
-  `{!EnrichedCategory SI C, EnrichedCategory SI D} (F : functor C D) `{!LocallyContractiveFunctor F}
-  α {a b} {f : hom C a b} {g : hom C b a} (aiso : ∀ β, β ≺ α → Aisomorphism β f g) :
-  Aisomorphism α (F ₕ f) (F ₕ g).
-Proof.
-  split.
-  - rewrite -h_map_comp -h_map_id.
-    apply h_map_contr.
-    intros β Hβ; apply (Aiso_lr (aiso β Hβ)).
-  - rewrite -h_map_comp -h_map_id.
-    apply h_map_contr.
-    intros β Hβ; apply (Aiso_rl (aiso β Hβ)).
-Qed.
-
-Program Definition Aismorphism_id `{!EnrichedCategory SI C} α c :
-  Aisomorphism α (@id C c) (@id C c) := MkAIso _ _.
-Solve All Obligations with by repeat intros ?; rewrite left_id.
-Fail Next Obligation.
-Definition Aismorphism_swap
-  `{!EnrichedCategory SI C} {α} {a b} {f : hom C a b} {g : hom C b a} (iso : Aisomorphism α f g) :
-  Aisomorphism α g f :=
-  MkAIso (Aiso_rl iso) (Aiso_lr iso).
-Program Definition Aismorphism_compose `{!EnrichedCategory SI C} {α} {a b c}
-  {f : hom C a b} {g : hom C b a} (iso : Aisomorphism α f g)
-  {h : hom C b c} {i : hom C c b} (iso : Aisomorphism α h i) :
-  Aisomorphism α (h ∘ f) (g ∘ i) := MkAIso _ _.
+Program Definition iso_upto_inv_embedded
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (dsp : downset_pred SI)
+  (iso : iso_upto f dsp) :
+  hom (PSh (OrdDSCat dsp))
+    (lift_func dsp (1ₒ : PreSheaf _))
+    (lift_func dsp (enr_hom b a)) :=
+  MkNat (λ α, λset _, inv_at (iso α)) _.
 Next Obligation.
-  intros ??????? f g isofg h i isohi.
-  rewrite (comp_assoc _ _ g) -(comp_assoc _ _ i) (Aiso_lr isohi) left_id (Aiso_lr isofg) //.
+  intros ????? f ? iso α β Hle [] [] _; simpl in *.
+  eassert ((enr_comp b b a ₙ (β : SI))
+             ((enr_comp b a b ₙ (β : SI))
+                ((enr_hom b a ₕ Hle) (inv_at (iso α)),
+                  (⌜ f ⌝ₙ (β : SI)) ()), (inv_at (iso β))) ≡
+             inv_at (iso β)) as <-.
+  { pose proof (@naturality _ _ _ _ (enr_comp b a b) _ _ Hle
+         (inv_at (iso α), (⌜ f ⌝ₙ (α : SI)) ())
+         _ (reflexivity _)) as Hn.
+    simpl in Hn.
+    pose proof (inv_at_rl (iso α)) as Hrl;
+      simpl in Hrl; rewrite Hrl in Hn; clear Hrl.
+    pose proof (naturality ⌜ id b ⌝ Hle () _ (reflexivity _)) as Hid;
+      simpl in Hid; rewrite -Hid in Hn; clear Hid.
+    pose proof (naturality ⌜ f ⌝ Hle () _ (reflexivity _)) as Hid;
+      simpl in Hid; rewrite -Hid in Hn; clear Hid.
+    rewrite Hn.
+    epose proof
+      (enr_right_id b a (β : SI) ((), inv_at (iso β))
+         _ (reflexivity _)); done. }
+  epose proof (enr_comp_assoc b a b a (β : SI)
+    ((enr_hom b a ₕ Hle) (inv_at (iso α)),
+      (⌜ f ⌝ₙ (β : SI)) (), inv_at (iso β)) _ (reflexivity _)) as Hass.
+  rewrite /= in Hass; rewrite -Hass; clear Hass.
+  pose proof (inv_at_lr (iso β)) as Hlr;
+    simpl in Hlr; rewrite Hlr; clear Hlr.
+  epose proof (enr_left_id b a (β : SI) (_, ()) _ (reflexivity _)) as Hlid;
+    simpl in Hlid; rewrite Hlid; clear Hlid.
+  done.
 Qed.
-Next Obligation.
-  intros ??????? f g isofg h i isohi.
-  rewrite (comp_assoc _ _ h) -(comp_assoc _ _ f) (Aiso_rl isofg) left_id (Aiso_rl isohi) //.
-Qed.
-Fail Next Obligation.
 
-Definition isomorphic_refl `{!EnrichedCategory SI C} α (c : obj C) : Aisomorphic α c c :=
-  MkAIsoIc _ _ (Aismorphism_id _ _).
-Definition isomorphic_symm
-  `{!EnrichedCategory SI C} α (a b : obj C) : Aisomorphic α a b → Aisomorphic α b a :=
-  λ iso, MkAIsoIc _ _ (Aismorphism_swap (Ais_iso iso)).
-Definition isomorphic_trans `{!EnrichedCategory SI C} α (a b c : obj C) :
-  Aisomorphic α a b → Aisomorphic α b c → Aisomorphic α a c :=
-  λ iso1 iso2, MkAIsoIc _ _ (Aismorphism_compose (Ais_iso iso1) (Ais_iso iso2)).
+Definition iso_upto_total_inv_embedded
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (iso : iso_upto f (total_dsp SI)) :
+  hom (1ₒ) (enr_hom b a) :=
+  unlift_natural (iso_upto_inv_embedded f _ iso).
 
-Lemma iso_Aiso `{!EnrichedCategory SI C} {a b} (f : hom C a b) (g : hom C b a) :
-  isomorphism f g ↔ ∀ α, Aisomorphism α f g.
+Definition iso_upto_total_inv
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (iso : iso_upto f (total_dsp SI)) :
+  hom b a := ⌞iso_upto_total_inv_embedded f iso⌟.
+
+Lemma iso_upto_total_isomorphism {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (iso : iso_upto f (total_dsp SI)) :
+  isomorphism f (iso_upto_total_inv f iso).
 Proof.
   split.
-  - intros [Hf Hb] ?; split; rewrite ?Hf ?Hb; done.
-  - intros Haiso; split; apply dist_equiv; intros ?; apply Haiso.
+  - rewrite -{1}(enr_embed_project f).
+    apply enr_embed_inj.
+    intros α [] [] _.
+    rewrite /iso_upto_total_inv /iso_upto_total_inv_embedded.
+    rewrite enr_comp_comp /=.
+    apply inv_at_lr.
+  - rewrite -{2}(enr_embed_project f).
+    apply enr_embed_inj.
+    intros α [] [] _.
+    rewrite /iso_upto_total_inv /iso_upto_total_inv_embedded.
+    rewrite enr_comp_comp /=.
+    apply inv_at_rl.
 Qed.
 
-Lemma iso_Aiso_1 `{!EnrichedCategory SI C} {a b} (f : hom C a b) (g : hom C b a) α :
-  isomorphism f g → Aisomorphism α f g.
-Proof. intros ?; apply iso_Aiso; done. Qed.
+Definition iso_upto_total {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (iso : iso_upto f (total_dsp SI)) :
+  isomorphic a b := MkIsoIc _ _ (iso_upto_total_isomorphism f iso).
 
-Lemma isoic_Aisoic_1 `{!EnrichedCategory SI C} (a b : obj C) :
-  isomorphic a b → ∀ α, Aisomorphic α a b.
-Proof.
-  intros [f g Hiso] ?; exists f g; apply iso_Aiso; done.
-Qed.
-
-(* Lemma contr_func_unique_fixpoint *)
-(*   `{!EnrichedCategory SI C} (F : functor C C) `{!LocallyContractiveFunctor F} : *)
-(*   ∀ c d, c ≃ F ₒ c → d ≃ F ₒ d → c ≃ d. *)
-(* Proof. *)
-(*   intros c d cfx dfx. *)
-  

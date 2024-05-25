@@ -12,4 +12,5 @@ theories/ordinals/ord_stepindex.v
 
 theories/categories/category.v
 theories/categories/ord_cat.v
+theories/categories/enriched.v
 theories/categories/domain.v

@@ -112,6 +112,40 @@ Next Obligation.
 Proof. intros ???? []; rewrite /= h_map_id //. Qed.
 Fail Next Obligation.
 
+Program Definition unlift_func {SI} {C} (F : functor ((OrdDSCat (total_dsp SI))ᵒᵖ) C) :
+  functor ((OrdCat SI)ᵒᵖ) C :=
+  MkFunc
+    (λ α, F ₒ (ds_idx (@MkDS SI (total_dsp SI) α I)))
+    (λ α β f, F ₕ (f : (@MkDS SI (total_dsp SI) β I) ⪯ (@MkDS SI (total_dsp SI) α I)))
+    _ _ _.
+Next Obligation.
+Proof. repeat intros ?; simpl; setoid_subst; done. Qed.
+Next Obligation.
+Proof. repeat intros ?; rewrite /= -h_map_comp; f_equiv; done. Qed.
+Next Obligation.
+Proof. repeat intros ?; rewrite /= h_map_id //. Qed.
+Fail Next Obligation.
+
+Program Definition lift_natural {SI} (dsp : downset_pred SI) {C}
+  {F G : functor ((OrdCat SI)ᵒᵖ) C} (η : natural F G) :
+  natural (lift_func dsp F) (lift_func dsp G) :=
+  MkNat (λ α, η ₙ (α : SI)) _.
+Next Obligation.
+Proof. repeat intros ?; rewrite /= naturality //. Qed.
+Fail Next Obligation.
+
+Program Definition unlift_natural {SI} {C} {F G : functor ((OrdCat SI)ᵒᵖ) C}
+  (η : natural (lift_func (total_dsp SI) F) (lift_func (total_dsp SI) G)) :
+  natural F G :=
+  MkNat (λ α, η ₙ (@MkDS SI (total_dsp SI) α I)) _.
+Next Obligation.
+Proof.
+  intros ?? F G η α β Hle; rewrite /=.
+  rewrite (naturality η
+    (Hle : (@MkDS SI (total_dsp SI) β I) ⪯ (@MkDS SI (total_dsp SI) α I))) //.
+Qed.
+Fail Next Obligation.
+
 Definition lift_in_lt_ds
   {SI : indexT} {α β : SI} (Hle : β ⪯ α) (γ : downset (lt_dsp β)) : downset (lt_dsp α) :=
   MkDS (lt_dsp α) (index_lt_le_trans _ _ _ (ds_in_dsp γ) Hle).
