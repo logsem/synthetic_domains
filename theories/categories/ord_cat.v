@@ -9,6 +9,12 @@ Local Unset Universe Minimization ToSet.
 
 Open Scope category_scope.
 
+Lemma index_succ_le_lt1 : ∀ {I : indexT} (α β : I), succ α ⪯ β → α ≺ β.
+Proof. intros; apply index_succ_le_lt; done. Qed.
+Lemma index_succ_le_lt2 : ∀ {I : indexT} (α β : I), α ≺ β → succ α ⪯ β.
+Proof. intros; apply index_succ_le_lt; done. Qed.
+
+
 Global Instance index_le_equiv (SI : indexT) (α β : SI) : Equiv (α ⪯ β) := λ _ _, True.
 
 Program Definition OrdCat (SI : indexT) : category :=
@@ -203,6 +209,23 @@ Section limit_at.
 
 End limit_at.
 
+Section earlier.
+  Context {SI : indexT} {C : category}.
+
+  Program Definition earlier : functor (FuncCat ((OrdCat SI)ᵒᵖ) C) (FuncCat ((OrdCat SI)ᵒᵖ) C) :=
+    MkFunc (λ F, functor_compose (opposite_func (Succ _)) F)
+      (λ _ _ η, hor_comp (natural_id (opposite_func (Succ _))) η) _ _ _.
+  Next Obligation. repeat intros ?; rewrite /=; solve_by_equiv_rewrite. Qed.
+  Next Obligation. repeat intros ?; rewrite /= !h_map_id !right_id //. Qed.
+  Next Obligation. repeat intros ?; rewrite //= !h_map_id !right_id //. Qed.
+  Fail Next Obligation.
+
+  Program Definition from_earlier F : natural (earlier ₒ F) F :=
+    MkNat (λ α, (F ₕ (index_lt_le_subrel _ _ (index_succ_greater α)))) _.
+  Next Obligation. repeat intros ?; rewrite /= -!h_map_comp; f_equiv; done. Qed.
+
+End earlier.
+
 Section later_func_gen.
   Context {SI : indexT} {C : category}.
 
@@ -220,8 +243,8 @@ Section later_func_gen.
   Variable (lo_map : SI → obj C).
   Hypothesis lo_map_il : ∀ α, is_limit (lift_func (lt_dsp α) F) (lo_map α).
 
-  Lemma il_side_eq α β Hβ1 Hβ2 :
-    il_side (lo_map_il α) (@MkDS _ _ β Hβ1) = il_side (lo_map_il α) (MkDS Hβ2).
+  Lemma il_side_eq α (β : SI) Hβ1 Hβ2 :
+    il_side (lo_map_il α) (@MkDS _ _ β Hβ1) = il_side (lo_map_il α) (@MkDS _ _ β Hβ2).
   Proof. by replace Hβ1 with Hβ2 by apply proof_irrel. Qed.
 
   Definition proj_cone_hom {α β} (Hle : β ⪯ α) :
@@ -259,6 +282,142 @@ Section later_func_gen.
       destruct δ; apply il_side_eq.
   Qed.
   Fail Next Obligation.
+
+  Definition earlier_later_pointwise_iso α :
+    (earlier ₒ later_func_gen) ₒ α ≃ (F ₒ α) :=
+    cone_iso_vertex
+      (is_term_unique
+         _
+         _
+         (is_limit_limiting_cone (lo_map_il (succ α)))
+         (is_limit_limiting_cone
+            (is_limit_at F (in_lt_dsp_succ α) (index_succ_greater α)))).
+
+  Program Definition earlier_later_iso :
+    (earlier ₒ later_func_gen)
+    ≃@{FuncCat ((OrdCat SI)ᵒᵖ) C}
+    F :=
+    MkIsoIc
+      (MkNat (λ α, forward (earlier_later_pointwise_iso α)) _)
+      (MkNat (λ α, backward (earlier_later_pointwise_iso α)) _)
+      _.
+  Next Obligation.
+    intros α β Hle; simpl in *.
+    rewrite_cone_hom_commutes_back; simpl.
+    assert (β ≺ succ α) as Hβsα.
+    { apply index_succ_iff; done. }
+    pose proof (ic_side_commutes (il_is_cone (lo_map_il (succ α)))
+       (Hle : MkDS (lt_dsp (succ α)) Hβsα ⪯ MkDS (lt_dsp (succ α)) (index_succ_greater α)))
+        as Hicc; simpl in Hicc; rewrite -Hicc; clear Hicc.
+    match goal with |- ?A ≡ ?B => assert (A = B) as ->; last done end.
+    apply il_side_eq.
+  Qed.
+  Next Obligation.
+    intros α β Hle; simpl in *.
+    apply (hom_to_limit_unique _ _ _
+             (lo_map_il (succ β))
+             (cone_is_cone
+                (proj_cone (index_le_succ_mono _ _ Hle)
+                   (cone_at F α (lt_dsp (succ α)) (in_lt_dsp_succ α))))).
+    - intros γ; rewrite /= -comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite -h_map_comp.
+      f_equiv; done.
+    - intros γ; simpl in *.
+      rewrite -!comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite_cone_hom_commutes_back; done.
+  Qed.
+  Next Obligation.
+    split; intros α; simpl.
+    - pose proof (is_iso (earlier_later_pointwise_iso α)) as [? ?]; simpl in *; done.
+    - pose proof (is_iso (earlier_later_pointwise_iso α)) as [? ?]; simpl in *; done.
+  Qed.
+  Fail Next Obligation.
+
+  Lemma side_of_later_gen {α} (β : downset (lt_dsp α)) :
+    (il_side (lo_map_il α) β) ≡
+      (forward earlier_later_iso ₙ (β : SI)) ∘
+      (later_func_gen ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))).
+  Proof.
+    assert (succ β ⪯ α) as Hsβsα.
+    { apply index_succ_le_lt2, (ds_in_dsp β). }
+    apply (hom_to_limit_unique _ _ _
+      (is_limit_at F (in_lt_dsp_succ β) (index_succ_greater β))
+      (cone_is_cone (proj_cone Hsβsα (cone_of_is_cone (il_is_cone (lo_map_il α)))))).
+    - intros γ; simpl.
+      assert (γ ≺ α) as Hγα.
+      { eapply index_le_lt_trans; last apply (ds_in_dsp β).
+        apply index_succ_iff_proj_r2l, (ds_in_dsp γ). }
+      pose proof (ic_side_commutes (il_is_cone (lo_map_il α))
+       (in_lt_dsp_succ β γ : MkDS (lt_dsp α) Hγα ⪯ MkDS (lt_dsp α) (ds_in_dsp β)))
+        as Hicc.
+      destruct β; simpl in *; rewrite -Hicc.
+      match goal with |- ?A ≡ ?B => assert (A = B) as ->; last done end.
+      destruct γ; apply il_side_eq.
+    - intros γ; simpl in *.
+      rewrite -comp_assoc.
+      pose proof (naturality (forward earlier_later_iso)) as Hn.
+      simpl in Hn; rewrite -Hn; clear Hn.
+      repeat (rewrite_cone_hom_commutes_back; simpl).
+      match goal with |- ?A ≡ ?B => assert (A = B) as ->; last done end.
+      destruct γ; apply il_side_eq.
+  Qed.
+
+  Lemma side_of_later'_gen {α} (β : downset (lt_dsp α)) :
+    (later_func_gen ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))) ≡
+    (backward earlier_later_iso ₙ (β : SI)) ∘ (il_side (lo_map_il α) β).
+  Proof.
+    symmetry.
+    apply (compose_along_iso_left (earlier_later_pointwise_iso (β : SI))).
+    rewrite -comp_assoc (iso_rl (is_iso (earlier_later_pointwise_iso (β : SI)))) left_id.
+    apply side_of_later_gen.
+  Qed.
+
+  Lemma equiv_of_into_later_gen (c : obj C) {α} (f g : hom c (later_func_gen ₒ α)) :
+    (∀ β (Hlt : β ≺ α),
+      (later_func_gen ₕ (index_succ_le_lt2 _ _ Hlt)) ∘ f  ≡
+      (later_func_gen ₕ (index_succ_le_lt2 _ _ Hlt)) ∘ g) →
+    f ≡ g.
+  Proof.
+    intros Hfg.
+    apply (hom_to_limit_unique _ _ _
+             (lo_map_il α)
+             (cone_is_cone (extend_cone (cone_of_is_cone (il_is_cone (lo_map_il α))) f)));
+    first done.
+    intros β; simpl in *.
+    change (ic_side (il_is_cone (lo_map_il α)) β) with (il_side (lo_map_il α) β).
+    rewrite side_of_later_gen.
+    rewrite !comp_assoc.
+    f_equiv.
+    rewrite Hfg; done.
+  Qed.
+
+  Program Definition cone_of_into_later_gen (c : obj C) {α}
+    (f : ∀ β, β ≺ α → hom c (F ₒ β))
+    (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ),
+        (F ₕ Hle) ∘ (f γ Hγ) ≡ (f β Hβ)) :
+    cone (lift_func (lt_dsp α) F) :=
+    MkCone c (λ β, f _ (ds_in_dsp β)) _.
+  Next Obligation.
+    intros ?? f Hf β γ Hle; simpl.
+    symmetry; apply Hf.
+  Qed.
+
+  Definition into_later_gen (c : obj C) {α}
+    (f : ∀ β, β ≺ α → hom c (F ₒ β))
+    (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ),
+        (F ₕ Hle) ∘ (f γ Hγ) ≡ (f β Hβ)) : hom c (later_func_gen ₒ α) :=
+    cone_hom_map
+      (bang (is_limit_limiting_cone (lo_map_il α)) (cone_of_into_later_gen c f Hf)).
+
+  Lemma into_later_side_gen (c : obj C) {α}
+    (f : ∀ β, β ≺ α → hom c (F ₒ β))
+    (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ),
+        (F ₕ Hle) ∘ (f γ Hγ) ≡ (f β Hβ))
+    (β : downset (lt_dsp α)) :
+    (il_side (lo_map_il α) β) ∘ (into_later_gen c f Hf) ≡ f _ (ds_in_dsp β).
+  Proof. rewrite /into_later_gen; rewrite_cone_hom_commutes_back; simpl; done. Qed.
 
 End later_func_gen.
 
@@ -411,13 +570,7 @@ Section later.
   Qed.
   Fail Next Obligation.
 
-  Program Definition next_cone {F G : functor ((OrdCat SI)ᵒᵖ) C} (η : natural F G)
-    {α} (cn : cone (lift_func (lt_dsp α) F)) : cone (lift_func (lt_dsp α) G) :=
-    MkCone (vertex cn) (λ α, η ₙ (α : SI) ∘ side cn α) _.
-  Next Obligation. repeat intros ?; rewrite /= -comp_assoc -naturality comp_assoc -side_commutes //. Qed.
-  Fail Next Obligation.
-
-  Program Definition next : natural (id_functor _) later :=
+  Program Definition next : natural (id_functor (FuncCat ((OrdCat SI)ᵒᵖ) C)) later :=
     MkNat (λ F,
       MkNat (λ α,
         cone_hom_map
@@ -442,27 +595,108 @@ Section later.
              (limiting_cone_is_limit
                 (il_is_limiting_cone (lift_func _ _) _ (later_func_o_map_is_limit G α)))
              (cone_is_cone
-                (next_cone η (cone_at F α (lt_dsp α) (in_lt_dsp α))))).
+                (trans_cone_along_natural (lift_natural (lt_dsp α) η)
+                   (cone_at F α (lt_dsp α) (in_lt_dsp α))))).
     - intros ?; rewrite /= -comp_assoc; rewrite_cone_hom_commutes_back.
       rewrite naturality. f_equiv; done.
     - intros ?; rewrite /= -comp_assoc; rewrite_cone_hom_commutes_back.
       rewrite comp_assoc; rewrite_cone_hom_commutes_back; f_equiv; done.
   Qed.
 
-End later.
-
-Section earlier.
-  Context {SI : indexT} {C : category}.
-
-  Program Definition earlier : functor (FuncCat ((OrdCat SI)ᵒᵖ) C) (FuncCat ((OrdCat SI)ᵒᵖ) C) :=
-    MkFunc (λ F, functor_compose (opposite_func (Succ _)) F)
-      (λ _ _ η, hor_comp (natural_id (opposite_func (Succ _))) η) _ _ _.
-  Next Obligation. repeat intros ?; rewrite /=; solve_by_equiv_rewrite. Qed.
-  Next Obligation. repeat intros ?; rewrite /= !h_map_id !right_id //. Qed.
-  Next Obligation. repeat intros ?; rewrite //= !h_map_id !right_id //. Qed.
+  Program Definition earlier_later_nat_iso :
+    functor_compose later earlier
+    ≃@{FuncCat (FuncCat ((OrdCat SI)ᵒᵖ) C) (FuncCat ((OrdCat SI)ᵒᵖ) C)}
+    (id_functor (FuncCat ((OrdCat SI)ᵒᵖ) C)) :=
+    MkIsoIc
+      (MkNat (λ F,
+           forward (earlier_later_iso F (later_func_o_map F) (later_func_o_map_is_limit F))) _)
+      (MkNat (λ F,
+           backward (earlier_later_iso F (later_func_o_map F) (later_func_o_map_is_limit F))) _)
+      _.
+  Next Obligation.
+    intros F G η α; simpl in *.
+    rewrite -comp_assoc.
+    rewrite_cone_hom_commutes_back; simpl.
+    rewrite comp_assoc.
+    rewrite_cone_hom_commutes_back; simpl.
+    f_equiv.
+    match goal with |- ?A ≡ ?B => assert (A = B) as ->; last done end.
+    apply il_side_eq.
+  Qed.
+  Next Obligation.
+    intros F G η α; simpl in *.
+    apply (hom_to_limit_unique _ _ _
+             (later_func_o_map_is_limit G (succ α))
+             (cone_is_cone
+                (trans_cone_along_natural (lift_natural (lt_dsp (succ α)) η)
+                   (cone_at F α (lt_dsp (succ α)) (in_lt_dsp_succ α))))).
+    - intros γ; simpl in *.
+      rewrite -comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite naturality //.
+    - intros γ; simpl in *.
+      rewrite -!comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite !comp_assoc; f_equiv.
+      rewrite -!comp_assoc.
+      repeat (rewrite_cone_hom_commutes_back; simpl).
+      f_equiv; done.
+  Qed.
+  Next Obligation.
+    split; intros F α; simpl.
+    - pose proof (is_iso
+        (earlier_later_iso F (later_func_o_map F) (later_func_o_map_is_limit F))) as [Hlr _].
+      specialize (Hlr α); simpl in *; done.
+    - pose proof (is_iso
+        (earlier_later_iso F (later_func_o_map F) (later_func_o_map_is_limit F))) as [_ Hrl].
+      specialize (Hrl α); simpl in *; done.
+  Qed.
   Fail Next Obligation.
 
-End earlier.
+  Lemma forward_earlier_later_nat_iso_next (F : functor ((OrdCat SI)ᵒᵖ) C) :
+  (natural_comp
+     (earlier ₕ (next ₙ F))
+     (forward earlier_later_nat_iso ₙ F)) ≡ from_earlier F.
+  Proof.
+    intros α; rewrite /= -comp_assoc.
+    rewrite_cone_hom_commutes_back; simpl.
+    rewrite -h_map_comp; f_equiv; done.
+  Qed.
+
+  Lemma side_of_later F {α} (β : downset (lt_dsp α)) :
+    (il_side (later_func_o_map_is_limit F α) β) ≡
+    (forward earlier_later_nat_iso) ₙ F ₙ (β : SI) ∘
+    ((later ₒ F)ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))).
+  Proof. apply side_of_later_gen. Qed.
+
+  Lemma side_of_later' F {α} (β : downset (lt_dsp α)) :
+    ((later ₒ F)ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))) ≡
+    (backward earlier_later_nat_iso) ₙ F ₙ (β : SI) ∘
+    (il_side (later_func_o_map_is_limit F α) β).
+  Proof. apply side_of_later'_gen. Qed.
+
+  Lemma equiv_of_into_later F (c : obj C) {α} (f g : hom c ((later ₒ F) ₒ α)) :
+    (∀ β (Hlt : β ≺ α),
+      ((later ₒ F) ₕ (index_succ_le_lt2 _ _ Hlt)) ∘ f  ≡
+      ((later ₒ F) ₕ (index_succ_le_lt2 _ _ Hlt)) ∘ g) →
+    f ≡ g.
+  Proof. apply equiv_of_into_later_gen. Qed.
+
+  Definition into_later (F : functor ((OrdCat SI)ᵒᵖ) C) (c : obj C) {α}
+    (f : ∀ β, β ≺ α → hom c (F ₒ β))
+    (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ),
+        (F ₕ Hle) ∘ (f γ Hγ) ≡ (f β Hβ)) : hom c ((later ₒ F) ₒ α) :=
+    into_later_gen F (later_func_o_map F) (later_func_o_map_is_limit F) c f Hf.
+
+  Lemma into_later_side (F : functor ((OrdCat SI)ᵒᵖ) C) (c : obj C) {α}
+    (f : ∀ β, β ≺ α → hom c (F ₒ β))
+    (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ),
+        (F ₕ Hle) ∘ (f γ Hγ) ≡ (f β Hβ))
+    (β : downset (lt_dsp α)) :
+    (il_side (later_func_o_map_is_limit F α) β) ∘ (into_later F c f Hf) ≡ f _ (ds_in_dsp β).
+  Proof. apply into_later_side_gen. Qed.
+
+End later.
 
 Section Adjunction.
   Context {SI : indexT} {C : category} `{!HasTerm C} `{!Complete C}.
@@ -541,28 +775,6 @@ Section Adjunction.
       rewrite naturality; repeat f_equiv; done.
   Qed.
 
-  Lemma later_succ F : functor_compose (opposite_func (Succ SI)) (later_func F) ≡ F.
-  Proof.
-    refine (MkFuncEq
-      (functor_compose (opposite_func (Succ SI)) (later_func F)) F
-      (later_func_o_map_succ F) _).
-    intros ?? Hle; rewrite /=.
-    symmetry; apply hom_trans_sym'; symmetry.
-    apply (hom_to_limit_unique _ _ _
-             (limiting_cone_is_limit (il_is_limiting_cone (lift_func _ _) _
-                                        (later_func_o_map_is_limit _ _)))
-             (cone_is_cone (proj_cone _ (index_le_succ_mono _ _ Hle)
-                              (cone_of_is_limit (later_func_o_map_is_limit _ _))))).
-    - intros ?; rewrite /=. rewrite_cone_hom_commutes_back; done.
-    - intros ?; rewrite /=.
-      rewrite !later_func_o_map_is_limit_succ.
-      rewrite !trans_side_of_is_limit_trans.
-      rewrite !hom_trans_compose_take_in_l.
-      rewrite -hom_trans_trans eq_trans_sym_inv_r hom_trans_refl.
-      f_equiv.
-      rewrite /ic_side /= -h_map_comp; f_equiv; done.
-  Qed.
-
   Program Definition later_earlier_backward :
     natural
       (in_right_of_hom (FuncCat (OrdCat SI)ᵒᵖ C) (FuncCat (OrdCat SI)ᵒᵖ C) ₒ later)
@@ -570,31 +782,13 @@ Section Adjunction.
     MkNat (λ FG, λset η,
         natural_comp
           (hor_comp (natural_id (opposite_func (Succ _))) η)
-          (functor_eq_natural (later_succ FG.2))) _.
+          ((forward earlier_later_nat_iso)ₙ FG.2)) _.
   Next Obligation. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
   Next Obligation.
     repeat intros [F1 G1] [F2 G2] [η1 η2] δ1 δ2 -> α; rewrite /=.
-    rewrite !hom_trans_compose_take_in_r !left_id /= !hom_trans_refl.
-    rewrite !later_func_o_map_is_limit_succ.
     rewrite !h_map_id !right_id.
-    rewrite bang_of_is_limit_trans.
-    rewrite !hom_trans_compose_take_in_r -hom_trans_trans /= !hom_trans_refl.
-    rewrite !hom_trans_compose !hom_trans_refl.
-    f_equiv.
-    rewrite !later_func_o_map_is_limit_succ /il_side.
-    rewrite !trans_side_of_is_limit_trans /=.
-    replace (eq_trans (eq_sym (later_func_o_map_succ G2 α)) (func_eq_o_map (later_succ G2) α))
-      with (eq_refl (G2 ₒ α)) by apply proof_irrelevance.
-    rewrite hom_trans_refl !comp_assoc.
-    f_equiv.
-    apply hom_trans_sym'.
-    rewrite !hom_trans_compose !hom_trans_refl.
-    rewrite -hom_trans_trans eq_trans_refl_r eq_trans_refl_l.
-    match goal with |- hom_trans _ _ ?A ∘ _ ≡ _ => assert (A ≡ id _) as -> end.
-    { rewrite -h_map_id; f_equiv; done. }
-    replace (later_func_o_map_succ G1 α) with (func_eq_o_map (later_succ G1) α)
-      by apply proof_irrelevance.
-    rewrite hom_trans_id left_id //.
+    rewrite -!comp_assoc.
+    rewrite_cone_hom_commutes_back; simpl; done.
   Qed.
   Fail Next Obligation.
 
@@ -604,52 +798,14 @@ Section Adjunction.
     split.
     - intros [F G] η η' <- α; clear η'; simpl in *.
       rewrite h_map_id right_id.
-      rewrite hom_trans_compose_take_in_r left_id /= hom_trans_refl.
-      symmetry; apply hom_trans_sym'; symmetry.
-      pose (hom_trans
-              (func_eq_o_map
-                 (later_succ (functor_compose (opposite_func (Succ SI)) F)) α)
-              eq_refl
-              (later ₕ η ₙ (succ α))) as f.
-      pose (extend_cone
-              (cone_of_is_cone
-                 (il_is_cone (later_func_o_map_is_limit G (succ α)))) f)
-        as cn.
-      apply (hom_to_limit_unique _ _ _
-             (later_func_o_map_is_limit G (succ α))
-             (cone_is_cone cn)).
-      + intros ?; rewrite /= -comp_assoc.
-        rewrite_cone_hom_commutes_back.
-        rewrite /= !comp_assoc.
-        rewrite_cone_hom_commutes_back.
-        rewrite /f /=.
-        rewrite hom_trans_compose_take_in_l /= hom_trans_refl.
-        rewrite_cone_hom_commutes_back.
-        rewrite /later_h_map_cone /=.
-        rewrite hom_trans_compose /= hom_trans_refl.
-        rewrite later_func_o_map_is_limit_succ.
-        rewrite /il_side trans_side_of_is_limit_trans.
-        rewrite -hom_trans_trans /=.
-        match goal with
-          |- context [eq_trans (eq_sym ?A) ?B] =>
-            pose proof (proof_irrelevance _ A B) as ->
-        end.
-        rewrite eq_trans_sym_inv_l hom_trans_refl /=.
-        repeat f_equiv; done.
-      + intros ?; rewrite /= /f /=.
-        rewrite !hom_trans_compose_take_in_l /= !hom_trans_refl eq_sym_involutive.
-        rewrite_cone_hom_commutes_back.
-        rewrite /later_h_map_cone /=.
-        rewrite hom_trans_compose /= hom_trans_refl.
-        rewrite !later_func_o_map_is_limit_succ.
-        rewrite /il_side !trans_side_of_is_limit_trans /=.
-        rewrite -!hom_trans_trans /=.
-        repeat match goal with
-          |- context [eq_trans (eq_sym ?A) ?B] =>
-            pose proof (proof_irrelevance _ A B) as ->
-        end.
-        rewrite !eq_trans_sym_inv_l !hom_trans_refl /=.
-        rewrite (naturality η) //.
+      rewrite -!comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      match goal with |- _ ∘ h_map _ ?A ≡ _ =>
+      replace A with (reflexivity (succ α)) by apply proof_irrel
+      end.
+      rewrite h_map_id right_id; done.
     - intros [F G] η η' <- α; clear η'; simpl in *.
       pose (extend_cone
               (cone_of_is_cone (il_is_cone (later_func_o_map_is_limit G α)))
@@ -657,32 +813,74 @@ Section Adjunction.
       apply (hom_to_limit_unique _ _ _
              (later_func_o_map_is_limit G α)
              (cone_is_cone cn)); last done.
-      intros j; rewrite /= -comp_assoc.
-      rewrite_cone_hom_commutes_back.
-      rewrite /= !comp_assoc.
-      rewrite_cone_hom_commutes_back.
-      rewrite /= h_map_id left_id.
-      rewrite hom_trans_compose_take_in_r left_id /= hom_trans_refl.
+      intros γ; rewrite /= -comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite h_map_id right_id.
+      rewrite !comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
       rewrite (naturality η) /=.
-      rewrite hom_trans_compose hom_trans_refl.
+      rewrite -!comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
       f_equiv.
-      rewrite /proj_cone_hom.
-      rewrite later_func_o_map_is_limit_succ.
-      rewrite bang_of_is_limit_trans /= -hom_trans_trans.
-      match goal with
-        |- context [eq_trans (eq_sym ?A) ?B] =>
-          pose proof (proof_irrelevance _ A B) as ->
-      end.
-      rewrite eq_trans_sym_inv_l hom_trans_refl /=.
-      rewrite /lift_in_lt_ds /=.
-      match goal with
-        |- ic_side _ _ ≡ ic_side _ (MkDS _ ?A) =>
-          replace A with (ds_in_dsp j) by by apply proof_irrelevance
-      end.
-      by destruct j.
+      match goal with |- ?A ≡ ?B => assert (A = B) as ->; last done end.
+      destruct γ; apply il_side_eq.
   Qed.
 
 End Adjunction.
+
+Section basic_constructs.
+  Context {SI : indexT} (F : PreSheaf (OrdCat SI)).
+
+  Lemma equiv_of_into_later_psh {α} (x y : (later ₒ F) ₒ α) :
+    (∀ β (Hlt : β ≺ α),
+      ((later ₒ F) ₕ (index_succ_le_lt2 _ _ Hlt)) x  ≡
+      ((later ₒ F) ₕ (index_succ_le_lt2 _ _ Hlt)) y) →
+    x ≡ y.
+  Proof.
+    intros Hxy.
+    apply
+      (λ Hxy,
+        equiv_of_into_later F terminal_setoid (λset _, x) (λset _, y)
+          Hxy () _ (reflexivity _)).
+    intros β Hβ [] [] _; simpl in *; done.
+  Qed.
+
+  Program Definition into_later_psh {α}
+    (f : ∀ β, β ≺ α → (F ₒ β))
+    (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ),
+        (F ₕ Hle) (f γ Hγ) ≡ (f β Hβ)) : (later ₒ F) ₒ α :=
+    into_later F terminal_setoid (λ β Hβ, λset _, f β Hβ) _ ().
+  Next Obligation. repeat intros ?; simpl; done. Qed.
+  Fail Next Obligation.
+
+  Lemma into_later_side_psh {α}
+    (f : ∀ β, β ≺ α → F ₒ β)
+    (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ), (F ₕ Hle) (f γ Hγ) ≡ (f β Hβ))
+    (β : downset (lt_dsp α)) :
+    (il_side (later_func_o_map_is_limit F α) β) (into_later_psh f Hf) ≡ f _ (ds_in_dsp β).
+  Proof.
+    apply (λ Hf, into_later_side F terminal_setoid (λ β Hβ, λset _, f β Hβ)
+                   Hf β () _ (reflexivity _)).
+  Qed.
+
+End basic_constructs.
+
+Section earlier_preserves.
+  Context {SI : indexT}.
+
+  Program Definition earlier_prod (F G : PreSheaf (OrdCat SI)) :
+    earlier ₒ (F ×ₒ@{PSh (OrdCat SI)} G)
+    ≃@{PSh (OrdCat SI)}
+    (earlier ₒ F) ×ₒ (earlier ₒ G) :=
+    MkIsoIc
+      (MkNat (λ α, setoid_id _) _)
+      (MkNat (λ α, setoid_id _) _)
+      _.
+  Next Obligation. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
+  Next Obligation. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
+  Next Obligation. split; simpl; repeat intros ?; simpl; done. Qed.
+
+End earlier_preserves.
 
 Section later_preserves.
   Context {SI : indexT}.
@@ -710,44 +908,6 @@ Section later_preserves.
       apply (Hbf (F, G)).
   Qed.
 
-  (* Lemma later_prod_next {F F' G G' : PreSheaf (OrdCat SI)} *)
-  (*  (ηF : natural F F') (ηG : natural G G') : *)
-  (*   backward (later_prod F' G') ∘ *)
-  (*   (next ₙ F' ∘@{PSh (OrdCat SI)} ηF ×ₕ@{PSh (OrdCat SI)} *)
-  (*     (next ₙ G' ∘@{PSh (OrdCat SI)} ηG)) *)
-  (*   ≡ *)
-  (*   next ₙ (F' ×ₒ@{PSh (OrdCat SI)} G') ∘ (ηF ×ₕ ηG). *)
-  (* Proof. *)
-  (*   apply (compose_along_iso_left (later_prod _ _)). *)
-  (*   rewrite -comp_assoc. *)
-  (*   pose proof (is_iso (later_prod F' G')) as [_ ->]. *)
-  (*   rewrite left_id. *)
-  (*   rewrite /later_prod; simpl (forward _). *)
-  (*   rewrite /later_preserves_prods_nat. *)
-  (*   rewrite right_adj_preserves_prods_forward. *)
-  (*   rewrite /right_adj_preserves_prods_simpler_forward. *)
-  (*   simpl (nat_map (MkNat _ _)). *)
-  (*   eapply prd_hom_unique'. *)
-  (*   { rewrite hom_prod_prj1; reflexivity. } *)
-  (*   { rewrite hom_prod_prj2; reflexivity. } *)
-  (*   - rewrite -!comp_assoc /=. *)
-  (*     pose proof (@hom_to_prod_prj1 (PSh (OrdCat SI)) _) as Hhtp1; *)
-  (*       simpl in Hhtp1; rewrite Hhtp1; clear Hhtp1. *)
-  (*     pose proof (naturality (@next SI Setoid _ _)) as Hn. *)
-  (*     simpl in Hn; rewrite -Hn /=; clear Hn. *)
-  (*     rewrite !natural_comp_assoc. *)
-  (*     pose proof (@hom_prod_prj1 (PSh (OrdCat SI)) _ _ _ _ _ ηF ηG) as Hhp1; *)
-  (*       simpl in Hhp1; rewrite Hhp1; done. *)
-  (*   - rewrite -!comp_assoc /=. *)
-  (*     pose proof (@hom_to_prod_prj2 (PSh (OrdCat SI)) _) as Hhtp2; *)
-  (*       simpl in Hhtp2; rewrite Hhtp2; clear Hhtp2. *)
-  (*     pose proof (naturality (@next SI Setoid _ _)) as Hn. *)
-  (*     simpl in Hn; rewrite -Hn /=; clear Hn. *)
-  (*     rewrite !natural_comp_assoc. *)
-  (*     pose proof (@hom_prod_prj2 (PSh (OrdCat SI)) _ _ _ _ _ ηF ηG) as Hhp2; *)
-  (*       simpl in Hhp2; rewrite Hhp2; done. *)
-  (* Qed. *)
-
   Definition later_preserves_terminal_nat :
   functor_compose (const_functor (1ₒ)) later
   ≃@{FuncCat SingletonCat (PSh (OrdCat SI))}
@@ -770,6 +930,25 @@ Section later_preserves.
 End later_preserves.
 Global Arguments later_preserves_prods_nat _ : clear implicits.
 Global Arguments later_preserves_terminal_nat _ : clear implicits.
+
+Section earlier_later_earlier_later_prod.
+  Local Transparent right_adj_preserves_prods.
+
+  Lemma earlier_later_earlier_later_prod {SI} (F G : PreSheaf (OrdCat SI)) :
+    natural_comp (earlier ₕ (backward (later_prod F G)))
+      (forward (earlier_later_nat_iso (C := Setoid)) ₙ (F ×ₒ G)) ≡
+      natural_comp
+      (forward (earlier_prod (later ₒ F) (later ₒ G)))
+      ((forward earlier_later_nat_iso ₙ F) ×ₕ (forward earlier_later_nat_iso ₙ G)).
+  Proof.
+    intros α [x y] [z w] [<- <-]; clear z w; simpl in *.
+    repeat (rewrite_cone_hom_commutes_back; simpl).
+    repeat f_equiv;
+      match goal with |- ?A ≡ ?B => assert (A = B) as ->; last done end;
+      apply il_side_eq.
+  Qed.
+
+End earlier_later_earlier_later_prod.
 
 Class Contractive
   {SI : indexT} {F G : PreSheaf (OrdCat SI)} (η : natural F G) := MkContr {
@@ -800,6 +979,31 @@ Next Obligation.
   rewrite -naturality //.
 Qed.
 Fail Next Obligation.
+
+(* TODO: move *)
+Tactic Notation "eta_expand_equation" uconstr(a) :=
+  match goal with
+    |- _ ≡ _ =>
+      pattern a;
+      match goal with
+      | |- (λ z : ?T, ?A ≡ ?B) _ =>
+          let Hf := fresh "Hf" in
+          unshelve eassert ((λset z : T, A) ≡ (λset z : T, B)) as Hf;
+          last by eapply Hf
+      end
+  end.
+
+Tactic Notation "eta_expand_equation" uconstr(a) "of" "type" uconstr(T) :=
+  match goal with
+    |- _ ≡ _ =>
+      pattern a;
+      match goal with
+      | |- (λ z, ?A ≡ ?B) _ =>
+          let Hf := fresh "Hf" in
+          unshelve eassert ((λset z : T, A) ≡ (λset z : T, B)) as Hf;
+          last by eapply Hf
+      end
+  end.
 
 Section fixpoint.
   Context {SI : indexT}.
@@ -876,8 +1080,8 @@ Section fixpoint.
   Program Definition fx_raw_down_lt
     (X : PreSheaf (OrdCat SI)) {dsp : downset_pred SI}
     (fx : fx_raw X dsp) {α} (Hin : dsp α) : fx_raw X (lt_dsp α) :=
-  Mkfxr (λ β, fx (MkDS (dsp_pred_downwards _
-    (index_lt_le_subrel _ _ (ds_in_dsp β)) Hin))) _.
+    Mkfxr (λ β, fx (MkDS (dsp_pred_downwards _
+      (index_lt_le_subrel _ _ (ds_in_dsp β)) Hin))) _.
   Next Obligation.
     repeat intros ????? β γ ?; rewrite /=.
     rewrite -(@fxr_map_commutes _ _ fx
@@ -1056,31 +1260,6 @@ Section fixpoint.
   Global Arguments fxd_compat {_ _ _ _} _ [_] _ _.
 
   Local Opaque setoid_complete setoid_lim_side.
-
-  (* TODO: move *)
-  Tactic Notation "eta_expand_equation" uconstr(a) :=
-    match goal with
-      |- _ ≡ _ =>
-        pattern a;
-        match goal with
-        | |- (λ z : ?T, ?A ≡ ?B) _ =>
-            let Hf := fresh "Hf" in
-            unshelve eassert ((λset z : T, A) ≡ (λset z : T, B)) as Hf;
-            last by eapply Hf
-        end
-    end.
-
-  Tactic Notation "eta_expand_equation" uconstr(a) "of" "type" uconstr(T) :=
-    match goal with
-      |- _ ≡ _ =>
-        pattern a;
-        match goal with
-        | |- (λ z, ?A ≡ ?B) _ =>
-            let Hf := fresh "Hf" in
-            unshelve eassert ((λset z : T, A) ≡ (λset z : T, B)) as Hf;
-            last by eapply Hf
-        end
-    end.
 
   Lemma fx_data_succ_back (X : PreSheaf (OrdCat SI)) {α}
     (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X) {dsp : downset_pred SI}

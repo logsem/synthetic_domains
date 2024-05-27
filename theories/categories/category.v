@@ -316,7 +316,7 @@ Fail Next Obligation.
 Global Instance functor_fix_left_h_map_proper
   {C D E : category} (F : functor (cat_prod C D) E) (c c': obj C) :
   Proper ((≡) ==> (≡)) (@functor_fix_left_h_map C D E F c c').
-Proof. repeat intros ?; rewrite /functor_fix_left_h_map /=; solve_by_equiv_rewrite. Qed.
+Proof. repeat intros ?; rewrite /=; solve_by_equiv_rewrite. Qed.
 
 Program Definition functor_fix_left
   {C D E : category} (F : functor (cat_prod C D) E) :
@@ -350,7 +350,7 @@ Fail Next Obligation.
 Global Instance functor_fix_right_h_map_proper
   {C D E : category} (F : functor (cat_prod C D) E) (d d': obj D) :
   Proper ((≡) ==> (≡)) (@functor_fix_right_h_map C D E F d d').
-Proof. repeat intros ?; rewrite /functor_fix_left_h_map /=; solve_by_equiv_rewrite. Qed.
+Proof. repeat intros ?; rewrite /=; solve_by_equiv_rewrite. Qed.
 
 Program Definition functor_fix_right
   {C D E : category} (F : functor (cat_prod C D) E) :
@@ -373,6 +373,26 @@ Fail Next Obligation.
 Global Instance hor_comp_proper {C D E F G F' G'} :
   Proper ((≡) ==> (≡) ==> (≡)) (@hor_comp C D E F G F' G').
 Proof. repeat intros ?; rewrite /=; solve_by_equiv_rewrite. Qed.
+
+Program Definition functor_compose_func C D E :
+  functor (cat_prod (FuncCat C D) (FuncCat D E)) (FuncCat C E) :=
+  MkFunc (λ FG, functor_compose FG.1 FG.2) (λ _ _ ηη', hor_comp ηη'.1 ηη'.2) _ _ _.
+Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
+Next Obligation.
+  intros ??? [F1 G1] [F2 G2] [F3 G3] [η12 η12'] [η23 η23'] ?; simpl in *.
+  rewrite !comp_assoc; f_equiv.
+  rewrite !naturality h_map_comp !comp_assoc; done.
+Qed.
+Next Obligation. repeat intros ?; rewrite /= h_map_id left_id //. Qed.
+Fail Next Obligation.
+
+Definition functor_compose_on_left {C D} (F : functor C D) E :
+  functor (FuncCat D E) (FuncCat C E) :=
+  functor_fix_left_o_map (functor_compose_func C D E) F.
+
+Definition functor_compose_on_right {C D} (F : functor C D) A :
+  functor (FuncCat A C) (FuncCat A D) :=
+  functor_fix_right_o_map (functor_compose_func A C D) F.
 
 Program Definition functor_eq_natural {C D} {F G : functor C D} (Heq : F ≡ G) : natural F G :=
   MkNat (λ a, hom_trans eq_refl (func_eq_o_map Heq a) (id _)) _.
@@ -463,13 +483,41 @@ Proof.
   rewrite -(iso_rl (is_iso iso)) -!comp_assoc Heq //.
 Qed.
 
-Lemma compose_along_iso_left {C} {b c : obj C} (iso : b ≃ c) {a} (f g : hom a b) :
+Lemma compose_along_iso_left {C} {b c : obj C} (iso : b ≃ c) [a] (f g : hom a b) :
   forward iso ∘ f ≡ forward iso ∘ g → f ≡ g.
 Proof.
   intros Heq.
   rewrite -(left_id f) -(left_id g).
   rewrite -(iso_lr (is_iso iso)) !comp_assoc Heq //.
 Qed.
+
+Program Definition functor_preserves_iso
+  {C D} (F : functor C D) [a b : obj C] (iso : a ≃ b) : F ₒ a ≃ F ₒ b :=
+  MkIsoIc (F ₕ (forward iso)) (F ₕ (backward iso)) _.
+Next Obligation.
+  intros ????? iso; split;
+    rewrite -h_map_comp ?(iso_lr (is_iso iso)) ?(iso_rl (is_iso iso)) h_map_id //.
+Qed.
+Fail Next Obligation.
+
+Program Definition prod_of_isos {C D c c' d d'} (iso1 : c ≃@{C} c') (iso2 : d ≃@{D} d') :
+  (c, d) ≃@{cat_prod C D} (c', d') :=
+  MkIsoIc (forward iso1, forward iso2) (backward iso1, backward iso2) _.
+Next Obligation.
+  repeat intros ?; split; rewrite /=.
+  - rewrite (iso_lr (is_iso iso1)) (iso_lr (is_iso iso2)) //.
+  - rewrite (iso_rl (is_iso iso1)) (iso_rl (is_iso iso2)) //.
+Qed.
+Fail Next Obligation.
+
+Program Definition natural_iso_proj
+  {C D} {F G : functor C D} (iso : F ≃@{FuncCat C D} G) (c : obj C) :
+  F ₒ c ≃ G ₒ c :=
+  MkIsoIc (forward iso ₙ c) (backward iso ₙ c) _.
+Next Obligation.
+  intros ?? F G iso c; split; pose proof (is_iso iso) as [? ?]; done.
+Qed.
+Fail Next Obligation.
 
 (* fully faithful functors reflect isomorphisms. *)
 Program Definition fully_faithful_iso {C D} (F : functor C D) `{!FullyFaithfulFunctor F}
@@ -549,6 +597,16 @@ Program Definition Setoid :=
   MkCat setoid setoid_fun (λ _, setoid_id _) (@setoid_compose) (λ _ _, (≡)) _ _ _ _ _.
 Solve All Obligations with by repeat intros ?; rewrite /=; solve_by_equiv_rewrite.
 Fail Next Obligation.
+
+Lemma setoid_iso_inj {A B : setoid} (iso : A ≃@{Setoid} B) (x y : A) :
+  forward iso x ≡ forward iso y → x ≡ y.
+Proof.
+  intros Heq.
+  change x with (setoid_id A x).
+  change y with (setoid_id A y).
+  pose proof (iso_lr (is_iso iso)) as Hlr; simpl in Hlr; rewrite -Hlr.
+  simpl; f_equiv; done.
+Qed.
 
 Definition setoid_conv {A B : setoid} (Heq : A = B) (a : A) : B :=
   match Heq in _ = u return u with eq_refl => a end.
@@ -1940,35 +1998,10 @@ Definition self_enriched C `{!CCC C} : Enriched C C :=
 
 (* Right adjoints preserve products. *)
 
-Program Definition functor_compose_iso_proper {C D E} {F F' : functor C D} {G G' : functor D E}
+Definition functor_compose_iso_proper {C D E} {F F' : functor C D} {G G' : functor D E}
   (iso : F ≃@{FuncCat C D} F') (iso' : G ≃@{FuncCat D E} G') :
   functor_compose F G ≃@{FuncCat C E} functor_compose F' G' :=
-  MkIsoIc
-    (hor_comp (forward iso) (forward iso'))
-    (hor_comp (backward iso) (backward iso'))
-    _.
-Next Obligation.
-  intros ??? F F' G G' iso iso'; split.
-  - intros c; rewrite /=.
-    rewrite naturality -(comp_assoc _ (G' ₕ _)) (comp_assoc (G' ₕ _)).
-    rewrite -h_map_comp.
-    pose proof (is_iso iso) as [Hisolr _].
-    specialize (Hisolr c); simpl in Hisolr.
-    rewrite Hisolr h_map_id right_id.
-    pose proof (is_iso iso') as [Hiso'lr _].
-    specialize (Hiso'lr (F ₒ c)); simpl in Hiso'lr.
-    rewrite Hiso'lr //.
-  - intros c; rewrite /=.
-    rewrite naturality -(comp_assoc _ (G ₕ _)) (comp_assoc (G ₕ _)).
-    rewrite -h_map_comp.
-    pose proof (is_iso iso) as [_ Hisorl].
-    specialize (Hisorl c); simpl in Hisorl.
-    rewrite Hisorl h_map_id right_id.
-    pose proof (is_iso iso') as [_ Hiso'rl].
-    specialize (Hiso'rl (F' ₒ c)); simpl in Hiso'rl.
-    rewrite Hiso'rl //.
-Qed.
-Fail Next Obligation.
+  functor_preserves_iso (functor_compose_func C D E) (prod_of_isos iso iso').
 
 Program Definition adj_compose_swap {A B C D}
   (G : functor A (C ᵒᵖ)) (H : functor B D)
@@ -2234,6 +2267,14 @@ Section Limit.
     by auto using cone_hom_comp_assoc, cone_hom_comp_left_id, cone_hom_comp_right_id.
   Fail Next Obligation.
 
+  Program Definition cone_iso_vertex {cn cn' : cone} (iso : cn ≃@{ConeCat} cn') :
+    vertex cn ≃ vertex cn' :=
+    MkIsoIc (cone_hom_map (forward iso)) (cone_hom_map (backward iso)) _.
+  Next Obligation.
+    intros ?? iso; split; destruct (is_iso iso); done.
+  Qed.
+  Fail Next Obligation.
+
   Definition is_limiting_cone cn := @is_terminal ConeCat cn.
 
   Definition limit := terminal ConeCat.
@@ -2326,6 +2367,7 @@ Global Arguments MkConeHom {_ _ _ _ _} _ _.
 Global Arguments cone_hom {_ _ _} _ _.
 Global Arguments cone_hom_map {_ _ _ _ _} _.
 Global Arguments cone_hom_commutes {_ _ _ _ _} _ _.
+Global Arguments cone_iso_vertex {_ _ _ _ _} _.
 Global Arguments is_limiting_cone {_ _ _} _.
 Global Arguments MkIsCone {_ _ _ _} _ _, {_ _ _} _ _ _.
 Global Arguments is_cone {_ _} _ _.
@@ -2346,6 +2388,14 @@ Global Arguments extend_cone_hom {_ _ _ _} _ _, {_ _ _ _ _} _.
 Global Arguments is_limit_trans {_ _ _ _ _} _ _.
 Global Arguments trans_side_of_is_limit_trans {_ _ _ _ _} _ _ _.
 Global Arguments bang_of_is_limit_trans {_ _ _ _ _} _ _ _.
+
+Program Definition trans_cone_along_natural {C J} {F G : functor J C} (η : natural F G)
+  (cn : cone F) : cone G :=
+  MkCone (vertex cn) (λ j, η ₙ j ∘ side cn j) _.
+Next Obligation.
+  repeat intros ?; rewrite /= -comp_assoc -naturality comp_assoc -side_commutes //.
+Qed.
+Fail Next Obligation.
 
 Class Complete C := complete : ∀ J (F : functor J C), limit F.
 Arguments complete {_ _ _} _, _ {_ _} _.
@@ -2426,6 +2476,7 @@ Section setoid_limit.
       simpl in *; done.
   Qed.
   Fail Next Obligation.
+
 End setoid_limit.
 
 Global Program Instance setoid_complete : Complete Setoid :=
