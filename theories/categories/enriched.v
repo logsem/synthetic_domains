@@ -252,21 +252,21 @@ Qed.
 Program Definition iso_upto_contr_func
   {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
   (F : functor C C) `{!LocallyContractiveFunctor F}
-  {a b : obj C} (f : hom a b) {α} (iso : iso_upto f (lt_dsp α)) :
-  iso_at (F ₕ f) α :=
+  {a b : obj C} (f : hom a b) {dsp} (iso : iso_upto f dsp) α
+  (Hdsp : ∀ β, β ≺ α → dsp β) : iso_at (F ₕ f) α :=
   MkIsoAt
     ((contr_func_h_map F b a ₙ α)
        (into_later_psh _
-          (λ β (Hβ : β ≺ α), inv_at (iso (MkDS (lt_dsp α) Hβ))) _))
+          (λ β (Hβ : β ≺ α), inv_at (iso (MkDS dsp (Hdsp _ Hβ)))) _))
     _ _.
 Next Obligation.
-  repeat intros ?; simpl in *.
+  intros ???????? dsp ?? Hdsp β γ Hβ Hγ Hle; simpl in *.
   symmetry.
   apply (iso_upto_natural _ _ _
-    (_ : (MkDS (lt_dsp _) _) ⪯ (MkDS (lt_dsp _) _))).
+    (Hle : (MkDS dsp (Hdsp _ Hβ)) ⪯ (MkDS dsp (Hdsp _ Hγ)))).
 Qed.
 Next Obligation.
-  intros ??? F ? a b f α iso; simpl in *.
+  intros ??? F ? a b f dsp iso α Hdsp; simpl in *.
   rewrite -{1}(enr_embed_project f) enr_func_h_map_is_h_map /=.
   rewrite -enr_func_h_map_id.
   rewrite !contr_func_h_map_is_h_map /=.
@@ -312,7 +312,7 @@ Next Obligation.
   apply inv_at_lr.
 Qed.
 Next Obligation.
-  intros ??? F ? a b f α iso; simpl in *.
+  intros ??? F ? a b f dsp iso α Hdsp; simpl in *.
   rewrite -{3}(enr_embed_project f) enr_func_h_map_is_h_map /=.
   rewrite -enr_func_h_map_id.
   rewrite !contr_func_h_map_is_h_map /=.
