@@ -74,15 +74,10 @@ Section solution_unique.
   Qed.
   Fail Next Obligation.
 
-  Program Definition solution_unique (S S' : solution) : sol_obj S ≃ sol_obj S' :=
-    let iso :=
-      @is_initial_unique (alg_cat F) _ _
-        (alg_of_solution_is_initial S)
-        (alg_of_solution_is_initial S')
-    in
-    MkIsoIc (alg_hom_map (forward iso)) (alg_hom_map (backward iso)) _.
-  Next Obligation.
-    intros S S' iso; destruct (is_iso iso) as [? ?]; split; done.
-  Qed.
+  Definition solution_unique (S S' : solution) : sol_obj S ≃ sol_obj S' :=
+    alg_iso
+      (@is_initial_unique (alg_cat F) _ _
+         (alg_of_solution_is_initial S)
+         (alg_of_solution_is_initial S')).
 
 End solution_unique.

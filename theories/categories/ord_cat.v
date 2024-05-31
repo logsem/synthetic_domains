@@ -96,6 +96,11 @@ Global Arguments MkDS {_ _ _} _, {_} _ {_} _.
 Global Arguments ds_idx {_ _} _.
 Global Arguments ds_in_dsp {_ _} _.
 
+Definition dsp_included {SI} (dsp dsp' : downset_pred SI) : Prop := ∀ α, dsp α → dsp' α.
+Definition lift_ds {SI} {dsp dsp' : downset_pred SI}
+  (i : dsp_included dsp dsp') (α : downset dsp) : downset dsp' :=
+  MkDS (i α (ds_in_dsp α)).
+
 Lemma downset_eq {SI} {dsp : downset_pred SI} (ds ds' : downset dsp) : ds = ds' :> SI → ds = ds'.
 Proof. destruct ds; destruct ds'; simpl; intros ->; f_equal; apply proof_irrelevance. Qed.
 
@@ -244,7 +249,8 @@ Section later_func_gen.
   Hypothesis lo_map_il : ∀ α, is_limit (lift_func (lt_dsp α) F) (lo_map α).
 
   Lemma il_side_eq α (β : SI) Hβ1 Hβ2 :
-    il_side (lo_map_il α) (@MkDS _ _ β Hβ1) = il_side (lo_map_il α) (@MkDS _ _ β Hβ2).
+    ic_side (il_is_cone (lo_map_il α)) (@MkDS _ _ β Hβ1) =
+    ic_side (il_is_cone (lo_map_il α)) (@MkDS _ _ β Hβ2).
   Proof. by replace Hβ1 with Hβ2 by apply proof_irrel. Qed.
 
   Definition proj_cone_hom {α β} (Hle : β ⪯ α) :
@@ -287,8 +293,6 @@ Section later_func_gen.
     (earlier ₒ later_func_gen) ₒ α ≃ (F ₒ α) :=
     cone_iso_vertex
       (is_term_unique
-         _
-         _
          (is_limit_limiting_cone (lo_map_il (succ α)))
          (is_limit_limiting_cone
             (is_limit_at F (in_lt_dsp_succ α) (index_succ_greater α)))).
@@ -336,9 +340,9 @@ Section later_func_gen.
   Fail Next Obligation.
 
   Lemma side_of_later_gen {α} (β : downset (lt_dsp α)) :
-    (il_side (lo_map_il α) β) ≡
-      (forward earlier_later_iso ₙ (β : SI)) ∘
-      (later_func_gen ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))).
+    ic_side (il_is_cone (lo_map_il α)) β ≡
+    (forward earlier_later_iso ₙ (β : SI)) ∘
+    (later_func_gen ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))).
   Proof.
     assert (succ β ⪯ α) as Hsβsα.
     { apply index_succ_le_lt2, (ds_in_dsp β). }
@@ -366,7 +370,7 @@ Section later_func_gen.
 
   Lemma side_of_later'_gen {α} (β : downset (lt_dsp α)) :
     (later_func_gen ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))) ≡
-    (backward earlier_later_iso ₙ (β : SI)) ∘ (il_side (lo_map_il α) β).
+    (backward earlier_later_iso ₙ (β : SI)) ∘ ic_side (il_is_cone (lo_map_il α)) β.
   Proof.
     symmetry.
     apply (compose_along_iso_left (earlier_later_pointwise_iso (β : SI))).
@@ -386,7 +390,6 @@ Section later_func_gen.
              (cone_is_cone (extend_cone (cone_of_is_cone (il_is_cone (lo_map_il α))) f)));
     first done.
     intros β; simpl in *.
-    change (ic_side (il_is_cone (lo_map_il α)) β) with (il_side (lo_map_il α) β).
     rewrite side_of_later_gen.
     rewrite !comp_assoc.
     f_equiv.
@@ -416,7 +419,7 @@ Section later_func_gen.
     (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ),
         (F ₕ Hle) ∘ (f γ Hγ) ≡ (f β Hβ))
     (β : downset (lt_dsp α)) :
-    (il_side (lo_map_il α) β) ∘ (into_later_gen c f Hf) ≡ f _ (ds_in_dsp β).
+    (ic_side (il_is_cone (lo_map_il α)) β) ∘ (into_later_gen c f Hf) ≡ f _ (ds_in_dsp β).
   Proof. rewrite /into_later_gen; rewrite_cone_hom_commutes_back; simpl; done. Qed.
 
 End later_func_gen.
@@ -502,10 +505,10 @@ Section later.
   Program Definition later_h_map_cone {F G} (η : natural F G) α :
     cone (lift_func (lt_dsp α) G) :=
     MkCone (later_func_o_map F α)
-      (λ δ, η ₙ (ds_idx δ) ∘ il_side (later_func_o_map_is_limit F α) δ) _.
+      (λ δ, η ₙ (ds_idx δ) ∘ ic_side (il_is_cone (later_func_o_map_is_limit F α)) δ) _.
   Next Obligation.
     intros ???????; simpl in *. rewrite -comp_assoc -naturality /= comp_assoc.
-    rewrite -(il_side_commutes (later_func_o_map_is_limit F α)); done.
+    rewrite -(ic_side_commutes (il_is_cone (later_func_o_map_is_limit F α))); done.
   Qed.
   Fail Next Obligation.
 
@@ -664,7 +667,7 @@ Section later.
   Qed.
 
   Lemma side_of_later F {α} (β : downset (lt_dsp α)) :
-    (il_side (later_func_o_map_is_limit F α) β) ≡
+    ic_side (il_is_cone (later_func_o_map_is_limit F α)) β ≡
     (forward earlier_later_nat_iso) ₙ F ₙ (β : SI) ∘
     ((later ₒ F)ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))).
   Proof. apply side_of_later_gen. Qed.
@@ -672,7 +675,7 @@ Section later.
   Lemma side_of_later' F {α} (β : downset (lt_dsp α)) :
     ((later ₒ F)ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))) ≡
     (backward earlier_later_nat_iso) ₙ F ₙ (β : SI) ∘
-    (il_side (later_func_o_map_is_limit F α) β).
+    ic_side (il_is_cone (later_func_o_map_is_limit F α)) β.
   Proof. apply side_of_later'_gen. Qed.
 
   Lemma equiv_of_into_later F (c : obj C) {α} (f g : hom c ((later ₒ F) ₒ α)) :
@@ -693,7 +696,8 @@ Section later.
     (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ),
         (F ₕ Hle) ∘ (f γ Hγ) ≡ (f β Hβ))
     (β : downset (lt_dsp α)) :
-    (il_side (later_func_o_map_is_limit F α) β) ∘ (into_later F c f Hf) ≡ f _ (ds_in_dsp β).
+    (ic_side (il_is_cone (later_func_o_map_is_limit F α)) β) ∘ (into_later F c f Hf) ≡
+    f _ (ds_in_dsp β).
   Proof. apply into_later_side_gen. Qed.
 
 End later.
@@ -857,7 +861,8 @@ Section basic_constructs.
     (f : ∀ β, β ≺ α → F ₒ β)
     (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ), (F ₕ Hle) (f γ Hγ) ≡ (f β Hβ))
     (β : downset (lt_dsp α)) :
-    (il_side (later_func_o_map_is_limit F α) β) (into_later_psh f Hf) ≡ f _ (ds_in_dsp β).
+    (ic_side (il_is_cone (later_func_o_map_is_limit F α)) β) (into_later_psh f Hf) ≡
+    f _ (ds_in_dsp β).
   Proof.
     apply (λ Hf, into_later_side F terminal_setoid (λ β Hβ, λset _, f β Hβ)
                    Hf β () _ (reflexivity _)).

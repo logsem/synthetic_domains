@@ -871,7 +871,7 @@ Global Arguments MkTerm {_} _ _.
 Global Arguments term {_} _.
 Global Arguments term_is_terminal {_} _.
 
-Program Definition is_term_unique {C} (t t' : obj C) :
+Program Definition is_term_unique {C} {t t' : obj C} :
   is_terminal t → is_terminal t' → t ≃ t' :=
   λ it it', MkIsoIc (bang it' t) (bang it t') _.
 Next Obligation.
@@ -899,6 +899,9 @@ Proof. apply bang_unique. Qed.
 
 Lemma term_hom_unique' `{!HasTerm C} {c} (f g : hom c (1ₒ)) : f ≡ g.
 Proof. rewrite (term_hom_unique f) (term_hom_unique g) //. Qed.
+
+Lemma term_hom_is_id `{!HasTerm C} : !ₕ (1ₒ) ≡ id (1ₒ).
+Proof. apply term_hom_unique'. Qed.
 
 (* Initial Object *)
 
@@ -950,15 +953,17 @@ Global Program Instance setoid_has_term : HasTerm Setoid :=
 Next Obligation. repeat intros ?; done. Qed.
 Fail Next Obligation.
 
-Program Definition term_psh C : PreSheaf C :=
+Program Definition term_func C D `{!HasTerm D} : functor C D :=
   MkFunc (λ _, 1ₒ) (λ _ _ _, !ₕ _) _ _ _.
-Solve All Obligations with done.
+Solve All Obligations with repeat intros ?; rewrite /=; apply term_hom_unique'.
 Fail Next Obligation.
 
-Global Program Instance psh_has_term C : HasTerm (PSh C) :=
-  MkTerm (term_psh C) (MkIsTerm _ (λ _, MkNat (λ _, !ₕ _) _) _).
-Solve All Obligations with done.
+Program Definition func_cat_has_term C D `{!HasTerm D} : HasTerm (FuncCat C D) :=
+  MkTerm (term_func C D) (MkIsTerm _ (λ _, MkNat (λ _, !ₕ _) _) _).
+Solve All Obligations with repeat intros ?; rewrite /=; apply term_hom_unique'.
 Fail Next Obligation.
+
+Global Instance psh_has_term C : HasTerm (PSh C) := func_cat_has_term _ _.
 
 (* Products *)
 
@@ -1417,35 +1422,48 @@ Global Program Instance setoid_has_products : HasProducts Setoid :=
 Solve All Obligations with repeat intros ?; simpl in *; solve_by_equiv_rewrite.
 Fail Next Obligation.
 
-Program Definition psh_prod {C} (F G : PreSheaf C) : PreSheaf C :=
+Program Definition func_prod {C D} `{!HasProducts D} (F G : functor C D) : functor C D :=
   MkFunc (λ c, (F ₒ c) ×ₒ (G ₒ c)) (λ _ _ f, (F ₕ f) ×ₕ (G ₕ f)) _ _ _.
 Solve All Obligations with
-  repeat intros ?; rewrite ?h_map_comp ?h_map_id; solve_by_equiv_rewrite.
+  repeat intros ?; rewrite /= ?h_map_comp ?h_map_id
+  ?hom_prod_comp ?hom_prod_id //; solve_by_equiv_rewrite.
 Fail Next Obligation.
 
-Program Definition psh_prj1 {C} (F G : PreSheaf C) : natural (psh_prod F G) F :=
+Program Definition func_prj1 {C D} `{!HasProducts D} (F G : functor C D) : natural (func_prod F G) F :=
   MkNat (λ c, prj1 _) _.
-Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
+Next Obligation. repeat intros ?; rewrite /= hom_prod_prj1 //. Qed.
 Fail Next Obligation.
 
-Program Definition psh_prj2 {C} (F G : PreSheaf C) : natural (psh_prod F G) G :=
+Program Definition func_prj2  {C D} `{!HasProducts D} (F G : functor C D) : natural (func_prod F G) G :=
   MkNat (λ c, prj2 _) _.
-Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
+Next Obligation. repeat intros ?; rewrite /= hom_prod_prj2 //. Qed.
 Fail Next Obligation.
 
-Program Definition psh_prd_hom {C} (F G P : PreSheaf C)
-  (p1 : natural P F) (p2 : natural P G) : natural P (psh_prod F G) :=
+Program Definition func_prd_hom  {C D} `{!HasProducts D} (F G H : functor C D)
+  (p1 : natural H F) (p2 : natural H G) : natural H (func_prod F G) :=
   MkNat (λ c, prd_hom _ (p1 ₙ c) (p2 ₙ c)) _.
 Next Obligation.
-  repeat intros ?; setoid_subst;
-    rewrite (psh_naturality p1) (psh_naturality p2) //.
+  repeat intros ?; rewrite /=; eapply prd_hom_unique';
+    [rewrite -comp_assoc -prd_hom_commutes1 //|rewrite -comp_assoc -prd_hom_commutes2 //| |].
+  - rewrite -comp_assoc hom_prod_prj1 comp_assoc -prd_hom_commutes1 naturality //.
+  - rewrite -comp_assoc hom_prod_prj2 comp_assoc -prd_hom_commutes2 naturality //.
 Qed.
 Fail Next Obligation.
 
-Global Program Instance psh_has_products C : HasProducts (PSh C) :=
-  λ F G, MkProd (psh_prod F G) (psh_prj1 F G) (psh_prj2 F G) (psh_prd_hom F G) _ _ _.
-Solve All Obligations with repeat intros ?; rewrite /=; solve_by_equiv_rewrite.
-Fail Next Obligation.
+Program Definition func_cat_has_products C D `{!HasProducts D} : HasProducts (FuncCat C D) :=
+  λ F G, MkProd (func_prod F G) (func_prj1 F G) (func_prj2 F G) (func_prd_hom F G) _ _ _.
+Next Obligation.
+  repeat intros ?; rewrite /= -prd_hom_commutes1 //.
+Qed.
+Next Obligation.
+  repeat intros ?; rewrite /= -prd_hom_commutes2 //.
+Qed.
+Next Obligation.
+  intros ????????? Hcm1 Hcm2 c; rewrite /=; apply prd_hom_unique; [apply Hcm1|apply Hcm2].
+Qed.
+
+Global Instance psh_has_products C : HasProducts (PSh C) :=
+  @func_cat_has_products (C ᵒᵖ) Setoid _.
 
 (* Enrichment *)
 Class Enriched (C E : category) `{!HasTerm E, !HasProducts E} := MkEnr {
@@ -2313,8 +2331,13 @@ Section Limit.
       hom_trans eq_refl Heq (cone_hom_map (bang (il_is_limiting_cone _ il) c)).
   Proof. destruct Heq; done. Qed.
 
-  Definition il_side {c} il := ic_side c (il_is_cone _ il).
-  Definition il_side_commutes {c} il := ic_side_commutes c (il_is_cone _ il).
+  Program Definition limit_is_limit (l : limit) :=
+    (MkIsLimit (vertex (term l)) (cone_is_cone (term l)) _).
+  Next Obligation.
+    intros l.
+    pose proof (term_is_terminal l).
+    destruct term; done.
+  Qed.
 
   Definition cone_of_is_limit {c} (il : is_limit c) : cone :=
     cone_of_is_cone (il_is_cone _ il).
@@ -2358,6 +2381,20 @@ Section Limit.
   Next Obligation. intros ????; rewrite //. Qed.
   Fail Next Obligation.
 
+  (* A cone with a vertex isomorphic to the limit is also the limit. *)
+
+  Program Definition iso_cones_equi_limit {cn cn' : cone} (iso : cn ≃@{ConeCat} cn')
+    (ilc : is_limiting_cone cn) : is_limiting_cone cn' :=
+    MkIsTerm cn' (λ cn'', cone_hom_comp (bang ilc cn'') (forward iso)) _.
+  Next Obligation.
+    intros ?? iso ilc cn'' f; simpl.
+    apply (compose_along_iso_left (isomorphic_sym iso)); simpl.
+    rewrite -cone_hom_comp_assoc.
+    pose proof (iso_lr (is_iso iso)) as Hlr; simpl in Hlr; rewrite Hlr; clear Hlr.
+    rewrite cone_hom_comp_left_id.
+    apply (bang_unique ilc).
+  Qed.
+
 End Limit.
 Global Arguments MkCone {_ _ _} _ _ _.
 Global Arguments vertex {_ _ _} _.
@@ -2377,9 +2414,8 @@ Global Arguments cone_of_is_cone {_ _ _ _} _.
 Global Arguments cone_is_cone {_ _ _} _.
 Global Arguments MkIsLimit {_ _ _ _} _ _, {_ _ _} _ _ _.
 Global Arguments is_limit {_ _} _ _.
+Global Arguments limit_is_limit {_ _ _} _.
 Global Arguments il_is_cone {_ _ _ _} _.
-Global Arguments il_side {_ _ _ _} _ _.
-Global Arguments il_side_commutes {_ _ _ _} _ [_ _] _.
 Global Arguments cone_of_is_limit {_ _ _ _} _.
 Global Arguments is_limit_limiting_cone {_ _ _ _} _.
 Global Arguments limiting_cone_is_limit {_ _ _ _} _.
@@ -2388,6 +2424,7 @@ Global Arguments extend_cone_hom {_ _ _ _} _ _, {_ _ _ _ _} _.
 Global Arguments is_limit_trans {_ _ _ _ _} _ _.
 Global Arguments trans_side_of_is_limit_trans {_ _ _ _ _} _ _ _.
 Global Arguments bang_of_is_limit_trans {_ _ _ _ _} _ _ _.
+Global Arguments iso_cones_equi_limit {_ _ _ _ _} _ _.
 
 Program Definition trans_cone_along_natural {C J} {F G : functor J C} (η : natural F G)
   (cn : cone F) : cone G :=
@@ -2482,80 +2519,242 @@ End setoid_limit.
 Global Program Instance setoid_complete : Complete Setoid :=
   λ _ F, MkTerm (setoid_lim_cone F) (setoid_lim_cone_is_limiting_cone F).
 
-Section psh_limit.
-  Context {C} {J} (F : functor J (PSh C)).
+Section func_cat_limit.
+  Context {C D} `{!Complete D} {J} (F : functor J (FuncCat C D)).
 
-  Program Definition pointwise_func : ∀ c : obj C, functor J Setoid :=
+  Ltac rewrite_cone_hom_commutes_back :=
+    match goal with
+      |- context [side _ ?j ∘ cone_hom_map ?c] => rewrite -(cone_hom_commutes c j)
+    | |- context [ic_side _ ?j ∘ cone_hom_map ?c] => rewrite -(cone_hom_commutes c j)
+    end.
+
+  Program Definition pointwise_func : ∀ c : obj C, functor J D :=
     λ c, MkFunc (λ j, (F ₒ j) ₒ c) (λ _ _ f, F ₕ f ₙ c) _ _ _.
   Solve All Obligations with
     repeat first [intros ->|intros ?]; rewrite /= ?h_map_comp ?h_map_id //=.
   Fail Next Obligation.
 
-  Program Definition pointwise_cone (cn : cone F) c : cone (pointwise_func c) :=
-    MkCone (vertex cn ₒ c) (λ j, side cn j ₙ c) (λ _ _ f, side_commutes cn f c).
+  Definition func_limit_func_o_map (c : obj C) : obj D :=
+    vertex (term (complete (pointwise_func c))).
 
-  Program Definition psh_lim_func_hom a b (f : hom a b) :
-    setoid_fun (setoid_lim_obj (pointwise_func b)) (setoid_lim_obj (pointwise_func a)) :=
-    λset x, exist _ (λ j, (F ₒ j ₕ f) (`x j)) _.
+  Program Definition cone_on_pointwise_func {c c' : obj C} (f : hom c c') :
+    cone (pointwise_func c') :=
+    MkCone (func_limit_func_o_map c)
+      (λ j, ((F ₒ j)ₕ f) ∘ (side (term (complete (pointwise_func c))) j)) _.
   Next Obligation.
+    repeat intros ?; rewrite /= -comp_assoc naturality comp_assoc -side_commutes //.
+  Qed.
+  Fail Next Obligation.
+
+  Definition func_limit_func_h_map {c c' : obj C} (f : hom c c') :
+    hom (func_limit_func_o_map c) (func_limit_func_o_map c') :=
+    (cone_hom_map
+       (bang (term_is_terminal (complete (pointwise_func c'))) (cone_on_pointwise_func f))).
+
+  Global Instance func_limit_func_h_map_proper c c':
+    Proper ((≡) ==> (≡)) (@func_limit_func_h_map c c').
   Proof.
-    intros ?? f x j ? g; rewrite -(proj2_sig x _ _ g) (psh_naturality (F ₕ g)) //.
+    rewrite /func_limit_func_h_map; intros f g Heq.
+    apply (hom_to_limit_unique
+             _ _ _ (limit_is_limit (complete (pointwise_func c')))
+             (cone_is_cone (cone_on_pointwise_func f))).
+    - intros ?; rewrite_cone_hom_commutes_back; rewrite /= Heq //.
+    - intros ?; rewrite_cone_hom_commutes_back; rewrite /= Heq //.
+  Qed.
+
+  Program Definition func_limit_func : functor C D :=
+    MkFunc func_limit_func_o_map (@func_limit_func_h_map) _ _ _.
+  Next Obligation.
+    intros a b c f g; rewrite /func_limit_func_h_map.
+    apply (hom_to_limit_unique
+             _ _ _ (limit_is_limit (complete (pointwise_func c)))
+             (cone_is_cone (cone_on_pointwise_func (g ∘ f)))).
+    - intros ?; rewrite_cone_hom_commutes_back; done.
+    - intros ?; rewrite -comp_assoc; rewrite_cone_hom_commutes_back; simpl.
+      rewrite comp_assoc.
+      rewrite_cone_hom_commutes_back.
+      rewrite h_map_comp comp_assoc //.
   Qed.
   Next Obligation.
-  Proof. intros ????? Heq z; rewrite /= (Heq z) //. Qed.
+    intros c; rewrite /func_limit_func_h_map.
+    apply (hom_to_limit_unique
+             _ _ _ (limit_is_limit (complete (pointwise_func c)))
+             (cone_is_cone (cone_on_pointwise_func (id c)))).
+    - intros ?; rewrite -cone_hom_commutes //.
+    - intros ?; rewrite /= h_map_id left_id right_id //.
+  Qed.
   Fail Next Obligation.
 
-  Program Definition psh_lim_func : PreSheaf C :=
-    MkFunc (λ c, setoid_lim_obj (pointwise_func c)) (λ a b f, psh_lim_func_hom b a f) _ _ _.
-  Solve All Obligations with
-    repeat intros ?; rewrite /= ?h_map_comp ?h_map_id //=; solve_by_equiv_rewrite.
+  Program Definition func_limit_cone_side (j : obj J) : natural func_limit_func (F ₒ j) :=
+    MkNat (λ c, side (term (complete (pointwise_func c))) j) _.
+  Next Obligation.
+    intros j a b f; rewrite /= /func_limit_func_h_map /=.
+    rewrite -(cone_hom_commutes (bang (term_is_terminal (complete _)) (cone_on_pointwise_func f))).
+    done.
+  Qed.
   Fail Next Obligation.
 
-  Program Definition psh_lim_side : ∀ j, hom (PSh C) psh_lim_func (F ₒ j) :=
-    λ j, MkNat (λ c, MkSetoidFun (λ p, `p j) _) _.
-  Solve All Obligations with repeat intros ?; solve_by_equiv_rewrite.
+  Program Definition func_limit_cone : cone F :=
+    MkCone func_limit_func func_limit_cone_side _.
+  Next Obligation.
+    intros ????; rewrite /= -side_commutes //.
+  Qed.
   Fail Next Obligation.
 
-  Program Definition psh_lim_cone : cone F := MkCone psh_lim_func psh_lim_side _.
-  Next Obligation. intros ????? z ->. rewrite /= (proj2_sig z _ _ f) //. Qed.
+  Program Definition func_cone_to_cone (cn : cone F) c : cone (pointwise_func c) :=
+    MkCone (vertex cn ₒ c) (λ j, (side cn j) ₙ c) _.
+  Next Obligation.
+    repeat intros ?; apply (side_commutes cn).
+  Qed.
   Fail Next Obligation.
 
-  Program Definition pointwise_cone_hom {cn : cone F} (h : cone_hom cn psh_lim_cone) c :
-    cone_hom (pointwise_cone cn c) (setoid_lim_cone (pointwise_func c)) :=
+  Program Definition func_cone_hom_pointwise {cn cn' : cone F}
+    c (h : cone_hom cn cn') :
+    cone_hom (func_cone_to_cone cn c) (func_cone_to_cone cn' c) :=
     MkConeHom (cone_hom_map h ₙ c) _.
-  Next Obligation. intros ? h ?????; apply: (cone_hom_commutes h); done. Qed.
+  Next Obligation. repeat intros ?; apply (cone_hom_commutes h). Qed.
   Fail Next Obligation.
 
-  Program Definition natural_to_psh_lim_cone (cn : cone F) :
-    natural (vertex cn) (vertex psh_lim_cone) :=
-    MkNat (λ c,
-        MkSetoidFun (λ x,
-            setoid_fun_to_setoid_lim_cone (pointwise_func c) (pointwise_cone cn c) x) _) _.
-  Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
-  Next Obligation.
-    repeat intros ?; setoid_subst; rewrite (psh_naturality (side cn _)) //.
-  Qed.
-  Fail Next Obligation.
-
-  Program Definition cone_hom_to_psh_lim_cone cn : cone_hom cn psh_lim_cone :=
-    MkConeHom (natural_to_psh_lim_cone cn) _.
-  Next Obligation. repeat intros ?; solve_by_equiv_rewrite. Qed.
-  Fail Next Obligation.
-
-  Program Definition psh_lim_cone_is_limiting_cone : is_limiting_cone psh_lim_cone :=
-    MkIsTerm psh_lim_cone cone_hom_to_psh_lim_cone _.
-  Next Obligation.
+  Global Instance func_cone_hom_pointwise_proper cn cn' c :
+    Proper ((≡) ==> (≡)) (@func_cone_hom_pointwise cn cn' c).
   Proof.
-    intros ???????; simpl in *.
-    apply: (bang_unique
-      (setoid_lim_cone_is_limiting_cone
-         (pointwise_func _)) (pointwise_cone_hom f a)); done.
+    intros ???; rewrite /func_cone_hom_pointwise /=.
+    rewrite /equiv /cone_hom_eq /=; solve_by_equiv_rewrite.
   Qed.
 
-End psh_limit.
+  Program Definition func_cone_to_limit_pointwise {cn : cone F}
+    (h : cone_hom cn func_limit_cone) c :
+    cone_hom (func_cone_to_cone cn c) (term (complete (pointwise_func c))) :=
+    MkConeHom (cone_hom_map h ₙ c) _.
+  Next Obligation. repeat intros ?; apply (cone_hom_commutes h). Qed.
+  Fail Next Obligation.
 
-Global Program Instance presheaves_complete C : Complete (PSh C) :=
-  λ _ F, MkTerm (psh_lim_cone F) (psh_lim_cone_is_limiting_cone F).
+  Program Definition cone_hom_to_func_limit_cone (cn : cone F) : cone_hom cn func_limit_cone :=
+    MkConeHom
+      (MkNat (λ c, cone_hom_map (bang (term_is_terminal (complete (pointwise_func c)))
+        (func_cone_to_cone cn c))) _)
+      _.
+  Next Obligation.
+    intros cn a b f; simpl in *.
+    rewrite /func_limit_func_h_map /=.
+    apply (hom_to_limit_unique
+             _ _ _ (limit_is_limit (complete (pointwise_func b)))
+             (cone_is_cone (@extend_cone _ _ _ _ (func_cone_to_cone cn b) (vertex cn ₕ f)))).
+    - intros ?; rewrite /=.
+      rewrite -comp_assoc.
+      rewrite_cone_hom_commutes_back.
+      rewrite naturality //.
+    - intros ?; rewrite /= -comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite /= comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite naturality //.
+  Qed.
+  Next Obligation. intros cn j c; simpl; rewrite_cone_hom_commutes_back; done. Qed.
+  Fail Next Obligation.
+
+  Program Definition func_limit_cone_is_limiting_cone : is_limiting_cone func_limit_cone :=
+    MkIsTerm func_limit_cone cone_hom_to_func_limit_cone _.
+  Next Obligation.
+    intros cn f c.
+    apply (bang_unique (term_is_terminal (complete (pointwise_func c)))
+             (func_cone_to_limit_pointwise f c)).
+  Qed.
+  Fail Next Obligation.
+
+  Definition func_limit : limit F := MkTerm _ func_limit_cone_is_limiting_cone.
+
+  Program Definition func_cone_to_cone_preserves_isos
+    {cn cn' : cone F} (iso : cn ≃@{ConeCat F} cn') c :
+    func_cone_to_cone cn c ≃@{ConeCat (pointwise_func c)} func_cone_to_cone cn' c :=
+    MkIsoIc ((func_cone_hom_pointwise c (forward iso))) (func_cone_hom_pointwise c (backward iso)) _.
+  Next Obligation.
+    intros; split; simpl.
+    - pose proof (iso_lr (is_iso iso)).
+      match goal with
+      Heq : ?A ≡ ?B |- _ =>
+        assert (func_cone_hom_pointwise c A ≡ func_cone_hom_pointwise c B)
+        by rewrite Heq //
+      end; done.
+    - pose proof (iso_rl (is_iso iso)).
+      match goal with
+      Heq : ?A ≡ ?B |- _ =>
+        assert (func_cone_hom_pointwise c A ≡ func_cone_hom_pointwise c B)
+        by rewrite Heq //
+      end; done.
+  Qed.
+
+  Program Definition func_cone_to_cone_func_limit_cone_iso c :
+    (func_cone_to_cone func_limit_cone c) ≃@{ConeCat (pointwise_func c)}
+    (term (complete (pointwise_func c))) :=
+    MkIsoIc (MkConeHom (id _) _) (MkConeHom (id _) _) _.
+  Next Obligation. repeat intros; rewrite right_id //. Qed.
+  Next Obligation. repeat intros; rewrite right_id //. Qed.
+  Next Obligation. repeat intros; split; rewrite /= /equiv /cone_hom_eq /= right_id //. Qed.
+
+  Definition func_cat_limits_pointwise {L : functor C D} (il : is_limit F L) c :
+    is_limit (pointwise_func c) (L ₒ c) :=
+    MkIsLimit (cone_is_cone (func_cone_to_cone (cone_of_is_cone (il_is_cone il)) c))
+      (iso_cones_equi_limit
+         (func_cone_to_cone_preserves_isos
+            (is_term_unique func_limit_cone_is_limiting_cone (il_is_limiting_cone F L il)) c)
+         (iso_cones_equi_limit (isomorphic_sym (func_cone_to_cone_func_limit_cone_iso c))
+            (term_is_terminal (complete (pointwise_func c))))).
+
+  (* This is a poor man's enriched cone. *)
+  Record coherent_partial_cone c := MkCohParCone {
+    coh_par_cone : cone (pointwise_func c);
+    coh_par_cone_down c' (f : hom c c') : cone (pointwise_func c');
+    coh_par_cone_hom c' (f : hom c c') :
+      hom (vertex coh_par_cone) (vertex (coh_par_cone_down c' f));
+    coh_par_cone_hom_natural c' (f : hom c c') j :
+      side (coh_par_cone_down _ f) j ∘ coh_par_cone_hom _ f ≡
+      (F ₒ j)ₕ f ∘ side coh_par_cone j
+  }.
+  Arguments coh_par_cone {_} _.
+  Arguments coh_par_cone_down {_} _ {_} _.
+  Arguments coh_par_cone_hom {_} _ {_} _.
+  Arguments coh_par_cone_hom_natural {_} _ {_} _ _.
+
+  Lemma func_cat_limits_pointwise_natural
+    {L : functor C D} (il : is_limit F L) {c} (cn : coherent_partial_cone c)
+    {c' : obj C} (f : hom c c') :
+    cone_hom_map
+      (bang (il_is_limiting_cone _ _ (func_cat_limits_pointwise il c'))
+         (coh_par_cone_down cn f)) ∘ (coh_par_cone_hom cn f) ≡
+    (L ₕ f) ∘
+    cone_hom_map (bang (il_is_limiting_cone _ _
+      (func_cat_limits_pointwise il c)) (coh_par_cone cn)).
+  Proof.
+    apply (hom_to_limit_unique
+             _ _ _ (func_cat_limits_pointwise il c')
+             (cone_is_cone (extend_cone (coh_par_cone_down cn f) (coh_par_cone_hom cn f)))).
+    - intros ?; simpl in *.
+      rewrite left_id -!comp_assoc.
+      epose proof (cone_hom_commutes (bang (il_is_limiting_cone F L il) func_limit_cone) _ _)
+        as Hchc; rewrite /= in Hchc; rewrite -Hchc; clear Hchc.
+      rewrite_cone_hom_commutes_back; done.
+    - intros ?.
+      rewrite /= left_id.
+      rewrite -!(comp_assoc _ _ (L ₕ _)).
+      epose proof (naturality (cone_hom_map (bang (il_is_limiting_cone F L il) func_limit_cone)) _)
+        as Hn; rewrite /= in Hn; rewrite -Hn; clear Hn.
+      rewrite -!comp_assoc.
+      epose proof (cone_hom_commutes (bang (il_is_limiting_cone F L il) func_limit_cone) _ _)
+        as Hchc; rewrite /= in Hchc; rewrite -Hchc /=; clear Hchc.
+      rewrite /func_limit_func_h_map.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      apply coh_par_cone_hom_natural.
+  Qed.
+
+End func_cat_limit.
+
+Definition func_cat_complete {C D} `{!Complete D} : Complete (FuncCat C D) :=
+  λ J F, func_limit F.
+
+Global Program Instance psh_complete C : Complete (PSh C) := func_cat_complete.
 
 (* special cases of lemmas for presheaves and setoids *)
 Lemma psh_side_commutes {J C : category} {F : functor J (PSh C)}
@@ -2584,12 +2783,8 @@ Proof. by apply (@cone_hom_commutes _ _ F). Qed.
 Ltac rewrite_cone_hom_commutes_back :=
   match goal with
     |- context [side _ ?j ∘ cone_hom_map ?c] => rewrite -(cone_hom_commutes c j)
-  | |- context [il_side _ ?j ∘ cone_hom_map ?c] => rewrite -(cone_hom_commutes c j)
   | |- context [ic_side _ ?j ∘ cone_hom_map ?c] => rewrite -(cone_hom_commutes c j)
   | |- context [setoid_fun_map _ _ (side _ ?j)
-                  (setoid_fun_map _ _ (cone_hom_map ?c) _)] =>
-      rewrite -(setoid_cone_hom_commutes c j)
-  | |- context [setoid_fun_map _ _ (il_side _ ?j)
                   (setoid_fun_map _ _ (cone_hom_map ?c) _)] =>
       rewrite -(setoid_cone_hom_commutes c j)
   | |- context [setoid_fun_map _ _ (ic_side _ ?j)

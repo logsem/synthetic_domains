@@ -106,139 +106,578 @@ Next Obligation.
 Qed.
 Fail Next Obligation.
 
+(* pointwiseness of limits in categories enriched over presheaves.  *)
+Section enriched_limits.
+  Context {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}.
+
+  Record enr_cone {J} (F : functor J C) α := MkEnrCone {
+    enr_vertex : obj C;
+    enr_side : ∀ j : obj J, (enr_hom enr_vertex (F ₒ j)) ₒ α;
+    enr_side_commutes : ∀ (j j' : obj J) (f : hom j j'),
+      enr_side j' ≡ (enr_comp enr_vertex (F ₒ j) (F ₒ j') ₙ α) (enr_side j, (⌜F ₕ f⌝ ₙ α) ());
+  }.
+  Arguments enr_vertex {_ _ _} _.
+  Arguments enr_side {_ _ _} _ _.
+  Arguments enr_side_commutes {_ _ _} _ [_ _] _.
+
+  Program Definition enr_cone_natural {J} {F : functor J C} {α} (cn : enr_cone F α)
+    {β} (Hle : β ⪯ α) : enr_cone F β :=
+    MkEnrCone _ _ β (enr_vertex cn)
+      (λ j, ((enr_hom (enr_vertex cn) (F ₒ j)) ₕ Hle) (enr_side cn j)) _.
+  Next Obligation.
+    intros ??? cn ? Hle ?? f; simpl in *.
+    rewrite (enr_side_commutes cn f) /=.
+    epose proof (naturality (enr_comp (enr_vertex cn) (F ₒ j) (F ₒ j'))
+      _ (_, _) _ (reflexivity _)) as Hn; simpl in Hn; rewrite -Hn; clear Hn.
+    epose proof (naturality ⌜ F ₕ f ⌝ _ _ _ (reflexivity _)) as Hn; simpl in Hn;
+      rewrite -Hn; clear Hn.
+    done.
+  Qed.
+
+  Program Definition cone_to_enr_cone {J} {F : functor J C} (cn : cone F) α : enr_cone F α :=
+    MkEnrCone _ _ α (vertex cn) (λ j, (⌜side cn j⌝ ₙ α) ()) _.
+  Next Obligation.
+    repeat intros ?; simpl.
+    epose proof (enr_comp_comp _ _ _ () _ (reflexivity _)) as Hcmp;
+      rewrite /= in Hcmp; rewrite -Hcmp /=; clear Hcmp.
+    rewrite !enr_embed_project.
+    rewrite -side_commutes //.
+  Qed.
+  Fail Next Obligation.
+
+  Record enr_cone_hom {J} {F : functor J C} {α} (cn cn' : enr_cone F α) := MkEnrConeHom {
+    enr_cone_hom_map : (enr_hom (enr_vertex cn) (enr_vertex cn'))ₒ α;
+    enr_cone_hom_commutes : ∀ j : obj J,
+      enr_side cn j ≡ (enr_comp (enr_vertex cn) (enr_vertex cn') (F ₒ j) ₙ α)
+       (enr_cone_hom_map, enr_side cn' j);
+  }.
+  Arguments enr_cone_hom_map {_ _ _ _ _} _.
+  Arguments enr_cone_hom_commutes {_ _ _ _ _} _ _.
+
+  Record enr_cone_is_limit {J} {F : functor J C} {α} (cn : enr_cone F α) := MkEnrConeIsLimit {
+    enr_limit_hom : ∀ cn', enr_cone_hom cn' cn;
+    enr_limit_hom_unique : ∀ cn' (h h' : enr_cone_hom cn' cn),
+      enr_cone_hom_map h ≡ enr_cone_hom_map h';
+  }.
+
+  Definition enr_limit {J} {F : functor J C} {c : obj C} (il : is_limit F c) :=
+    ∀ α, enr_cone_is_limit (cone_to_enr_cone (cone_of_is_cone (il_is_cone il)) α).
+
+  Lemma enr_hom_to_limit_unique {J} {F : functor J C} {α} {cn : enr_cone F α}
+    (ecil : enr_cone_is_limit cn) (cn' : enr_cone F α)
+    (h h' : enr_hom (enr_vertex cn') (enr_vertex cn)ₒ α) :
+    (∀ j : obj J,
+        enr_side cn' j ≡ (enr_comp (enr_vertex cn') (enr_vertex cn) (F ₒ j) ₙ α)
+          (h, enr_side cn j)) →
+    (∀ j : obj J,
+        enr_side cn' j ≡ (enr_comp (enr_vertex cn') (enr_vertex cn) (F ₒ j) ₙ α)
+          (h', enr_side cn j)) →
+    h ≡ h'.
+  Proof.
+    intros Hhcm Hh'cm.
+    pose (MkEnrConeHom _ _ _ _ _ h Hhcm) as hch.
+    pose (MkEnrConeHom _ _ _ _ _ h' Hh'cm) as h'ch.
+    pose proof (enr_limit_hom_unique _ ecil _ hch h'ch); done.
+  Qed.
+
+End enriched_limits.
+Global Arguments MkEnrCone {_ _ _ _ _ _} _ _ _.
+Global Arguments enr_vertex {_ _ _ _ _ _} _.
+Global Arguments enr_side {_ _ _ _ _ _} _ _.
+Global Arguments enr_side_commutes {_ _ _ _ _ _} _ [_ _] _.
+Global Arguments MkEnrConeHom {_ _ _ _ _ _ _ _} _ _.
+Global Arguments enr_cone_hom_map {_ _ _ _ _ _ _ _} _.
+Global Arguments enr_cone_hom_commutes {_ _ _ _ _ _ _ _} _ _.
+Global Arguments MkEnrConeIsLimit {_ _ _ _ _ _ _} _ _.
+Global Arguments enr_limit_hom {_ _ _ _ _ _ _} _ _.
+Global Arguments enr_limit_hom_unique {_ _ _ _ _ _ _} _ [_] _ _.
+Global Arguments enr_limit {_ _ _ _ _ _} _.
+
+Section psh_limits_enriched.
+  Context {SI : indexT} {J} {F : functor J (PSh (OrdCat SI))}
+    {L : PreSheaf (OrdCat SI)} (il : is_limit F L).
+
+  Local Instance : Enriched (PSh (OrdCat SI)) (PSh (OrdCat SI)) :=
+    (@self_enriched (PSh (OrdCat SI)) _).
+
+  Opaque func_cat_limits_pointwise.
+
+  Program Definition psh_limits_enriched_enr_cone_to_pointwise_cone
+    {α} (cn : enr_cone F α) : cone (pointwise_func F α) :=
+    MkCone (enr_vertex cn ₒ α)
+      (λ j, λset x, (enr_side cn j ₙ α) (reflexivity _, x)) _.
+  Next Obligation. repeat intros ?; simpl in *; repeat f_equiv; done. Qed.
+  Next Obligation.
+    intros ?? j j' f x y <-; clear y; simpl in *.
+    rewrite (λ z, enr_side_commutes cn f α ((reflexivity _), z) _ (reflexivity _)) /=.
+    repeat f_equiv; done.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition enr_cone_coherent_partial_cone {α} (cn : enr_cone F α) :
+    coherent_partial_cone F α :=
+    MkCohParCone _ _
+      (psh_limits_enriched_enr_cone_to_pointwise_cone cn)
+      (λ _ f, psh_limits_enriched_enr_cone_to_pointwise_cone (enr_cone_natural cn f))
+      (λ _ f, enr_vertex cn ₕ f) _.
+  Next Obligation.
+    intros α cn β f j x y <-; clear y; simpl in *.
+    epose proof (naturality (enr_side cn j) f (_, _) _ (reflexivity _)) as Hn;
+      simpl in Hn; rewrite -Hn /=; clear Hn.
+    repeat f_equiv; done.
+  Qed.
+
+  Program Definition psh_limits_enriched_enr_cone_hom_back {α} (cn : enr_cone F α) :
+    enr_cone_hom cn (cone_to_enr_cone (cone_of_is_cone (il_is_cone il)) α) :=
+    MkEnrConeHom
+      (MkNat (λ β, λset le_x,
+           cone_hom_map
+             (bang (il_is_limiting_cone _ _ (func_cat_limits_pointwise F il β))
+                (psh_limits_enriched_enr_cone_to_pointwise_cone (enr_cone_natural cn le_x.1)))
+             le_x.2) _) _.
+  Next Obligation.
+    intros ??? [le1 ?] [le2 ?] [? ->]; replace le1 with le2 by apply proof_irrel; done.
+  Qed.
+  Next Obligation.
+    intros α cn β γ f [le x] [le' y] [? <-]; replace le' with le by apply proof_irrel;
+      clear dependent le'; clear y; simpl in *.
+    epose proof (func_cat_limits_pointwise_natural F il
+      (enr_cone_coherent_partial_cone (enr_cone_natural cn le))
+      f x _ (reflexivity _)) as Hpln.
+    simpl in Hpln; rewrite -Hpln /=; clear Hpln.
+    f_equiv; last done.
+    apply (hom_to_limit_unique
+             _ _ _ (func_cat_limits_pointwise F il γ)
+             (cone_is_cone (psh_limits_enriched_enr_cone_to_pointwise_cone
+                              (enr_cone_natural (enr_cone_natural cn le) f)))).
+    - intros ??? ->; simpl in *.
+      rewrite_cone_hom_commutes_back; simpl.
+      f_equiv; done.
+    - intros ??? ->; simpl in *.
+      rewrite_cone_hom_commutes_back; simpl.
+      f_equiv; done.
+  Qed.
+  Next Obligation.
+    intros α cn j β [le x] [le' y] [? <-]; replace le' with le by apply proof_irrel;
+      clear dependent le'; clear y; simpl in *.
+    epose proof (cone_hom_commutes (bang
+            (il_is_limiting_cone (pointwise_func F β)
+               (L ₒ β) (func_cat_limits_pointwise F il β))
+            (psh_limits_enriched_enr_cone_to_pointwise_cone _))
+      j _ _ (reflexivity _)) as Hn; simpl in Hn; rewrite -Hn /=; clear Hn.
+    repeat f_equiv; done.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition psh_limits_enr_cone_hom_to_cone_hom {α cn β} (le : β ⪯ α)
+    (h : enr_cone_hom cn (cone_to_enr_cone (cone_of_is_cone (il_is_cone il)) α)) :
+      cone_hom
+        (psh_limits_enriched_enr_cone_to_pointwise_cone
+           (enr_cone_natural cn le))
+        (cone_of_is_cone (il_is_cone (func_cat_limits_pointwise F il β))) :=
+  MkConeHom (λset x, (enr_cone_hom_map h ₙ β) (le, x)) _.
+  Next Obligation. intros ??????? ->; done. Qed.
+  Next Obligation.
+    intros ???? h ??? ->; simpl in *.
+    epose proof (enr_cone_hom_commutes h _ _ (_, _) _ (reflexivity _)) as Hsc;
+    simpl in Hsc; rewrite Hsc; clear.
+    repeat f_equiv; done.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition psh_limits_enriched : enr_limit il :=
+    λ α, MkEnrConeIsLimit (λ cn, psh_limits_enriched_enr_cone_hom_back cn) _.
+  Next Obligation.
+    intros α cn h h' β [le x] [le' y] [? <-]; replace le' with le by apply proof_irrel;
+      clear dependent le'; clear y; simpl in *.
+    epose proof (@bang_unique _ _ (il_is_limiting_cone _ _ (func_cat_limits_pointwise F il β))
+                  (psh_limits_enriched_enr_cone_to_pointwise_cone (enr_cone_natural cn le))
+                  (psh_limits_enr_cone_hom_to_cone_hom le h) x _ (reflexivity _)) as Hbu;
+      simpl in Hbu; rewrite Hbu; clear Hbu.
+    epose proof (@bang_unique _ _ (il_is_limiting_cone _ _ (func_cat_limits_pointwise F il β))
+                  (psh_limits_enriched_enr_cone_to_pointwise_cone (enr_cone_natural cn le))
+                  (psh_limits_enr_cone_hom_to_cone_hom le h') x _ (reflexivity _)) as Hbu;
+      simpl in Hbu; rewrite Hbu; clear Hbu.
+    done.
+  Qed.
+
+End psh_limits_enriched.
+
 (* α-isomorphism *)
 
-Record iso_at
+Record isomorphism_at
   {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
-  {a b : obj C} (f : hom a b) (α : SI) := MkIsoAt
-{
-  inv_at : (enr_hom b a) ₒ α;
-  inv_at_lr : (enr_comp a b a ₙ α) ((⌜f⌝ ₙ α) (), inv_at) ≡ (⌜id a⌝ ₙ α) ();
-  inv_at_rl : (enr_comp b a b ₙ α) (inv_at, (⌜f⌝ ₙ α) ()) ≡ (⌜id b⌝ ₙ α) ();
+  {a b α} (f : (enr_hom a b) ₒ α) (g : (enr_hom b a) ₒ α) : Prop := MkIsoAt {
+  iso_at_lr : (enr_comp a b a ₙ α) (f , g) ≡ (⌜id a⌝ ₙ α) ();
+  iso_at_rl : (enr_comp b a b ₙ α) (g, f) ≡ (⌜id b⌝ ₙ α) ();
 }.
-Global Arguments MkIsoAt {_ _ _ _ _ _ _} _ _ _.
-Global Arguments inv_at {_ _ _ _ _ _ _} _.
-Global Arguments inv_at_lr {_ _ _ _ _ _ _} _.
-Global Arguments inv_at_rl {_ _ _ _ _ _ _} _.
+Global Arguments MkIsoAt {_ _ _ _ _ _ _ _} _ _.
+Global Arguments iso_at_lr {_ _ _ _ _ _ _ _} _.
+Global Arguments iso_at_rl {_ _ _ _ _ _ _ _} _.
 
-Definition iso_upto {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
-  {a b : obj C} (f : hom a b) (dsp : downset_pred SI) :=
-  ∀ β : downset dsp, iso_at f β.
-
-Definition iso_upto_glue {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
-  {a b : obj C} (f : hom a b) (dsp : downset_pred SI)
-  (isos : ∀ α, dsp α → iso_upto f (le_dsp α)) :
-  iso_upto f dsp :=
-  λ α, isos α (ds_in_dsp α) (MkDS (le_dsp α) (reflexivity _)).
-
-Lemma iso_upto_natural {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
-  {a b : obj C} (f : hom a b) (dsp : downset_pred SI)
-  (iso : iso_upto f dsp) [α β : downset dsp] (Hle : β ⪯ α) :
-  inv_at (iso β) ≡ (enr_hom b a ₕ Hle) (inv_at (iso α)).
+Lemma compose_along_isomorphism_at_left
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} {b c α}
+  {h : (enr_hom b c) ₒ α} {hi : (enr_hom c b) ₒ α}
+  (iso : isomorphism_at h hi) [a] (f g : (enr_hom a b) ₒ α) :
+  (enr_comp a b c ₙ α) (f, h) ≡ (enr_comp a b c ₙ α) (g, h) → f ≡ g.
 Proof.
-  eassert ((enr_comp b b a ₙ (β : SI))
-             ((enr_comp b a b ₙ (β : SI))
-                ((enr_hom b a ₕ Hle) (inv_at (iso α)),
-                  (⌜ f ⌝ₙ (β : SI)) ()), (inv_at (iso β))) ≡
-             inv_at (iso β)) as <-.
-  { pose proof (@naturality _ _ _ _ (enr_comp b a b) _ _ Hle
-         (inv_at (iso α), (⌜ f ⌝ₙ (α : SI)) ())
-         _ (reflexivity _)) as Hn.
-    simpl in Hn.
-    pose proof (inv_at_rl (iso α)) as Hrl;
-      simpl in Hrl; rewrite Hrl in Hn; clear Hrl.
-    pose proof (naturality ⌜ id b ⌝ Hle () _ (reflexivity _)) as Hid;
-      simpl in Hid; rewrite -Hid in Hn; clear Hid.
-    pose proof (naturality ⌜ f ⌝ Hle () _ (reflexivity _)) as Hid;
-      simpl in Hid; rewrite -Hid in Hn; clear Hid.
-    rewrite Hn.
-    epose proof
-      (enr_right_id b a (β : SI) ((), inv_at (iso β))
-         _ (reflexivity _)); done. }
-  epose proof (enr_comp_assoc b a b a (β : SI)
-    ((enr_hom b a ₕ Hle) (inv_at (iso α)),
-      (⌜ f ⌝ₙ (β : SI)) (), inv_at (iso β)) _ (reflexivity _)) as Hass.
-  rewrite /= in Hass; rewrite -Hass; clear Hass.
-  pose proof (inv_at_lr (iso β)) as Hlr;
-    simpl in Hlr; rewrite Hlr; clear Hlr.
-  epose proof (enr_left_id b a (β : SI) (_, ()) _ (reflexivity _)) as Hlid;
-    simpl in Hlid; rewrite Hlid; clear Hlid.
+  intros Heq.
+  assert ((enr_comp a c b ₙ α) ((enr_comp a b c ₙ α) (f, h), hi) ≡
+          (enr_comp a c b ₙ α) ((enr_comp a b c ₙ α) (g, h), hi)) as Heq'.
+  { rewrite Heq //. }
+  epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite -Hca in Heq'; clear Hca.
+  epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+    simpl in Hca; rewrite -Hca in Heq'; clear Hca.
+  rewrite !(iso_at_lr iso) in Heq'.
+  epose proof (enr_left_id _ _ _ (_, ()) _ (reflexivity _)) as Hli;
+      simpl in Hli; rewrite Hli in Heq'; clear Hli.
+  epose proof (enr_left_id _ _ _ (_, ()) _ (reflexivity _)) as Hli;
+    simpl in Hli; rewrite Hli in Heq'; clear Hli.
   done.
 Qed.
 
-Program Definition iso_upto_inv_embedded
+Lemma compose_along_isomorphism_at_right
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} {a b α}
+  {h : (enr_hom a b) ₒ α} {hi : (enr_hom b a) ₒ α}
+  (iso : isomorphism_at h hi) [c] (f g : (enr_hom b c) ₒ α) :
+  (enr_comp a b c ₙ α) (h, f) ≡ (enr_comp a b c ₙ α) (h, g) → f ≡ g.
+Proof.
+  intros Heq.
+  assert ((enr_comp b a c ₙ α) (hi, (enr_comp a b c ₙ α) (h, f)) ≡
+          (enr_comp b a c ₙ α) (hi, (enr_comp a b c ₙ α) (h, g))) as Heq'.
+  { rewrite Heq //. }
+  epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite Hca in Heq'; clear Hca.
+  epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+    simpl in Hca; rewrite Hca in Heq'; clear Hca.
+  rewrite !(iso_at_rl iso) in Heq'.
+  epose proof (enr_right_id _ _ _ ((), _) _ (reflexivity _)) as Hli;
+    simpl in Hli; rewrite Hli in Heq'; clear Hli.
+  epose proof (enr_right_id _ _ _ ((), _) _ (reflexivity _)) as Hli;
+    simpl in Hli; rewrite Hli in Heq'; clear Hli.
+  done.
+Qed.
+
+Global Instance isomorphism_at_proper {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b α} :
+  Proper ((≡) ==> (≡) ==> iff) (@isomorphism_at SI C _ a b α).
+Proof.
+  intros f f' Hff g g' Hgg; split.
+  - intros Hfg; split; rewrite -Hff -Hgg; apply Hfg.
+  - intros Hfg; split; rewrite Hff Hgg; apply Hfg.
+Qed.
+
+Lemma isomorphism_at_id {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} a α :
+  isomorphism_at ((⌜id a⌝ ₙ α) ()) ((⌜id a⌝ ₙ α) ()).
+Proof.
+  split.
+  - epose proof (enr_comp_comp ⌜id a⌝ ⌜id a⌝ _ () _ (reflexivity _)) as Hcmp;
+      simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite enr_embed_project left_id //.
+  - epose proof (enr_comp_comp ⌜id a⌝ ⌜id a⌝ _ () _ (reflexivity _)) as Hcmp;
+      simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite enr_embed_project left_id //.
+Qed.
+
+Lemma isomorphism_at_swap {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b α} {f : (enr_hom a b) ₒ α} {g : (enr_hom b a) ₒ α} :
+  isomorphism_at f g → isomorphism_at g f.
+Proof. intros iso; split; apply iso. Qed.
+
+Lemma isomorphism_at_compose {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b c α} {f : (enr_hom a b) ₒ α} {g : (enr_hom b a) ₒ α}
+  {f' : (enr_hom b c) ₒ α} {g' : (enr_hom c b) ₒ α} :
+  isomorphism_at f g → isomorphism_at f' g' →
+  isomorphism_at ((enr_comp a b c ₙ α) (f, f')) ((enr_comp c b a ₙ α) (g', g)).
+Proof.
+  intros iso iso'; split.
+  - epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite Hca; clear Hca.
+    epose proof (enr_comp_assoc a _ c b _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite -Hca; clear Hca.
+    rewrite (iso_at_lr iso').
+    epose proof (enr_left_id a b _ (_, ()) _ (reflexivity _)) as Hli;
+      simpl in Hli; rewrite Hli; clear Hli.
+    apply iso.
+  - epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite Hca; clear Hca.
+    epose proof (enr_comp_assoc c _ a b _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite -Hca; clear Hca.
+    rewrite (iso_at_rl iso).
+    epose proof (enr_left_id c b _ (_, ()) _ (reflexivity _)) as Hli;
+      simpl in Hli; rewrite Hli; clear Hli.
+    apply iso'.
+Qed.
+
+Record is_iso_at {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (α : SI) := MkIsIsoAt
+{
+  inv_at : (enr_hom b a) ₒ α;
+  iso_at : isomorphism_at ((⌜f⌝ ₙ α) ()) inv_at;
+}.
+Global Arguments MkIsIsoAt {_ _ _ _ _ _ _} _ _.
+Global Arguments inv_at {_ _ _ _ _ _ _} _.
+Global Arguments iso_at {_ _ _ _ _ _ _} _.
+
+Lemma compose_along_is_iso_at_left
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} {b c α}
+  {f : hom b c} (iso : is_iso_at f α) [a] (g h : (enr_hom a b) ₒ α) :
+  (enr_comp a b c ₙ α) (g, (⌜f⌝ ₙ α) ()) ≡ (enr_comp a b c ₙ α) (h, (⌜f⌝ ₙ α) ()) → g ≡ h.
+Proof.
+  intros Heq.
+  apply (compose_along_isomorphism_at_left (iso_at iso)); done.
+Qed.
+
+Lemma compose_along_is_iso_at_right
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} {a b α}
+  {f : hom b a} (iso : is_iso_at f α) [c] (g h : (enr_hom b c) ₒ α) :
+  (enr_comp a b c ₙ α) (inv_at iso, g) ≡ (enr_comp a b c ₙ α) (inv_at iso, h) → g ≡ h.
+Proof.
+  intros Heq.
+  apply (compose_along_isomorphism_at_right (isomorphism_at_swap (iso_at iso))); done.
+Qed.
+
+Lemma compose_along_is_iso_at_right'
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} {a b α}
+  {f : hom a b} (iso : is_iso_at f α) [c] (g h : (enr_hom b c) ₒ α) :
+  (enr_comp a b c ₙ α) ((⌜f⌝ ₙ α) (), g) ≡ (enr_comp a b c ₙ α) ((⌜f⌝ ₙ α) (), h) → g ≡ h.
+Proof.
+  intros Heq.
+  apply (compose_along_isomorphism_at_right (iso_at iso)); done.
+Qed.
+
+Lemma compose_along_is_iso_at_left'
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} {b c α}
+  {f : hom c b} (iso : is_iso_at f α) [a] (g h : (enr_hom a b) ₒ α) :
+  (enr_comp a b c ₙ α) (g, inv_at iso) ≡ (enr_comp a b c ₙ α) (h, inv_at iso) → g ≡ h.
+Proof.
+  intros Heq.
+  apply (compose_along_isomorphism_at_left (isomorphism_at_swap (iso_at iso))); done.
+Qed.
+
+Program Definition is_iso_at_proper {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} {f f': hom a b} {α : SI} (fiso : is_iso_at f α) (Heq : f ≡ f') : is_iso_at f' α :=
+  MkIsIsoAt (inv_at fiso) _.
+Next Obligation. intros ???????? iso <-; apply iso. Qed.
+Fail Next Obligation.
+
+Program Definition is_iso_at_compose {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b c : obj C} {f : hom a b} {g : hom b c} {α : SI}
+  (fiso : is_iso_at f α) (giso : is_iso_at g α) : is_iso_at (g ∘ f) α :=
+  MkIsIsoAt ((enr_comp c b a ₙ α) (inv_at giso, inv_at fiso)) _.
+Next Obligation.
+  intros ?????? f g ? fiso giso.
+  rewrite -{1}(enr_embed_project f) -{1}(enr_embed_project g).
+  rewrite enr_comp_comp /=.
+  split.
+  - epose proof (enr_comp_assoc a b c _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite -Hca; clear Hca.
+    epose proof (enr_comp_assoc _ c b a _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite Hca; clear Hca.
+    rewrite (iso_at_lr (iso_at giso)).
+    epose proof (enr_right_id b a _ ((), _) _ (reflexivity _)) as Hli;
+      simpl in Hli; rewrite Hli; clear Hli.
+    apply (iso_at_lr (iso_at fiso)).
+  - epose proof (enr_comp_assoc c b a _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite -Hca; clear Hca.
+    epose proof (enr_comp_assoc _ a b c _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite Hca; clear Hca.
+    rewrite (iso_at_rl (iso_at fiso)).
+    epose proof (enr_right_id b c _ ((), _) _ (reflexivity _)) as Hi;
+      simpl in Hi; rewrite Hi; clear Hi.
+    apply (iso_at_rl (iso_at giso)).
+Qed.
+Fail Next Obligation.
+
+Program Definition is_iso_at_uncompose_l {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b c : obj C} {f : hom a b} {g : hom b c} {α : SI}
+  (fiso : is_iso_at f α) (ciso : is_iso_at (g ∘ f) α) : is_iso_at g α :=
+  MkIsIsoAt ((enr_comp c a b ₙ α) (inv_at ciso, (⌜f⌝ ₙ α) ())) _.
+Next Obligation.
+  intros ?????? f g ? fiso ciso; split.
+  - apply (compose_along_is_iso_at_right' fiso).
+    epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite Hca; clear Hca.
+    epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite Hca; clear Hca.
+    epose proof (enr_comp_comp ⌜f⌝ ⌜g⌝ _ () _ (reflexivity _)) as Hcmp;
+      simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite !enr_embed_project.
+    rewrite (iso_at_lr (iso_at ciso)).
+    epose proof (enr_right_id _ _ _ ((), _) _ (reflexivity _)) as Hi;
+      simpl in Hi; rewrite Hi; clear Hi.
+    epose proof (enr_left_id _ _ _ (_, _) _ (reflexivity _)) as Hi;
+      simpl in Hi; rewrite Hi; clear Hi.
+    done.
+  - epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite -Hca; clear Hca.
+    epose proof (enr_comp_comp ⌜f⌝ ⌜g⌝ _ () _ (reflexivity _)) as Hcmp;
+      simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite !enr_embed_project.
+    rewrite (iso_at_rl (iso_at ciso)) //.
+Qed.
+Fail Next Obligation.
+
+Program Definition is_iso_at_uncompose_r {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b c : obj C} {f : hom a b} {g : hom b c} {α : SI}
+  (giso : is_iso_at g α) (ciso : is_iso_at (g ∘ f) α) : is_iso_at f α :=
+  MkIsIsoAt ((enr_comp _ _ _ ₙ α) ((⌜g⌝ ₙ α) (), inv_at ciso)) _.
+Next Obligation.
+  intros ?????? f g ? giso ciso; split.
+  - epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite Hca; clear Hca.
+    epose proof (enr_comp_comp ⌜f⌝ ⌜g⌝ _ () _ (reflexivity _)) as Hcmp;
+      simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite !enr_embed_project.
+    rewrite (iso_at_lr (iso_at ciso)) //.
+  - apply (compose_along_is_iso_at_left giso).
+    epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite -Hca; clear Hca.
+    epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite -Hca; clear Hca.
+    epose proof (enr_comp_comp ⌜f⌝ ⌜g⌝ _ () _ (reflexivity _)) as Hcmp;
+      simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite !enr_embed_project.
+    rewrite (iso_at_rl (iso_at ciso)).
+    epose proof (enr_right_id _ _ _ ((), _) _ (reflexivity _)) as Hi;
+      simpl in Hi; rewrite Hi; clear Hi.
+    epose proof (enr_left_id _ _ _ (_, _) _ (reflexivity _)) as Hi;
+      simpl in Hi; rewrite Hi; clear Hi.
+    done.
+Qed.
+Fail Next Obligation.
+
+Program Definition iso_at_downwards {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) {α β} (Hle : β ⪯ α) (iso : is_iso_at f α) :
+  is_iso_at f β :=
+  MkIsIsoAt (((enr_hom b a) ₕ Hle) (inv_at iso)) _.
+Next Obligation.
+  intros ? ? ? a b f α β Hle iso.
+  split.
+  - pose proof ((_ : Proper ((≡) ==> (≡)) (enr_hom a a ₕ Hle)) _ _ (iso_at_lr (iso_at iso)))
+      as Hlr.
+    epose proof (naturality (enr_comp a b a) _ _ _ (reflexivity _)) as Hn;
+      simpl in Hn; rewrite -Hn /= in Hlr; clear Hn.
+    epose proof (naturality ⌜ f ⌝ _ _ _ (reflexivity _)) as Hn;
+      simpl in Hn; rewrite -Hn /= in Hlr; clear Hn.
+    epose proof (naturality ⌜ id a ⌝ _ _ _ (reflexivity _)) as Hn;
+      simpl in Hn; rewrite -Hn /= in Hlr; clear Hn.
+    done.
+  - pose proof ((_ : Proper ((≡) ==> (≡)) (enr_hom b b ₕ Hle)) _ _ (iso_at_rl (iso_at iso)))
+      as Hlr.
+    epose proof (naturality (enr_comp b a b) _ _ _ (reflexivity _)) as Hn;
+      simpl in Hn; rewrite -Hn /= in Hlr; clear Hn.
+    epose proof (naturality ⌜ f ⌝ _ _ _ (reflexivity _)) as Hn;
+      simpl in Hn; rewrite -Hn /= in Hlr; clear Hn.
+    epose proof (naturality ⌜ id b ⌝ _ _ _ (reflexivity _)) as Hn;
+      simpl in Hn; rewrite -Hn /= in Hlr; clear Hn.
+    done.
+Qed.
+Fail Next Obligation.
+
+(* despite iso_at being downwards, we generalize it to apply down downsets to also support
+   downsets that do not have a maximal ordinal. *)
+
+Definition is_iso_upto {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (dsp : downset_pred SI) :=
+  ∀ β : downset dsp, is_iso_at f β.
+
+Definition is_iso_upto_glue {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (dsp : downset_pred SI)
+  (isos : ∀ α, dsp α → is_iso_upto f (le_dsp α)) :
+  is_iso_upto f dsp :=
+  λ α, isos α (ds_in_dsp α) (MkDS (le_dsp α) (reflexivity _)).
+
+Lemma is_iso_upto_functorial
   {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
   {a b : obj C} (f : hom a b) (dsp : downset_pred SI)
-  (iso : iso_upto f dsp) :
+  (iso : is_iso_upto f dsp) [α β : downset dsp] (Hle : β ⪯ α) :
+  inv_at (iso β) ≡ (enr_hom b a ₕ Hle) (inv_at (iso α)).
+Proof.
+  apply (compose_along_is_iso_at_right' (iso β)).
+  rewrite (iso_at_lr (iso_at (iso β))).
+  epose proof (naturality ⌜ f ⌝ Hle () _ (reflexivity _)) as Hn;
+      simpl in Hn; rewrite Hn; clear Hn.
+  epose proof (naturality (enr_comp a b a) _ (_, _) _ (reflexivity _)) as Hn;
+    simpl in Hn; rewrite Hn; clear Hn.
+  rewrite (iso_at_lr (iso_at (iso α))).
+  epose proof (naturality ⌜ id a ⌝ _ _ _ (reflexivity _)) as Hn;
+    simpl in Hn; rewrite -Hn; clear Hn.
+  done.
+Qed.
+
+Program Definition is_iso_upto_inv_embedded
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (dsp : downset_pred SI)
+  (iso : is_iso_upto f dsp) :
   hom (PSh (OrdDSCat dsp))
     (lift_func dsp (1ₒ : PreSheaf _))
     (lift_func dsp (enr_hom b a)) :=
   MkNat (λ α, λset _, inv_at (iso α)) _.
-Next Obligation. repeat intros ?; apply iso_upto_natural. Qed.
+Next Obligation. repeat intros ?; apply is_iso_upto_functorial. Qed.
 
-Definition iso_upto_total_inv_embedded
+Definition is_iso_upto_total_inv_embedded
   {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
-  {a b : obj C} (f : hom a b) (iso : iso_upto f (total_dsp SI)) :
+  {a b : obj C} (f : hom a b) (iso : is_iso_upto f (total_dsp SI)) :
   hom (1ₒ) (enr_hom b a) :=
-  unlift_natural (iso_upto_inv_embedded f _ iso).
+  unlift_natural (is_iso_upto_inv_embedded f _ iso).
 
-Definition iso_upto_total_inv
+Definition is_iso_upto_total_inv
   {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
-  {a b : obj C} (f : hom a b) (iso : iso_upto f (total_dsp SI)) :
-  hom b a := ⌞iso_upto_total_inv_embedded f iso⌟.
+  {a b : obj C} (f : hom a b) (iso : is_iso_upto f (total_dsp SI)) :
+  hom b a := ⌞is_iso_upto_total_inv_embedded f iso⌟.
 
-Lemma iso_upto_total_isomorphism {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
-  {a b : obj C} (f : hom a b) (iso : iso_upto f (total_dsp SI)) :
-  isomorphism f (iso_upto_total_inv f iso).
+Lemma is_iso_upto_total_isomorphism {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (iso : is_iso_upto f (total_dsp SI)) :
+  isomorphism f (is_iso_upto_total_inv f iso).
 Proof.
   split.
   - rewrite -{1}(enr_embed_project f).
     apply enr_embed_inj.
     intros α [] [] _.
-    rewrite /iso_upto_total_inv /iso_upto_total_inv_embedded.
+    rewrite /is_iso_upto_total_inv /is_iso_upto_total_inv_embedded.
     rewrite enr_comp_comp /=.
-    apply inv_at_lr.
+    apply iso_at_lr, (iso (MkDS (total_dsp SI) I)).
   - rewrite -{2}(enr_embed_project f).
     apply enr_embed_inj.
     intros α [] [] _.
-    rewrite /iso_upto_total_inv /iso_upto_total_inv_embedded.
+    rewrite /is_iso_upto_total_inv /is_iso_upto_total_inv_embedded.
     rewrite enr_comp_comp /=.
-    apply inv_at_rl.
+    apply iso_at_rl, (iso (MkDS (total_dsp SI) I)).
 Qed.
 
-Definition iso_upto_total {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
-  {a b : obj C} (f : hom a b) (iso : iso_upto f (total_dsp SI)) :
-  isomorphic a b := MkIsoIc _ _ (iso_upto_total_isomorphism f iso).
+Definition is_iso_upto_total {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a b : obj C} (f : hom a b) (iso : is_iso_upto f (total_dsp SI)) :
+  isomorphic a b := MkIsoIc _ _ (is_iso_upto_total_isomorphism f iso).
 
-Program Definition iso_at_func
+Program Definition is_iso_at_func
   {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
   (F : functor C C) `{!EnrichedFunctor F}
-  {a b : obj C} (f : hom a b) {α} (iso : iso_at f α) :
-  iso_at (F ₕ f) α :=
-  MkIsoAt ((enr_func_h_map F b a ₙ α) (inv_at iso)) _ _.
+  {a b : obj C} (f : hom a b) {α} (iso : is_iso_at f α) :
+  is_iso_at (F ₕ f) α :=
+  MkIsIsoAt ((enr_func_h_map F b a ₙ α) (inv_at iso)) _.
 Next Obligation.
   intros ??? F ? a b f α iso; simpl in *.
-  rewrite -{1}(enr_embed_project f) enr_func_h_map_is_h_map /=.
-  epose proof (enr_func_h_map_comp F _ _ _ α (_, _) _ (reflexivity _))
-    as Hcmp; simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
-  rewrite inv_at_lr.
-  epose proof (enr_func_h_map_id F _ α () _ (reflexivity _)); simpl in *; done.
-Qed.
-Next Obligation.
-  intros ??? F ? a b f α iso; simpl in *.
-  rewrite -{2}(enr_embed_project f) enr_func_h_map_is_h_map /=.
-  epose proof (enr_func_h_map_comp F _ _ _ α (_, _) _ (reflexivity _))
-    as Hcmp; simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
-  rewrite inv_at_rl.
-  epose proof (enr_func_h_map_id F _ α () _ (reflexivity _)); simpl in *; done.
+  split.
+  - rewrite -{1}(enr_embed_project f) enr_func_h_map_is_h_map /=.
+    epose proof (enr_func_h_map_comp F _ _ _ α (_, _) _ (reflexivity _))
+      as Hcmp; simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite (iso_at_lr (iso_at iso)).
+    epose proof (enr_func_h_map_id F _ α () _ (reflexivity _)); simpl in *; done.
+  - rewrite -{2}(enr_embed_project f) enr_func_h_map_is_h_map /=.
+    epose proof (enr_func_h_map_comp F _ _ _ α (_, _) _ (reflexivity _))
+      as Hcmp; simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite (iso_at_rl (iso_at iso)).
+    epose proof (enr_func_h_map_id F _ α () _ (reflexivity _)); simpl in *; done.
 Qed.
 Fail Next Obligation.
 
-Definition iso_upto_func
+Definition is_iso_upto_func
   {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
   (F : functor C C) `{!EnrichedFunctor F}
-  {a b : obj C} (f : hom a b) {dsp} (iso : iso_upto f dsp) : iso_upto (F ₕ f) dsp :=
-  λ α, iso_at_func F f (iso α).
+  {a b : obj C} (f : hom a b) {dsp} (iso : is_iso_upto f dsp) : is_iso_upto (F ₕ f) dsp :=
+  λ α, is_iso_at_func F f (iso α).
 
 (* TODO: MOVE *)
 Lemma compose_along_iso_right_setoid {A B} (iso : A ≃@{Setoid} B) (x y : A) :
@@ -252,109 +691,224 @@ Qed.
 Program Definition iso_upto_contr_func
   {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
   (F : functor C C) `{!LocallyContractiveFunctor F}
-  {a b : obj C} (f : hom a b) {dsp} (iso : iso_upto f dsp) α
-  (Hdsp : ∀ β, β ≺ α → dsp β) : iso_at (F ₕ f) α :=
-  MkIsoAt
+  {a b : obj C} (f : hom a b) {dsp} (iso : is_iso_upto f dsp) α
+  (Hdsp : ∀ β, β ≺ α → dsp β) : is_iso_at (F ₕ f) α :=
+  MkIsIsoAt
     ((contr_func_h_map F b a ₙ α)
        (into_later_psh _
           (λ β (Hβ : β ≺ α), inv_at (iso (MkDS dsp (Hdsp _ Hβ)))) _))
-    _ _.
+    _.
 Next Obligation.
   intros ???????? dsp ?? Hdsp β γ Hβ Hγ Hle; simpl in *.
   symmetry.
-  apply (iso_upto_natural _ _ _
+  apply (is_iso_upto_functorial _ _ _
     (Hle : (MkDS dsp (Hdsp _ Hβ)) ⪯ (MkDS dsp (Hdsp _ Hγ)))).
 Qed.
 Next Obligation.
   intros ??? F ? a b f dsp iso α Hdsp; simpl in *.
-  rewrite -{1}(enr_embed_project f) enr_func_h_map_is_h_map /=.
-  rewrite -enr_func_h_map_id.
-  rewrite !contr_func_h_map_is_h_map /=.
-  epose proof (contr_func_h_map_comp F _ _ _ _ (_, _) _ (reflexivity _))
-    as Hcmp; simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
-  f_equiv.
-  apply equiv_of_into_later_psh.
-  intros β Hβ.
-  rewrite -(psh_naturality (next ₙ enr_hom _ _)) /=.
-  epose proof (psh_naturality (⌜id _⌝)) as Hn;
-    simpl in Hn; rewrite -Hn; clear Hn.
-  epose proof (psh_naturality (later ₕ enr_comp _ _ _)) as Hn;
-    simpl in Hn; rewrite -Hn; clear Hn.
-  epose proof (psh_naturality (backward (later_prod (enr_hom a b) (enr_hom b a))))
-    as Hn; simpl in Hn; rewrite -Hn /=; clear Hn.
-  rewrite -(psh_naturality (next ₙ enr_hom _ _)) /=.
-  epose proof (psh_naturality (⌜f⌝)) as Hn;
-    simpl in Hn; rewrite -Hn; clear Hn.
-  pose proof (side_of_later' (enr_hom b a) (MkDS (lt_dsp α) Hβ)) as Hsdl;
-    simpl in Hsdl; rewrite Hsdl /=; clear Hsdl.
-  rewrite into_later_side_psh /=.
-  apply (compose_along_iso_right_setoid
-           (natural_iso_proj
-              (natural_iso_proj earlier_later_nat_iso (enr_hom a a)) β)); simpl.
-  epose proof (naturality (forward (earlier_later_nat_iso (SI := SI) (C := Setoid)))
-        (enr_comp a b a) β _ _ (reflexivity _)) as Hn;
-    rewrite /= h_map_id /= in Hn; rewrite Hn; clear Hn.
-  epose proof (earlier_later_earlier_later_prod (enr_hom a b) (enr_hom b a)
-                 _ (_, _) _ (reflexivity _)) as Heq;
-  rewrite /= !h_map_id /= in Heq; rewrite Heq; clear Heq.
-  epose proof (iso_rl (is_iso (natural_iso_proj (earlier_later_nat_iso) (enr_hom b a)))
-    _ _ _ (reflexivity _)) as Hfb; simpl in Hfb; rewrite Hfb; clear Hfb.
-  epose proof (forward_earlier_later_nat_iso_next (C := Setoid) (enr_hom a a)
-    _ _ _ (reflexivity _)) as Heq;
-    rewrite /= h_map_id /= in Heq; rewrite Heq; clear Heq.
-  epose proof (naturality ⌜ id _ ⌝ _ _ _ (reflexivity _)) as Hn;
-    simpl in Hn; rewrite -Hn; clear Hn.
-  epose proof (forward_earlier_later_nat_iso_next (C := Setoid) (enr_hom a b)
-    _ _ _ (reflexivity _)) as Heq;
-    rewrite /= h_map_id /= in Heq; rewrite Heq; clear Heq.
-  epose proof (naturality ⌜ f ⌝ _ _ _ (reflexivity _)) as Hn;
-    simpl in Hn; rewrite -Hn; clear Hn.
-  apply inv_at_lr.
-Qed.
-Next Obligation.
-  intros ??? F ? a b f dsp iso α Hdsp; simpl in *.
-  rewrite -{3}(enr_embed_project f) enr_func_h_map_is_h_map /=.
-  rewrite -enr_func_h_map_id.
-  rewrite !contr_func_h_map_is_h_map /=.
-  epose proof (contr_func_h_map_comp F _ _ _ _ (_, _) _ (reflexivity _))
-    as Hcmp; simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
-  f_equiv.
-  apply equiv_of_into_later_psh.
-  intros β Hβ.
-  rewrite -(psh_naturality (next ₙ enr_hom _ _)) /=.
-  epose proof (psh_naturality (⌜id _⌝)) as Hn;
-    simpl in Hn; rewrite -Hn; clear Hn.
-  epose proof (psh_naturality (later ₕ enr_comp _ _ _)) as Hn;
-    simpl in Hn; rewrite -Hn; clear Hn.
-  epose proof (psh_naturality (backward (later_prod (enr_hom b a) (enr_hom a b))))
-    as Hn; simpl in Hn; rewrite -Hn /=; clear Hn.
-  rewrite -(psh_naturality (next ₙ enr_hom _ _)) /=.
-  epose proof (psh_naturality (⌜f⌝)) as Hn;
-    simpl in Hn; rewrite -Hn; clear Hn.
-  pose proof (side_of_later' (enr_hom b a) (MkDS (lt_dsp α) Hβ)) as Hsdl;
-    simpl in Hsdl; rewrite Hsdl /=; clear Hsdl.
-  rewrite into_later_side_psh /=.
-  apply (compose_along_iso_right_setoid
-           (natural_iso_proj
-              (natural_iso_proj earlier_later_nat_iso (enr_hom b b)) β)); simpl.
-  epose proof (naturality (forward (earlier_later_nat_iso (SI := SI) (C := Setoid)))
-        (enr_comp b a b) β _ _ (reflexivity _)) as Hn;
-    rewrite /= h_map_id /= in Hn; rewrite Hn; clear Hn.
-  epose proof (earlier_later_earlier_later_prod (enr_hom b a) (enr_hom a b)
-                 _ (_, _) _ (reflexivity _)) as Heq;
-  rewrite /= !h_map_id /= in Heq; rewrite Heq; clear Heq.
-  epose proof (iso_rl (is_iso (natural_iso_proj (earlier_later_nat_iso) (enr_hom b a)))
-    _ _ _ (reflexivity _)) as Hfb; simpl in Hfb; rewrite Hfb; clear Hfb.
-  epose proof (forward_earlier_later_nat_iso_next (C := Setoid) (enr_hom b b)
-    _ _ _ (reflexivity _)) as Heq;
-    rewrite /= h_map_id /= in Heq; rewrite Heq; clear Heq.
-  epose proof (naturality ⌜ id _ ⌝ _ _ _ (reflexivity _)) as Hn;
-    simpl in Hn; rewrite -Hn; clear Hn.
-  epose proof (forward_earlier_later_nat_iso_next (C := Setoid) (enr_hom a b)
-    _ _ _ (reflexivity _)) as Heq;
-    rewrite /= h_map_id /= in Heq; rewrite Heq; clear Heq.
-  epose proof (naturality ⌜ f ⌝ _ _ _ (reflexivity _)) as Hn;
-    simpl in Hn; rewrite -Hn; clear Hn.
-  apply inv_at_rl.
+  split.
+  - rewrite -{1}(enr_embed_project f) enr_func_h_map_is_h_map /=.
+    rewrite -enr_func_h_map_id.
+    rewrite !contr_func_h_map_is_h_map /=.
+    epose proof (contr_func_h_map_comp F _ _ _ _ (_, _) _ (reflexivity _))
+      as Hcmp; simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    f_equiv.
+    apply equiv_of_into_later_psh.
+    intros β Hβ.
+    rewrite -(psh_naturality (next ₙ enr_hom _ _)) /=.
+    epose proof (psh_naturality (⌜id _⌝)) as Hn;
+      simpl in Hn; rewrite -Hn; clear Hn.
+    epose proof (psh_naturality (later ₕ enr_comp _ _ _)) as Hn;
+      simpl in Hn; rewrite -Hn; clear Hn.
+    epose proof (psh_naturality (backward (later_prod (enr_hom a b) (enr_hom b a))))
+      as Hn; simpl in Hn; rewrite -Hn /=; clear Hn.
+    rewrite -(psh_naturality (next ₙ enr_hom _ _)) /=.
+    epose proof (psh_naturality (⌜f⌝)) as Hn;
+      simpl in Hn; rewrite -Hn; clear Hn.
+    pose proof (side_of_later' (enr_hom b a) (MkDS (lt_dsp α) Hβ)) as Hsdl;
+      simpl in Hsdl; rewrite Hsdl /=; clear Hsdl.
+    rewrite into_later_side_psh /=.
+    apply (compose_along_iso_right_setoid
+             (natural_iso_proj
+                (natural_iso_proj earlier_later_nat_iso (enr_hom a a)) β)); simpl.
+    epose proof (naturality (forward (earlier_later_nat_iso (SI := SI) (C := Setoid)))
+                   (enr_comp a b a) β _ _ (reflexivity _)) as Hn;
+      rewrite /= h_map_id /= in Hn; rewrite Hn; clear Hn.
+    epose proof (earlier_later_earlier_later_prod (enr_hom a b) (enr_hom b a)
+                   _ (_, _) _ (reflexivity _)) as Heq;
+      rewrite /= !h_map_id /= in Heq; rewrite Heq; clear Heq.
+    epose proof (iso_rl (is_iso (natural_iso_proj (earlier_later_nat_iso) (enr_hom b a)))
+                   _ _ _ (reflexivity _)) as Hfb; simpl in Hfb; rewrite Hfb; clear Hfb.
+    epose proof (forward_earlier_later_nat_iso_next (C := Setoid) (enr_hom a a)
+                   _ _ _ (reflexivity _)) as Heq;
+      rewrite /= h_map_id /= in Heq; rewrite Heq; clear Heq.
+    epose proof (naturality ⌜ id _ ⌝ _ _ _ (reflexivity _)) as Hn;
+      simpl in Hn; rewrite -Hn; clear Hn.
+    epose proof (forward_earlier_later_nat_iso_next (C := Setoid) (enr_hom a b)
+                   _ _ _ (reflexivity _)) as Heq;
+      rewrite /= h_map_id /= in Heq; rewrite Heq; clear Heq.
+    epose proof (naturality ⌜ f ⌝ _ _ _ (reflexivity _)) as Hn;
+      simpl in Hn; rewrite -Hn; clear Hn.
+    apply (iso_at_lr (iso_at (iso (MkDS dsp (Hdsp _ Hβ))))).
+  - rewrite -{3}(enr_embed_project f) enr_func_h_map_is_h_map /=.
+    rewrite -enr_func_h_map_id.
+    rewrite !contr_func_h_map_is_h_map /=.
+    epose proof (contr_func_h_map_comp F _ _ _ _ (_, _) _ (reflexivity _))
+      as Hcmp; simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    f_equiv.
+    apply equiv_of_into_later_psh.
+    intros β Hβ.
+    rewrite -(psh_naturality (next ₙ enr_hom _ _)) /=.
+    epose proof (psh_naturality (⌜id _⌝)) as Hn;
+      simpl in Hn; rewrite -Hn; clear Hn.
+    epose proof (psh_naturality (later ₕ enr_comp _ _ _)) as Hn;
+      simpl in Hn; rewrite -Hn; clear Hn.
+    epose proof (psh_naturality (backward (later_prod (enr_hom b a) (enr_hom a b))))
+      as Hn; simpl in Hn; rewrite -Hn /=; clear Hn.
+    rewrite -(psh_naturality (next ₙ enr_hom _ _)) /=.
+    epose proof (psh_naturality (⌜f⌝)) as Hn;
+      simpl in Hn; rewrite -Hn; clear Hn.
+    pose proof (side_of_later' (enr_hom b a) (MkDS (lt_dsp α) Hβ)) as Hsdl;
+      simpl in Hsdl; rewrite Hsdl /=; clear Hsdl.
+    rewrite into_later_side_psh /=.
+    apply (compose_along_iso_right_setoid
+             (natural_iso_proj
+                (natural_iso_proj earlier_later_nat_iso (enr_hom b b)) β)); simpl.
+    epose proof (naturality (forward (earlier_later_nat_iso (SI := SI) (C := Setoid)))
+                   (enr_comp b a b) β _ _ (reflexivity _)) as Hn;
+      rewrite /= h_map_id /= in Hn; rewrite Hn; clear Hn.
+    epose proof (earlier_later_earlier_later_prod (enr_hom b a) (enr_hom a b)
+                   _ (_, _) _ (reflexivity _)) as Heq;
+      rewrite /= !h_map_id /= in Heq; rewrite Heq; clear Heq.
+    epose proof (iso_rl (is_iso (natural_iso_proj (earlier_later_nat_iso) (enr_hom b a)))
+                   _ _ _ (reflexivity _)) as Hfb; simpl in Hfb; rewrite Hfb; clear Hfb.
+    epose proof (forward_earlier_later_nat_iso_next (C := Setoid) (enr_hom b b)
+                   _ _ _ (reflexivity _)) as Heq;
+      rewrite /= h_map_id /= in Heq; rewrite Heq; clear Heq.
+    epose proof (naturality ⌜ id _ ⌝ _ _ _ (reflexivity _)) as Hn;
+      simpl in Hn; rewrite -Hn; clear Hn.
+    epose proof (forward_earlier_later_nat_iso_next (C := Setoid) (enr_hom a b)
+                   _ _ _ (reflexivity _)) as Heq;
+      rewrite /= h_map_id /= in Heq; rewrite Heq; clear Heq.
+    epose proof (naturality ⌜ f ⌝ _ _ _ (reflexivity _)) as Hn;
+      simpl in Hn; rewrite -Hn; clear Hn.
+    apply (iso_at_rl (iso_at (iso (MkDS dsp (Hdsp _ Hβ))))).
 Qed.
 Fail Next Obligation.
+
+(* move *)
+Definition strongly_connected_category (C : category) := ∀ c c' : obj C, hom c c' + hom c' c.
+Definition mere_preorder (C : category) : Prop := ∀ a b (f f' : hom C a b), f ≡ f'.
+
+Program Definition strongly_connected_iso_at_diagram_enr_cone
+  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {J} (Hsc : strongly_connected_category J) (Hmp : mere_preorder J) {F : functor J C}
+  {α} (isos : ∀ j j' (f : hom J j j'), is_iso_at (F ₕ f) α)
+  j : enr_cone F α :=
+  MkEnrCone
+    (F ₒ j)
+    (λ j',
+      match Hsc j j' return enr_hom (F ₒ j) (F ₒ j') ₒ α with
+      | inl f => (⌜F ₕ f⌝ ₙ α) ()
+      | inr f => inv_at (isos _ _ f)
+      end)
+    _.
+Next Obligation.
+  intros ? ? ? ? Hsc Hmp F α isos j j' j'' f; simpl in *.
+  destruct (Hsc j j') as [h|h]; destruct (Hsc j j'') as [h'|h'].
+  - epose proof (enr_comp_comp ⌜ F ₕ h ⌝ ⌜ F ₕ f ⌝ _ () _ (reflexivity _)) as Hcmp;
+      simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite !enr_embed_project -h_map_comp (Hmp _ _ h' (f ∘ h)); done.
+  - epose proof (enr_comp_comp ⌜ F ₕ _ ⌝ ⌜ F ₕ _ ⌝ _ () _ (reflexivity _)) as Hcmp;
+      simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite !enr_embed_project -h_map_comp.
+    apply (compose_along_is_iso_at_right' (isos _ _ h')).
+    rewrite (iso_at_lr (iso_at (isos _ _ h'))).
+    epose proof (enr_comp_comp ⌜ F ₕ _ ⌝ ⌜ F ₕ _ ⌝ _ () _ (reflexivity _)) as Hcmp;
+      simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite !enr_embed_project -h_map_comp.
+    rewrite (Hmp _ _ (f ∘ h ∘ h') (id _)) h_map_id //.
+  - apply (compose_along_is_iso_at_right' (isos _ _ h)).
+    epose proof (enr_comp_comp ⌜ F ₕ _ ⌝ ⌜ F ₕ _ ⌝ _ () _ (reflexivity _)) as Hcmp;
+      simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite !enr_embed_project -h_map_comp.
+    epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite Hca; clear Hca.
+    rewrite (iso_at_lr (iso_at (isos _ _ h))).
+    epose proof (enr_right_id _ _ _ ((), _) _ (reflexivity _)) as Hi;
+      simpl in Hi; rewrite Hi; clear Hi.
+    rewrite (Hmp _ _ (h' ∘ h) f) //.
+  - apply (compose_along_is_iso_at_right' (isos _ _ h)).
+    epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite Hca; clear Hca.
+    rewrite (iso_at_lr (iso_at (isos _ _ h))).
+    epose proof (enr_right_id _ _ _ ((), _) _ (reflexivity _)) as Hi;
+      simpl in Hi; rewrite Hi; clear Hi.
+    apply (compose_along_is_iso_at_left (isos _ _ h')).
+    epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+      simpl in Hca; rewrite -Hca; clear Hca.
+    rewrite (iso_at_rl (iso_at (isos _ _ h'))).
+    epose proof (enr_left_id _ _ _ (_, ()) _ (reflexivity _)) as Hi;
+      simpl in Hi; rewrite Hi; clear Hi.
+    epose proof (enr_comp_comp ⌜ F ₕ _ ⌝ ⌜ F ₕ _ ⌝ _ () _ (reflexivity _)) as Hcmp;
+      simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+    rewrite !enr_embed_project -h_map_comp.
+    rewrite (Hmp _ _ (h' ∘ f) h) //.
+Qed.
+
+Program Definition limit_side_iso_at {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {J} (Hsc : strongly_connected_category J) (Hmp : mere_preorder J) {F : functor J C}
+  {c} {il : is_limit F c} (eil : enr_limit il)
+  {α} (isos : ∀ j j' (f : hom J j j'), is_iso_at (F ₕ f) α)
+  j : is_iso_at (ic_side (il_is_cone il) j) α :=
+  MkIsIsoAt
+    (enr_cone_hom_map
+       (enr_limit_hom (eil α)
+          (strongly_connected_iso_at_diagram_enr_cone Hsc Hmp isos j)))
+    _.
+Next Obligation.
+  intros ???? Hsc Hmp ? ? il eil α isos j.
+  split.
+  - apply (enr_hom_to_limit_unique (eil α)
+      (cone_to_enr_cone (cone_of_is_cone (il_is_cone il)) α)).
+    + intros j'; simpl.
+      epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+        simpl in Hca; rewrite -Hca; clear Hca.
+      pose proof (enr_cone_hom_commutes
+        (enr_limit_hom (eil α)
+           (strongly_connected_iso_at_diagram_enr_cone Hsc Hmp isos j))) as Hchc;
+      simpl in Hchc; rewrite -Hchc; clear Hchc.
+      destruct Hsc.
+      * epose proof (enr_comp_comp ⌜ _ ⌝ ⌜ _ ⌝ _ () _ (reflexivity _)) as Hcmp;
+          simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+        rewrite !enr_embed_project.
+        rewrite -ic_side_commutes //.
+      * apply (compose_along_is_iso_at_left (isos _ _ h)).
+        epose proof (enr_comp_comp ⌜ _ ⌝ ⌜ _ ⌝ _ () _ (reflexivity _)) as Hcmp;
+          simpl in Hcmp; rewrite -Hcmp; clear Hcmp.
+        rewrite !enr_embed_project.
+        rewrite -ic_side_commutes //.
+        epose proof (enr_comp_assoc _ _ _ _ _ ((_, _), _) _ (reflexivity _)) as Hca;
+        simpl in Hca; rewrite -Hca; clear Hca.
+        rewrite (iso_at_rl (iso_at (isos _ _ h))).
+        epose proof (enr_left_id _ _ _ (_, ()) _ (reflexivity _)) as Hi;
+          simpl in Hi; rewrite Hi; clear Hi.
+        done.
+    + intros j'; simpl.
+      epose proof (enr_right_id _ _ _ ((), _) _ (reflexivity _)) as Hi;
+        simpl in Hi; rewrite Hi; clear Hi.
+      done.
+  - pose proof (enr_cone_hom_commutes
+      (enr_limit_hom (eil α)
+         (strongly_connected_iso_at_diagram_enr_cone Hsc Hmp isos j))) as Hchc;
+      simpl in Hchc; rewrite -Hchc; clear Hchc.
+    destruct Hsc.
+    + rewrite (Hmp _ _ h (id _)) h_map_id //.
+    + apply (compose_along_is_iso_at_left (isos _ _ h)).
+      rewrite (iso_at_rl (iso_at (isos _ _ h))).
+      epose proof (enr_right_id _ _ _ ((), _) _ (reflexivity _)) as Hi;
+        simpl in Hi; rewrite Hi; clear Hi.
+      rewrite (Hmp _ _ h (id _)) h_map_id //.
+Qed.
+Fail Next Obligation.
+
