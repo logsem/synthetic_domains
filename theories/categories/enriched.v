@@ -1,6 +1,10 @@
+Require Import Coq.Logic.ProofIrrelevance.
 From SynthDom Require Import prelude.
 From SynthDom.categories Require Import category ord_cat.
 From SynthDom Require Import stepindex.
+
+Set Universe Polymorphism.
+Unset Universe Minimization ToSet.
 
 Opaque later next earlier_later_nat_iso.
 
@@ -193,6 +197,11 @@ Global Arguments enr_limit_hom {_ _ _ _ _ _ _} _ _.
 Global Arguments enr_limit_hom_unique {_ _ _ _ _ _ _} _ [_] _ _.
 Global Arguments enr_limit {_ _ _ _ _ _} _.
 
+Class LimitsEnriched {SI : indexT} (C : category) `{!Enriched C (PSh (OrdCat SI))} :=
+  limits_enriched : ∀ {J} {F : functor J C} {c : obj C} (il : is_limit F c), enr_limit il.
+
+Global Arguments limits_enriched {_ _ _ _ _ _ _} il.
+
 Section psh_limits_enriched.
   Context {SI : indexT} {J} {F : functor J (PSh (OrdCat SI))}
     {L : PreSheaf (OrdCat SI)} (il : is_limit F L).
@@ -300,6 +309,16 @@ Section psh_limits_enriched.
       simpl in Hbu; rewrite Hbu; clear Hbu.
     done.
   Qed.
+
+End psh_limits_enriched.
+
+Section psh_limits_enriched.
+  Context {SI : indexT} {J} {F : functor J (PSh (OrdCat SI))}.
+  Local Instance : Enriched (PSh (OrdCat SI)) (PSh (OrdCat SI)) :=
+    (@self_enriched (PSh (OrdCat SI)) _).
+
+  Global Instance psh_limits_enriched_instance : LimitsEnriched (PSh (OrdCat SI))
+    := λ _ _ _ il, psh_limits_enriched il.
 
 End psh_limits_enriched.
 
@@ -548,7 +567,7 @@ Next Obligation.
 Qed.
 Fail Next Obligation.
 
-Program Definition iso_at_downwards {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+Program Definition is_iso_at_downwards {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
   {a b : obj C} (f : hom a b) {α β} (Hle : β ⪯ α) (iso : is_iso_at f α) :
   is_iso_at f β :=
   MkIsIsoAt (((enr_hom b a) ₕ Hle) (inv_at iso)) _.
@@ -576,18 +595,67 @@ Next Obligation.
 Qed.
 Fail Next Obligation.
 
-(* despite iso_at being downwards, we generalize it to apply down downsets to also support
+Definition enr_hom_eq {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a a' b b' : obj C} (Heq : a = a') (Heq' : b = b') α :
+  enr_hom a b ₒ α = enr_hom a' b' ₒ α :=
+  match Heq in _ = z return enr_hom a b ₒ α = enr_hom z b' ₒ α with
+  | eq_refl =>
+      match Heq' in _ = w return enr_hom a b ₒ α = enr_hom a w ₒ α with
+      | eq_refl => eq_refl
+      end
+  end.
+
+Definition enr_hom_trans {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a a' b b' : obj C} (Heq : a = a') (Heq' : b = b') {α} (f : enr_hom a b ₒ α) :
+  enr_hom a' b' ₒ α := setoid_conv (enr_hom_eq Heq Heq' α) f.
+
+Program Definition iso_at_hom_trans {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a a' b b' : obj C} (Heq : a = a') (Heq' : b = b') {f : hom a b} {α} (iso : is_iso_at f α) :
+  is_iso_at (hom_trans Heq Heq' f) α :=
+  MkIsIsoAt (enr_hom_trans Heq' Heq (inv_at iso)) _.
+Next Obligation.
+  intros; split.
+  - destruct Heq; destruct Heq'; rewrite /enr_hom_trans /=.
+    apply (iso_at_lr (iso_at iso)).
+  - destruct Heq; destruct Heq'; rewrite /enr_hom_trans /=.
+    apply (iso_at_rl (iso_at iso)).
+Qed.
+Fail Next Obligation.
+
+Program Definition iso_at_hom_trans' {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  {a a' b b' : obj C} (Heq : a = a') (Heq' : b = b') {f : hom a b} {α}
+  (iso : is_iso_at (hom_trans Heq Heq' f) α) :
+  is_iso_at f α :=
+  MkIsIsoAt (enr_hom_trans (eq_sym Heq') (eq_sym Heq) (inv_at iso)) _.
+Next Obligation.
+  intros; split.
+  - destruct Heq; destruct Heq'; rewrite /enr_hom_trans /=.
+    apply (iso_at_lr (iso_at iso)).
+  - destruct Heq; destruct Heq'; rewrite /enr_hom_trans /=.
+    apply (iso_at_rl (iso_at iso)).
+Qed.
+Fail Next Obligation.
+
+Program Definition is_iso_at_id {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  (a : obj C) α : is_iso_at (id a) α :=
+  MkIsIsoAt ((⌜id a⌝ₙ α) ()) _.
+Next Obligation.
+  intros; split.
+  - epose proof (enr_left_id _ _ _ (_, ()) _ (reflexivity _)) as Hi;
+      simpl in Hi; rewrite Hi; clear Hi.
+    done.
+  - epose proof (enr_left_id _ _ _ (_, ()) _ (reflexivity _)) as Hi;
+      simpl in Hi; rewrite Hi; clear Hi.
+    done.
+Qed.
+Fail Next Obligation.
+
+(* despite iso_at being downwards closed, we generalize it to apply down downsets to also support
    downsets that do not have a maximal ordinal. *)
 
 Definition is_iso_upto {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
   {a b : obj C} (f : hom a b) (dsp : downset_pred SI) :=
   ∀ β : downset dsp, is_iso_at f β.
-
-Definition is_iso_upto_glue {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
-  {a b : obj C} (f : hom a b) (dsp : downset_pred SI)
-  (isos : ∀ α, dsp α → is_iso_upto f (le_dsp α)) :
-  is_iso_upto f dsp :=
-  λ α, isos α (ds_in_dsp α) (MkDS (le_dsp α) (reflexivity _)).
 
 Lemma is_iso_upto_functorial
   {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
@@ -856,7 +924,7 @@ Next Obligation.
     rewrite (Hmp _ _ (h' ∘ f) h) //.
 Qed.
 
-Program Definition limit_side_iso_at {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+Program Definition limit_side_iso_at' {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
   {J} (Hsc : strongly_connected_category J) (Hmp : mere_preorder J) {F : functor J C}
   {c} {il : is_limit F c} (eil : enr_limit il)
   {α} (isos : ∀ j j' (f : hom J j j'), is_iso_at (F ₕ f) α)
@@ -912,3 +980,170 @@ Next Obligation.
 Qed.
 Fail Next Obligation.
 
+Definition limit_side_iso_at {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  `{!LimitsEnriched C}
+  {J} (Hsc : strongly_connected_category J) (Hmp : mere_preorder J) {F : functor J C}
+  {c} (il : is_limit F c)
+  α (isos : ∀ j j' (f : hom J j j'), is_iso_at (F ₕ f) α)
+  j : is_iso_at (ic_side (il_is_cone il) j) α :=
+  limit_side_iso_at' Hsc Hmp (limits_enriched il) isos j.
+
+Record downset_up {SI} (dsp : downset_pred SI) α :=
+  MkDSUP { ds_up_idx :> index_car SI; ds_up_in_dsp : dsp ds_up_idx; ds_up_up : α ⪯ ds_up_idx }.
+
+Global Arguments MkDSUP {_ _ _ _} _ _.
+Global Arguments ds_up_idx {_ _ _} _.
+Global Arguments ds_up_in_dsp {_ _ _} _.
+Global Arguments ds_up_up {_ _ _} _.
+
+Definition downset_up_to_downset {SI} {dsp : downset_pred SI} {α} (γ : downset_up dsp α) :
+  downset dsp := MkDS (ds_up_in_dsp γ).
+
+Definition downset_to_downset_up {SI} {dsp : downset_pred SI} {α}
+  (γ : downset dsp) (Hle : α ⪯ γ) : downset_up dsp α := MkDSUP (ds_in_dsp γ) Hle.
+
+Lemma downset_to_downset_up_eq {SI} {dsp : downset_pred SI} {α}
+  (γ : downset dsp) (Hle : α ⪯ γ) :
+  downset_up_to_downset (downset_to_downset_up γ Hle) = γ.
+Proof. by destruct γ. Qed.
+
+Lemma downset_to_downset_up_eq_eq {SI} {dsp : downset_pred SI} {α}
+  {γ} (Hγ : dsp γ) (Hle : α ⪯ γ) :
+  downset_to_downset_up_eq (MkDS Hγ) Hle = eq_refl.
+Proof. apply proof_irrelevance. Qed.
+
+Program Definition OrdDSUpCat {SI} (dsp : downset_pred SI) α : category :=
+  MkCat (downset_up dsp α) (λ β γ, β ⪯ γ)
+    (λ α, reflexivity (α : SI))
+    (λ α β γ (f : α ⪯ β) (g : β ⪯ γ), transitivity f g)
+    (λ _ _ _ _, True) _ _ _ _ _.
+Solve All Obligations with done.
+Fail Next Obligation.
+
+Program Definition ord_ds_up_cat_inject {SI} (dsp : downset_pred SI) α :
+  functor (OrdDSUpCat dsp α) (OrdDSCat dsp) :=
+  MkFunc downset_up_to_downset (λ _ _ f, f) _ _ _.
+Solve All Obligations with done.
+Fail Next Obligation.
+
+Program Definition is_limit_up_cone {SI} {dsp : downset_pred SI}
+  {C} {F : functor ((OrdDSCat dsp)ᵒᵖ) C} (cn : cone F) α:
+  cone (functor_compose (opposite_func (ord_ds_up_cat_inject dsp α)) F) :=
+  (MkCone (vertex cn) (λ j, side cn (downset_up_to_downset j)) _).
+Next Obligation. repeat intros ?; apply (side_commutes cn). Qed.
+Fail Next Obligation.
+
+Program Definition is_limit_up_make_cone {SI} {dsp : downset_pred SI}
+  {C} {F : functor ((OrdDSCat dsp)ᵒᵖ) C} {α} (Hα : dsp α)
+  (cn : cone (functor_compose (opposite_func (ord_ds_up_cat_inject dsp α)) F)) :
+  cone F :=
+  MkCone (vertex cn)
+    (λ j,
+      match index_le_lt_dec α j return hom (vertex cn) (F ₒ j) with
+      | left Hle =>
+          match downset_to_downset_up_eq j Hle in _ = Z return hom (vertex cn) (F ₒ Z) with
+            eq_refl => side cn (MkDSUP (ds_in_dsp j) Hle)
+          end
+      | right Hlt => (@h_map _ _ F (MkDS Hα) j (index_lt_le_subrel _ _ Hlt)) ∘
+                       side cn (MkDSUP Hα (reflexivity _))
+      end)
+    _.
+Next Obligation.
+  intros ???? α Hα cn j j' f; simpl in *.
+  destruct (index_le_lt_dec α j) as [Hlej|Hltj];
+    destruct (index_le_lt_dec α j') as [Hlej'|Hltj'].
+  - destruct j as [j Hj]; destruct j' as [j' Hj'];
+      rewrite !downset_to_downset_up_eq_eq /=; simpl in *.
+    apply (@side_commutes _ _ _ cn (MkDSUP Hj Hlej) (MkDSUP Hj' Hlej') f).
+  - destruct j as [j Hj];
+      rewrite !downset_to_downset_up_eq_eq /=; simpl in *.
+    rewrite (@side_commutes _ _ _ cn (MkDSUP Hj Hlej) (MkDSUP Hα (reflexivity _)) Hlej).
+    rewrite /= -comp_assoc -h_map_comp.
+    repeat f_equiv; done.
+  - assert (j' ≺ α).
+    { eapply index_le_lt_trans; eauto. }
+    exfalso; eapply index_le_lt_contradict; eauto.
+  - rewrite /= -comp_assoc -h_map_comp.
+    repeat f_equiv; done.
+Qed.
+Fail Next Obligation.
+
+Program Definition is_limit_up_cone_hom {SI} {dsp : downset_pred SI} {C} {α} (Hα : dsp α)
+  {F : functor ((OrdDSCat dsp)ᵒᵖ) C}
+  (cn : cone F) (cn' : cone (functor_compose (opposite_func (ord_ds_up_cat_inject dsp α)) F))
+  (h : cone_hom (is_limit_up_make_cone Hα cn') cn) :
+  cone_hom cn' (cone_of_is_cone (cone_is_cone (is_limit_up_cone cn α))) :=
+  MkConeHom (cone_hom_map h) _.
+Next Obligation.
+  intros ??? α Hα F cn cn' h j; simpl in *.
+  pose proof (cone_hom_commutes h (downset_up_to_downset j)) as Hcm.
+  simpl in *.
+  destruct index_le_lt_dec as [Hle|Hlt].
+  - destruct j as [j Hj Hjle]; simpl in *.
+    rewrite downset_to_downset_up_eq_eq /= in Hcm.
+    replace Hjle with Hle by apply proof_irrel.
+    done.
+  - rewrite -Hcm.
+    rewrite -side_commutes //.
+Qed.
+
+Program Definition is_limit_up_cone_hom' {SI} {dsp : downset_pred SI} {C} {α} (Hα : dsp α)
+  {F : functor ((OrdDSCat dsp)ᵒᵖ) C}
+  (cn : cone (functor_compose (opposite_func (ord_ds_up_cat_inject dsp α)) F))
+  (cn' : cone F)
+  (h : cone_hom cn (cone_of_is_cone (cone_is_cone (is_limit_up_cone cn' α)))) :
+   cone_hom (is_limit_up_make_cone Hα cn) cn' :=
+  MkConeHom (cone_hom_map h) _.
+Next Obligation.
+  intros ??? α Hα F cn cn' h j; simpl in *.
+  destruct index_le_lt_dec as [Hle|Hlt].
+  - pose proof (cone_hom_commutes h (downset_to_downset_up j Hle)) as Hcm.
+    destruct j as [j Hj]; simpl in *.
+    rewrite downset_to_downset_up_eq_eq /=.
+    rewrite Hcm //.
+  - rewrite (cone_hom_commutes h (MkDSUP Hα (reflexivity _))).
+    rewrite -comp_assoc.
+    rewrite -(side_commutes cn') //.
+Qed.
+
+Program Definition is_limit_up {SI} {dsp : downset_pred SI} {C c}
+  {F : functor ((OrdDSCat dsp)ᵒᵖ) C} (il : is_limit F c) {α} (Hα : dsp α) :
+  is_limit (functor_compose (opposite_func (ord_ds_up_cat_inject dsp α)) F) c :=
+  MkIsLimit
+    (cone_is_cone (is_limit_up_cone (cone_of_is_cone (il_is_cone il)) α))
+    (MkIsTerm _ (λ cn', is_limit_up_cone_hom Hα _ _
+       (bang (il_is_limiting_cone _ _ il) (is_limit_up_make_cone Hα cn'))) _).
+Next Obligation.
+  intros ???????? cn f; simpl in *.
+  apply (bang_unique (il_is_limiting_cone _ _ il) (is_limit_up_cone_hom' Hα cn
+    (cone_of_is_cone (il_is_cone il)) f)).
+Qed.
+Fail Next Obligation.
+
+Lemma ord_ds_up_cat_strongly_connected_category {SI} (dsp : downset_pred SI) α :
+  strongly_connected_category ((OrdDSUpCat dsp α)ᵒᵖ).
+Proof. intros γ δ; pose proof (index_le_total γ δ) as [|]; [right|left]; done. Qed.
+
+Lemma ord_ds_up_cat_mere_preorder {SI} (dsp : downset_pred SI) α :
+  mere_preorder ((OrdDSUpCat dsp α)ᵒᵖ).
+Proof. done. Qed.
+
+Definition limit_side_iso_at_cofinal
+  {SI : indexT} {dsp : downset_pred SI} {C : category} `{!Enriched C (PSh (OrdCat SI))}
+  `{!LimitsEnriched C} {F : functor ((OrdDSCat dsp)ᵒᵖ) C}
+  {c} (il : is_limit F c) α
+  {δ} (Hδ : dsp δ)
+  (isos : ∀ (β γ : downset dsp) (Hβγ : β ⪯ γ), δ ⪯ β → δ ⪯ γ → is_iso_at (F ₕ Hβγ) α)
+  (β : downset dsp) (Hβ : δ ⪯ β) : is_iso_at (ic_side (il_is_cone il) β) α :=
+  match β as u return δ ⪯ u → is_iso_at (ic_side (il_is_cone il) u) α with
+  | MkDS _ =>
+      λ Hu,
+      limit_side_iso_at
+        (ord_ds_up_cat_strongly_connected_category dsp δ)
+        (ord_ds_up_cat_mere_preorder dsp δ)
+        (is_limit_up il Hδ) α
+        (λ (j j' : downset_up dsp δ) (f : j' ⪯ j),
+          isos (downset_up_to_downset j') (downset_up_to_downset j)
+            f (ds_up_up j') (ds_up_up j))
+        (downset_to_downset_up _ Hu)
+  end Hβ.

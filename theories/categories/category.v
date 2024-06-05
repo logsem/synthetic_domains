@@ -2348,6 +2348,10 @@ Section Limit.
       (MkCone v s c) => MkIsLimit v (MkIsCone _ s c)
     end.
 
+  Lemma ic_side_limiting_cone_is_limit cn ilc c :
+    ic_side _ (il_is_cone _ (limiting_cone_is_limit cn ilc)) c = side cn c.
+  Proof. rewrite /limiting_cone_is_limit; destruct cn; done. Qed.
+
   Definition is_limit_limiting_cone {c} (il : is_limit c) :
     is_limiting_cone (cone_of_is_limit il) := il_is_limiting_cone _ il.
 
@@ -2436,32 +2440,6 @@ Fail Next Obligation.
 
 Class Complete C := complete : ∀ J (F : functor J C), limit F.
 Arguments complete {_ _ _} _, _ {_ _} _.
-
-Section Complete_terminal.
-  Context C `{!Complete C}.
-
-  Program Definition make_cone_on_func_from_EmpCat c : cone (func_from_EmpCat C) :=
-    MkCone c ((λ a, Empty_rect (λ _, hom C _ _) a)) _.
-  Next Obligation. by simpl. Qed.
-
-  Program Definition make_cone_hom_from_func_from_EmpCat
-    {c} {cn : cone (func_from_EmpCat C)} (f : hom c (vertex cn)) :
-    cone_hom (make_cone_on_func_from_EmpCat c) cn := MkConeHom f _.
-  Next Obligation. by simpl. Qed.
-
-
-  Program Definition compl_term : terminal C :=
-    let t := (complete C (func_from_EmpCat C)) in
-    MkTerm (vertex (term t))
-      (MkIsTerm _ (λ c, cone_hom_map (bang (term_is_terminal t) (make_cone_on_func_from_EmpCat c))) _).
-  Next Obligation.
-  Proof.
-    intros t ? f; simpl in *.
-    apply (bang_unique (term_is_terminal t) (make_cone_hom_from_func_from_EmpCat f)).
-  Qed.
-
-End Complete_terminal.
-
 
 Global Instance sig_eq `{!Equiv A} (P : A → Prop) : Equiv (sig P) := λ x y, `x ≡ `y.
 Global Instance sig_eq_equiv
@@ -2795,6 +2773,72 @@ Ltac rewrite_cone_hom_commutes_back :=
       rewrite -(setoid_cone_hom_commutes c j)
   end.
 
+Record equiv_cones {J C} {F F' : functor J C}
+  (Fiso : F ≃@{FuncCat J C} F') (cn : cone F) (cn' : cone F') := MkEqCones {
+  eq_cones_vertexes : vertex cn ≃ vertex cn';
+  eq_cones_sides :
+    ∀ j, (forward Fiso ₙ j) ∘ side cn j ≡ side cn' j ∘ (forward eq_cones_vertexes);
+  (* This simply follows from the previous but we include it for simplicity. *)
+  eq_cones_sides' :
+    ∀ j, (backward Fiso ₙ j) ∘ side cn' j ≡ side cn j ∘ (backward eq_cones_vertexes);
+}.
+Arguments MkEqCones {_ _ _ _ _ _ _} _ _.
+Arguments eq_cones_vertexes {_ _ _ _ _ _ _} _.
+Arguments eq_cones_sides {_ _ _ _ _ _ _} _ _.
+Arguments eq_cones_sides' {_ _ _ _ _ _ _} _ _.
+
+Program Definition limit_of_isos_cone {C J} {F G : functor J C} (iso : F ≃@{FuncCat J C} G)
+  (l : limit F) : cone G :=
+  MkCone (vertex (term l)) (λ j, (forward iso ₙ j) ∘ side (term l) j) _.
+Next Obligation.
+  intros ???? iso ? j j' f; rewrite /=.
+  apply (compose_along_iso_left (natural_iso_proj (isomorphic_sym iso) j')).
+  rewrite /= -!comp_assoc.
+  pose proof (iso_lr (is_iso iso) j') as Hn; simpl in Hn; rewrite Hn; clear Hn.
+  rewrite left_id.
+  rewrite naturality.
+  rewrite !comp_assoc -(comp_assoc _ _ (backward iso ₙ _)).
+  pose proof (iso_lr (is_iso iso) j) as Hn; simpl in Hn; rewrite Hn; clear Hn.
+  rewrite left_id -side_commutes //.
+Qed.
+Fail Next Obligation.
+
+Program Definition limit_of_isos_equiv_cones {C J} {F G : functor J C} (iso : F ≃@{FuncCat J C} G)
+  (l : limit F) (l' : limit G) : equiv_cones iso (term l) (term l') :=
+  MkEqCones
+    (MkIsoIc
+       (cone_hom_map (bang (term_is_terminal l') (limit_of_isos_cone iso l)))
+       (cone_hom_map (bang (term_is_terminal l) (limit_of_isos_cone (isomorphic_sym iso) l')))
+       _)
+    _
+    _.
+Next Obligation.
+  intros ? ? ? ? iso l l'; split.
+  - apply (hom_to_limit_unique _ _ _ (limit_is_limit l)
+             (cone_is_cone (term l))).
+    + intros j; rewrite /= -comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite -comp_assoc.
+      pose proof (iso_lr (is_iso iso) j) as Hn; simpl in Hn; rewrite Hn; clear Hn.
+      rewrite left_id //.
+    + intros j; rewrite /= right_id //.
+  - apply (hom_to_limit_unique _ _ _ (limit_is_limit l')
+             (cone_is_cone (term l'))).
+    + intros j; rewrite /= -comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite comp_assoc.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite -comp_assoc.
+      pose proof (iso_rl (is_iso iso) j) as Hn; simpl in Hn; rewrite Hn; clear Hn.
+      rewrite left_id //.
+    + intros j; rewrite /= right_id //.
+Qed.
+Next Obligation. intros; simpl; rewrite_cone_hom_commutes_back; done. Qed.
+Next Obligation. intros; simpl; rewrite_cone_hom_commutes_back; done. Qed.
+Fail Next Obligation.
+
 (* algebras *)
 
 Record algebra {C : category} (T : functor C C) := MkAlg {
@@ -2825,6 +2869,13 @@ Proof.
   - intros [] []; simpl; done.
   - intros [] [] []; simpl; intros ->; done.
 Qed.
+
+Lemma alg_hom_map_eq {C : category} {T : functor C C} {A B : algebra T} (f g : alg_hom A B) :
+  alg_hom_map f ≡ alg_hom_map g → f ≡ g.
+Proof. done. Qed.
+Lemma alg_hom_map_eq' {C : category} {T : functor C C} {A B : algebra T} (f g : alg_hom A B) :
+  f ≡ g → alg_hom_map f ≡ alg_hom_map g.
+Proof. done. Qed.
 
 Global Instance alg_hom_map_proper {C : category} {T : functor C C}
   (A B : algebra T) : Proper ((≡) ==> (≡)) (@alg_hom_map C T A B).
@@ -2871,7 +2922,7 @@ Lemma alg_hom_right_id {C : category} {T : functor C C} {A B : algebra T}
   (f : alg_hom A B) : alg_hom_comp (alg_hom_id A) f ≡ f.
 Proof. rewrite /alg_hom_comp /equiv /alg_hom_eq /= right_id //. Qed.
 
-Definition alg_cat {C : category} (T : functor C C) : category :=
+Definition Alg {C : category} (T : functor C C) : category :=
  MkCat
    (algebra T)
    (@alg_hom _ T)
@@ -2884,11 +2935,11 @@ Definition alg_cat {C : category} (T : functor C C) : category :=
 
 Lemma alg_hom_map_comp {C : category} {T : functor C C} {A B D : algebra T}
   (f : alg_hom A B) (g : alg_hom B D) :
-  alg_hom_map (g ∘@{alg_cat T} f) ≡ alg_hom_map g ∘ alg_hom_map f.
+  alg_hom_map (g ∘@{Alg T} f) ≡ alg_hom_map g ∘ alg_hom_map f.
 Proof. done. Qed.
 
 Program Definition alg_iso {C : category} {T : functor C C} {A B : algebra T}
-  (iso : A ≃@{alg_cat T} B) : (car A) ≃@{C} (car B) :=
+  (iso : A ≃@{Alg T} B) : (car A) ≃@{C} (car B) :=
   MkIsoIc (alg_hom_map (forward iso)) (alg_hom_map (backward iso)) _.
 Next Obligation.
   split.
@@ -2896,3 +2947,147 @@ Next Obligation.
   - rewrite /= -alg_hom_map_comp (iso_rl (is_iso iso)) //.
 Qed.
 Fail Next Obligation.
+
+Definition car_eq {C : category} {T : functor C C} {A B : algebra T} (Heq : A = B) :
+  car A = car B :=
+  match Heq in (_ = z) return (car A = car z) with
+   | eq_refl => eq_refl
+   end.
+
+Lemma hom_trans_alg_hom_map {C : category} {T : functor C C}
+  {A A' B B' : algebra T} (Heq : A = A') (Heq' : B = B') (h : alg_hom A B) :
+  alg_hom_map (hom_trans (C := Alg T) Heq Heq' h) ≡
+    hom_trans (car_eq Heq) (car_eq Heq') (alg_hom_map h).
+Proof. destruct Heq; destruct Heq'; rewrite /= !hom_trans_refl //. Qed.
+
+Program Definition forgetful {C : category} (T : functor C C) : functor (Alg T) C :=
+  MkFunc car (λ _ _ f, alg_hom_map f) _ _ _.
+Solve All Obligations with repeat intros; simpl in *; done.
+Fail Next Obligation.
+
+Program Definition alg_func_on_alg {C : category} {T : functor C C} (A : algebra T) : algebra T :=
+  MkAlg (T ₒ (car A)) (T ₕ (cons A)).
+
+Program Definition alg_func_on_alg_h_map {C : category} {T : functor C C}
+  {A B : algebra T} (f : alg_hom A B) : alg_hom (alg_func_on_alg A) (alg_func_on_alg B) :=
+  MkAlgHom (T ₕ (alg_hom_map f)) _.
+Next Obligation. intros; rewrite /= -!h_map_comp alg_hom_commutes //. Qed.
+Fail Next Obligation.
+
+Global Instance alg_func_on_alg_h_map_proper {C : category} {T : functor C C} (A B : algebra T) :
+  Proper ((≡) ==> (≡)) (@alg_func_on_alg_h_map C T A B).
+Proof.
+  rewrite /alg_func_on_alg_h_map; intros ?? Heq; apply alg_hom_map_eq; rewrite /= Heq //.
+Qed.
+
+Program Definition alg_func_func {C : category} (T : functor C C) : functor (Alg T) (Alg T) :=
+  MkFunc alg_func_on_alg (λ _ _ f, alg_func_on_alg_h_map f) _ _ _.
+Next Obligation.
+  repeat intros ?; apply alg_hom_map_eq; rewrite /= -h_map_comp //.
+Qed.
+Next Obligation.
+  repeat intros ?; apply alg_hom_map_eq; rewrite /= -h_map_id //.
+Qed.
+Fail Next Obligation.
+
+Program Definition alg_func_on_cone {C : category} {T : functor C C}
+  {J} {F : functor J (Alg T)} (cn : cone F) : cone F :=
+  MkCone (alg_func_func T ₒ (vertex cn))
+  (λ j, MkAlgHom (cons (F ₒ j) ∘ (alg_hom_map (alg_func_func T ₕ (side cn j)))) _) _.
+Next Obligation. intros; rewrite /= comp_assoc -h_map_comp alg_hom_commutes //. Qed.
+Next Obligation.
+  intros ???? cn j j' f; apply alg_hom_map_eq; rewrite /=.
+  rewrite -comp_assoc alg_hom_commutes comp_assoc.
+  rewrite -h_map_comp.
+  pose proof (side_commutes cn f) as Hsc;
+  apply alg_hom_map_eq' in Hsc; rewrite /= /alg_hom_comp /= in Hsc;
+    rewrite -Hsc //.
+Qed.
+Fail Next Obligation.
+
+Section algebra_limits.
+  Context `{!Complete C} {T : functor C C} {J} (F : functor J (Alg T)).
+
+  Notation F' := (functor_compose F (forgetful T)).
+
+  Definition alg_lim_obj := vertex (term (complete F')).
+
+  Program Definition alg_lim_cone_for_cons : cone F' :=
+    MkCone (T ₒ alg_lim_obj)
+      (λ c, cons (F ₒ c) ∘ (T ₕ (side (term (complete F')) c)))
+      _.
+  Next Obligation.
+    intros ?? f; rewrite /=.
+    rewrite -comp_assoc (alg_hom_commutes (F ₕ f)) comp_assoc -h_map_comp.
+    rewrite -side_commutes //.
+  Qed.
+  Fail Next Obligation.
+
+  Definition alg_lim_alg : algebra T :=
+    MkAlg alg_lim_obj (cone_hom_map (bang (term_is_terminal (complete F')) alg_lim_cone_for_cons)).
+
+  Program Definition alg_lim_cone_side j : alg_hom alg_lim_alg (F ₒ j) :=
+    MkAlgHom (side (term (complete F')) j) _.
+  Next Obligation.
+    intros ?; rewrite /=.
+    rewrite_cone_hom_commutes_back; done.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition alg_lim_cone : cone F :=
+    MkCone alg_lim_alg alg_lim_cone_side _.
+  Next Obligation.
+    intros ?? f; apply alg_hom_map_eq; rewrite /alg_lim_cone_side /= -side_commutes //.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition hom_to_alg_lim_cone (cn : cone F) : cone F' :=
+    MkCone (forgetful T ₒ (vertex cn)) (λ c, forgetful T ₕ (side cn c)) _.
+  Next Obligation. intros cn ?? f; rewrite /= (side_commutes cn f) //. Qed.
+  Fail Next Obligation.
+
+  Program Definition hom_to_alg_lim (cn : cone F) : cone_hom cn alg_lim_cone :=
+    MkConeHom
+      (MkAlgHom
+         (cone_hom_map (bang (term_is_terminal (complete F')) (hom_to_alg_lim_cone cn)))
+         _)
+      _.
+  Next Obligation.
+    intros; rewrite /=.
+    apply (hom_to_limit_unique _ _ _
+                               (limiting_cone_is_limit (term_is_terminal (complete F')))
+             (cone_is_cone (extend_cone (hom_to_alg_lim_cone cn) (cons (vertex cn))))).
+    - intros c; rewrite /= -comp_assoc ic_side_limiting_cone_is_limit.
+      rewrite_cone_hom_commutes_back; done.
+    - intros c; rewrite /= -comp_assoc.
+      rewrite ic_side_limiting_cone_is_limit.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite comp_assoc -h_map_comp.
+      rewrite_cone_hom_commutes_back; simpl.
+      rewrite -(alg_hom_commutes (side cn c)) //.
+  Qed.
+  Next Obligation.
+    intros ??; rewrite /=.
+    rewrite /equiv /alg_hom_eq /=.
+    rewrite_cone_hom_commutes_back; done.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition cone_hom_of_alg_cone_hom {cn : cone F} (f : cone_hom cn alg_lim_cone) :
+    cone_hom (hom_to_alg_lim_cone cn) (term (complete F')) :=
+    MkConeHom (alg_hom_map (cone_hom_map f)) _.
+  Next Obligation. intros cn f c; apply (cone_hom_commutes f c). Qed.
+  Fail Next Obligation.
+
+  Program Definition alg_lim : limit F :=
+    MkTerm alg_lim_cone (MkIsTerm alg_lim_cone hom_to_alg_lim _).
+  Next Obligation.
+    intros cn f.
+    apply (bang_unique (term_is_terminal (complete F')) (cone_hom_of_alg_cone_hom f)).
+  Qed.
+  Fail Next Obligation.
+
+End algebra_limits.
+
+Global Instance alg_complete `{!Complete C} (T : functor C C) : Complete (Alg T) :=
+  λ _ F, alg_lim F.

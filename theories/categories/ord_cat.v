@@ -96,10 +96,8 @@ Global Arguments MkDS {_ _ _} _, {_} _ {_} _.
 Global Arguments ds_idx {_ _} _.
 Global Arguments ds_in_dsp {_ _} _.
 
-Definition dsp_included {SI} (dsp dsp' : downset_pred SI) : Prop := ∀ α, dsp α → dsp' α.
-Definition lift_ds {SI} {dsp dsp' : downset_pred SI}
-  (i : dsp_included dsp dsp') (α : downset dsp) : downset dsp' :=
-  MkDS (i α (ds_in_dsp α)).
+Definition fun_on_empty_set {SI} (α : @downset SI (lt_dsp zero)) (T : Type) : T :=
+  False_rect T (index_lt_zero_is_normal _ (ds_in_dsp α)).
 
 Lemma downset_eq {SI} {dsp : downset_pred SI} (ds ds' : downset dsp) : ds = ds' :> SI → ds = ds'.
 Proof. destruct ds; destruct ds'; simpl; intros ->; f_equal; apply proof_irrelevance. Qed.
@@ -173,6 +171,302 @@ Proof. intros ?; apply index_succ_iff_proj_r2l, (ds_in_dsp β). Qed.
 
 Lemma in_lt_dsp {SI : indexT} (α : SI) : ∀ β : downset (lt_dsp α), β ⪯ α.
 Proof. intros ?; apply index_lt_le_subrel, (ds_in_dsp β). Qed.
+
+Section extend_ord_ds_cat_func.
+  Context {SI : indexT} {C : category} {α : SI} {F : functor ((OrdDSCat (lt_dsp α))ᵒᵖ) C}
+    (cn : cone F).
+
+  Definition extend_ord_ds_cat_func_o_map (β : downset (le_dsp α)) : obj C :=
+    match index_le_lt_eq_dec _ _ (ds_in_dsp β) with
+    | left Hlt => F ₒ (MkDS (lt_dsp α) Hlt)
+    | right _ => vertex cn
+    end.
+
+  Lemma extend_ord_ds_cat_func_o_map_lt {β : downset (le_dsp α)} (Hlt : β ≺ α) :
+    extend_ord_ds_cat_func_o_map β = F ₒ (MkDS (lt_dsp α) Hlt).
+  Proof.
+    rewrite /extend_ord_ds_cat_func_o_map; destruct index_le_lt_eq_dec as [Hlt'| Heq].
+    - replace Hlt' with Hlt by apply proof_irrel; done.
+    - exfalso; eapply index_lt_le_contradict; first exact Hlt.
+      rewrite Heq; done.
+  Qed.
+
+  Lemma extend_ord_ds_cat_func_o_map_at {β : downset (le_dsp α)} (Heq : β = α :> SI) :
+    extend_ord_ds_cat_func_o_map β = vertex cn.
+  Proof.
+    rewrite /extend_ord_ds_cat_func_o_map; destruct index_le_lt_eq_dec as [Hlt| Heq'];
+      last done.
+    exfalso; eapply index_lt_le_contradict; first exact Hlt.
+    rewrite Heq; done.
+  Qed.
+
+  Program Definition extend_ord_ds_cat_func_h_map {β γ : downset (le_dsp α)} (Hle : β ⪯ γ) :
+    hom (extend_ord_ds_cat_func_o_map γ) (extend_ord_ds_cat_func_o_map β) :=
+    match index_le_lt_eq_dec _ _ (ds_in_dsp γ)
+          return hom (extend_ord_ds_cat_func_o_map γ) (extend_ord_ds_cat_func_o_map β) with
+    | left Hlt =>
+        match index_le_lt_eq_dec _ _ (ds_in_dsp β)
+              return hom (extend_ord_ds_cat_func_o_map γ) (extend_ord_ds_cat_func_o_map β) with
+        | left Hlt' =>
+            (hom_trans
+               (eq_sym (extend_ord_ds_cat_func_o_map_lt Hlt))
+               (eq_sym (extend_ord_ds_cat_func_o_map_lt Hlt'))
+               (@h_map _ _ F (MkDS (lt_dsp α) Hlt) (MkDS (lt_dsp α) Hlt') Hle))
+        | right Heq =>
+            False_rect _
+              (index_lt_le_contradict _ _ Hlt
+                 match Heq in _ = z return z ⪯ γ with eq_refl => Hle end)
+        end
+    | right Heq =>
+        match index_le_lt_eq_dec _ _ (ds_in_dsp β)
+              return hom (extend_ord_ds_cat_func_o_map γ) (extend_ord_ds_cat_func_o_map β) with
+        | left Hlt' =>
+            (hom_trans
+               (eq_sym (extend_ord_ds_cat_func_o_map_at Heq))
+               (eq_sym (extend_ord_ds_cat_func_o_map_lt Hlt'))
+               (side cn (MkDS (lt_dsp α) Hlt')))
+        | right Heq' =>
+            (hom_trans
+               (eq_sym (extend_ord_ds_cat_func_o_map_at Heq))
+               (eq_sym (extend_ord_ds_cat_func_o_map_at Heq'))
+               (id (vertex cn)))
+        end
+    end.
+
+  Lemma extend_ord_ds_cat_func_h_map_lt_lt {β γ : downset (le_dsp α)} (Hle : β ⪯ γ)
+    (Hlt : β ≺ α) (Hlt' : γ ≺ α) :
+    extend_ord_ds_cat_func_h_map Hle =
+      hom_trans
+        (eq_sym (extend_ord_ds_cat_func_o_map_lt Hlt'))
+        (eq_sym (extend_ord_ds_cat_func_o_map_lt Hlt))
+        (@h_map _ _ F (MkDS (lt_dsp α) Hlt') (MkDS (lt_dsp α) Hlt) Hle).
+  Proof.
+    rewrite /extend_ord_ds_cat_func_h_map.
+    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
+      destruct (index_le_lt_eq_dec _ _ (ds_in_dsp γ)) as [Hltγ|Heqγ];
+      try destruct index_lt_le_contradict.
+    - replace Hltγ with Hlt' by apply proof_irrel;
+        replace Hltβ with Hlt by apply proof_irrel; done.
+    - exfalso; eapply index_lt_le_contradict; first by apply Hlt'.
+      rewrite Heqγ; done.
+    - exfalso; eapply index_lt_le_contradict; first by apply Hlt'.
+      rewrite Heqγ; done.
+  Qed.
+
+  Lemma extend_ord_ds_cat_func_h_map_lt_eq {β γ : downset (le_dsp α)} (Hle : β ⪯ γ)
+    (Hlt : β ≺ α) (Heq : γ = α :> SI) :
+    extend_ord_ds_cat_func_h_map Hle =
+      hom_trans
+        (eq_sym (extend_ord_ds_cat_func_o_map_at Heq))
+        (eq_sym (extend_ord_ds_cat_func_o_map_lt Hlt))
+        (side cn (MkDS (lt_dsp α) Hlt)).
+  Proof.
+    rewrite /extend_ord_ds_cat_func_h_map.
+    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
+      destruct (index_le_lt_eq_dec _ _ (ds_in_dsp γ)) as [Hltγ|Heqγ];
+      try destruct index_lt_le_contradict.
+    - exfalso; eapply index_lt_le_contradict; first by apply Hltγ.
+      rewrite Heq; done.
+    - replace Heqγ with Heq by apply proof_irrel;
+        replace Hltβ with Hlt by apply proof_irrel; done.
+    - exfalso; eapply index_lt_le_contradict; first by apply Hlt.
+      rewrite Heqβ; done.
+  Qed.
+
+  Lemma extend_ord_ds_cat_func_h_map_eq_eq {β γ : downset (le_dsp α)} (Hle : β ⪯ γ)
+    (Heq : β = α :> SI) (Heq' : γ = α :> SI) :
+    extend_ord_ds_cat_func_h_map Hle =
+      hom_trans
+        (eq_sym (extend_ord_ds_cat_func_o_map_at Heq'))
+        (eq_sym (extend_ord_ds_cat_func_o_map_at Heq))
+        (id (vertex cn)).
+  Proof.
+    rewrite /extend_ord_ds_cat_func_h_map.
+    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
+      destruct (index_le_lt_eq_dec _ _ (ds_in_dsp γ)) as [Hltγ|Heqγ];
+      try destruct index_lt_le_contradict.
+    - exfalso; eapply index_lt_le_contradict; first by apply Hltγ.
+      rewrite Heq'; done.
+    - exfalso; eapply index_lt_le_contradict; first by apply Hltβ.
+      rewrite Heq; done.
+    - replace Heqγ with Heq' by apply proof_irrel;
+        replace Heqβ with Heq by apply proof_irrel; done.
+  Qed.
+
+  Global Instance extend_ord_ds_cat_func_h_map_proper (β γ : downset (le_dsp α)) :
+    Proper ((≡) ==> (≡)) (@extend_ord_ds_cat_func_h_map β γ).
+  Proof.
+    repeat intros ?; rewrite /extend_ord_ds_cat_func_h_map.
+    repeat destruct index_le_lt_eq_dec;
+      try destruct index_lt_le_contradict; setoid_subst; done.
+  Qed.
+
+  Ltac simplify_extend_ord_ds_cat_func_h_map :=
+    match goal with
+    |- context [extend_ord_ds_cat_func_h_map ?Hle] =>
+      match type of Hle with
+      | ?A ⪯ ?B =>
+          match goal with
+          | HltB : B ≺ α |- _ =>
+              match goal with
+              | HltA : A ≺ α |- _ =>
+                  rewrite (extend_ord_ds_cat_func_h_map_lt_lt _ HltA HltB)
+              | HeqA : A = α |- _ =>
+                  exfalso; eapply index_lt_le_contradict; [by apply HltB|by rewrite -{1}HeqA]
+              end
+          | HeqB : B = α |- _ =>
+              match goal with
+              | HltA : A ≺ α |- _ =>
+                  rewrite (extend_ord_ds_cat_func_h_map_lt_eq _ HltA HeqB)
+              | HeqA : A = α |- _ =>
+                  rewrite (extend_ord_ds_cat_func_h_map_eq_eq _ HeqA HeqB)
+              end
+          end
+      end
+    end.
+
+  Program Definition extend_ord_ds_cat_func : functor ((OrdDSCat (le_dsp α))ᵒᵖ) C :=
+    MkFunc extend_ord_ds_cat_func_o_map (λ _ _ f, extend_ord_ds_cat_func_h_map f) _ _ _.
+  Next Obligation.
+    intros β γ δ Hγβ Hδγ; simpl in *.
+    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
+      destruct (index_le_lt_eq_dec _ _ (ds_in_dsp γ)) as [Hltγ|Heqγ];
+      destruct (index_le_lt_eq_dec _ _ (ds_in_dsp δ)) as [Hltδ|Heqδ];
+      repeat simplify_extend_ord_ds_cat_func_h_map.
+    - rewrite (@h_map_comp _ _ F (MkDS (lt_dsp α) Hltβ) (MkDS (lt_dsp α) Hltγ)).
+      rewrite hom_trans_compose /=.
+      rewrite !hom_trans_compose_take_in_l -!hom_trans_trans.
+      rewrite !eq_trans_refl_r eq_trans_sym_inv_r //.
+    - rewrite !hom_trans_compose_take_in_l -!hom_trans_trans eq_trans_sym_inv_r /=.
+      rewrite !hom_trans_compose_take_in_r /= hom_trans_refl.
+      rewrite -side_commutes.
+      rewrite -!hom_trans_trans eq_trans_refl_r eq_trans_refl_l //.
+    - rewrite !hom_trans_compose_take_in_l -!hom_trans_trans !eq_trans_sym_inv_r /=.
+      rewrite right_id //.
+    - rewrite !hom_trans_compose_take_in_l -!hom_trans_trans !eq_trans_sym_inv_r /=.
+      rewrite right_id //.
+  Qed.
+  Next Obligation.
+    intros β; simpl.
+    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
+      simplify_extend_ord_ds_cat_func_h_map.
+    - rewrite h_map_id hom_trans_id //.
+    - rewrite hom_trans_id //.
+  Qed.
+  Fail Next Obligation.
+
+End extend_ord_ds_cat_func.
+
+Ltac simplify_extend_ord_ds_cat_func_h_map :=
+  match goal with
+    |- context [@extend_ord_ds_cat_func_h_map _ _ ?α _ _ _ _ ?Hle] =>
+      match type of Hle with
+      | ?A ⪯ ?B =>
+          match goal with
+          | HltB : B ≺ α |- _ =>
+              match goal with
+              | HltA : A ≺ α |- _ =>
+                  rewrite (extend_ord_ds_cat_func_h_map_lt_lt _ _ HltA HltB)
+              | HeqA : A = α |- _ =>
+                  exfalso; eapply index_lt_le_contradict; [by apply HltB|by rewrite -{1}HeqA]
+              end
+          | HeqB : B = α |- _ =>
+              match goal with
+              | HltA : A ≺ α |- _ =>
+                  rewrite (extend_ord_ds_cat_func_h_map_lt_eq _ _ HltA HeqB)
+              | HeqA : A = α |- _ =>
+                  rewrite (extend_ord_ds_cat_func_h_map_eq_eq _ _ HeqA HeqB)
+              end
+          end
+      end
+  end.
+
+Section extend_ord_ds_cat_nat.
+  Context {SI : indexT} {C : category} {α : SI}
+    {F : functor ((OrdDSCat (lt_dsp α))ᵒᵖ) C} {cn : cone F}
+    {F' : functor ((OrdDSCat (lt_dsp α))ᵒᵖ) C} {cn' : cone F'}
+    (η : natural F F') (h : hom (vertex cn) (vertex cn'))
+    (Hηh : ∀ α, (η ₙ α) ∘ side cn α ≡ side cn' α ∘ h).
+
+  Definition extend_ord_ds_cat_nat_map β :
+    hom (extend_ord_ds_cat_func_o_map cn β) (extend_ord_ds_cat_func_o_map cn' β) :=
+    match index_le_lt_eq_dec _ _ (ds_in_dsp β) return
+          hom
+            (extend_ord_ds_cat_func_o_map cn β)
+            (extend_ord_ds_cat_func_o_map cn' β) with
+    | left Hlt =>
+        hom_trans
+          (eq_sym (extend_ord_ds_cat_func_o_map_lt cn Hlt))
+          (eq_sym (extend_ord_ds_cat_func_o_map_lt cn' Hlt))
+          (η ₙ (MkDS (lt_dsp α) Hlt))
+    | right Heq =>
+        hom_trans
+          (eq_sym (extend_ord_ds_cat_func_o_map_at cn Heq))
+          (eq_sym (extend_ord_ds_cat_func_o_map_at cn' Heq))
+          h
+    end.
+
+  Lemma extend_ord_ds_cat_nat_map_lt {β : downset (le_dsp α)} (Hlt : β ≺ α) :
+    extend_ord_ds_cat_nat_map β ≡
+      hom_trans
+      (eq_sym (extend_ord_ds_cat_func_o_map_lt cn Hlt))
+      (eq_sym (extend_ord_ds_cat_func_o_map_lt cn' Hlt))
+      (η ₙ (MkDS (lt_dsp α) Hlt)).
+  Proof.
+    rewrite /extend_ord_ds_cat_nat_map /=.
+    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
+      repeat simplify_extend_ord_ds_cat_func_h_map.
+    - replace Hltβ with Hlt by apply proof_irrel; done.
+    - exfalso; eapply index_lt_le_contradict; [by apply Hlt|by rewrite -{1}Heqβ].
+  Qed.
+
+  Lemma extend_ord_ds_cat_nat_map_at {β : downset (le_dsp α)} (Heq : β = α :> SI) :
+    extend_ord_ds_cat_nat_map β ≡
+      hom_trans
+      (eq_sym (extend_ord_ds_cat_func_o_map_at cn Heq))
+      (eq_sym (extend_ord_ds_cat_func_o_map_at cn' Heq))
+      h.
+  Proof.
+    rewrite /extend_ord_ds_cat_nat_map /=.
+    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
+      repeat simplify_extend_ord_ds_cat_func_h_map.
+    - exfalso; eapply index_lt_le_contradict; [by apply Hltβ|by rewrite -{1}Heq].
+    - replace Heqβ with Heq by apply proof_irrel; done.
+  Qed.
+
+  Program Definition extend_ord_ds_cat_nat :
+    natural (extend_ord_ds_cat_func cn) (extend_ord_ds_cat_func cn') :=
+    MkNat extend_ord_ds_cat_nat_map _.
+  Next Obligation.
+    intros β γ Hle; simpl in *.
+    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
+      destruct (index_le_lt_eq_dec _ _ (ds_in_dsp γ)) as [Hltγ|Heqγ];
+      repeat simplify_extend_ord_ds_cat_func_h_map.
+    - rewrite (extend_ord_ds_cat_nat_map_lt Hltβ)
+        (extend_ord_ds_cat_nat_map_lt Hltγ).
+      rewrite !hom_trans_compose_take_in_l.
+      rewrite -!hom_trans_trans !eq_trans_sym_inv_r eq_trans_refl_r.
+      rewrite !hom_trans_compose_take_in_r.
+      rewrite -!hom_trans_trans !eq_trans_refl_r /= !hom_trans_refl.
+      rewrite naturality //.
+    - rewrite (extend_ord_ds_cat_nat_map_at Heqβ)
+        (extend_ord_ds_cat_nat_map_lt Hltγ).
+      rewrite !hom_trans_compose_take_in_l.
+      rewrite -!hom_trans_trans !eq_trans_sym_inv_r eq_trans_refl_r.
+      rewrite !hom_trans_compose_take_in_r.
+      rewrite -!hom_trans_trans !eq_trans_refl_r /= !hom_trans_refl.
+      rewrite Hηh //.
+    - rewrite (extend_ord_ds_cat_nat_map_at Heqβ)
+        (extend_ord_ds_cat_nat_map_at Heqγ).
+      rewrite !hom_trans_compose_take_in_l.
+      rewrite -!hom_trans_trans !eq_trans_sym_inv_r eq_trans_refl_r.
+      rewrite !hom_trans_compose_take_in_r.
+      rewrite -!hom_trans_trans !eq_trans_refl_r /= !hom_trans_refl.
+      rewrite left_id right_id //.
+  Qed.
+  Fail Next Obligation.
+
+End extend_ord_ds_cat_nat.
 
 Section limit_at.
   Context {SI : indexT} {C : category}.
@@ -1102,7 +1396,7 @@ Section fixpoint.
       (index_zero_minimum _,
        setoid_conv (eq_sym (later_func_o_map_zero X)) ()).
 
-  Lemma fx_raw_zero_ext X
+  Lemma fx_raw_zero_ext X 
     {α} (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X)
     {α'} (η' : natural (yoneda ₒ α' ×ₒ (later ₒ X)) X) :
     (∀ Hle Hle' x, (η ₙ zero) (Hle, x) ≡ (η' ₙ zero) (Hle', x)) →
