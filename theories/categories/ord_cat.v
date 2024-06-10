@@ -88,6 +88,8 @@ Program Definition lt_dsp {SI} α : downset_pred SI := MkDownSetPred (λ β, β 
 Next Obligation. intros ??????; simpl in *; eapply index_le_lt_trans; eauto. Qed.
 Fail Next Obligation.
 
+Definition dsp_included {SI} (dsp dsp' : downset_pred SI) := ∀ α, dsp α → dsp' α.
+
 Record downset {SI} (dsp : downset_pred SI) := MkDS {
   ds_idx :> SI;
   ds_in_dsp : dsp ds_idx;
@@ -96,11 +98,33 @@ Global Arguments MkDS {_ _ _} _, {_} _ {_} _.
 Global Arguments ds_idx {_ _} _.
 Global Arguments ds_in_dsp {_ _} _.
 
+Lemma downset_eq {SI} {dsp : downset_pred SI} (ds ds' : downset dsp) : ds = ds' :> SI → ds = ds'.
+Proof. destruct ds; destruct ds'; simpl; intros ->; f_equal; apply proof_irrelevance. Qed.
+
 Definition fun_on_empty_set {SI} (α : @downset SI (lt_dsp zero)) (T : Type) : T :=
   False_rect T (index_lt_zero_is_normal _ (ds_in_dsp α)).
 
-Lemma downset_eq {SI} {dsp : downset_pred SI} (ds ds' : downset dsp) : ds = ds' :> SI → ds = ds'.
-Proof. destruct ds; destruct ds'; simpl; intros ->; f_equal; apply proof_irrelevance. Qed.
+Lemma empty_dsp_included {SI} {dsp : downset_pred SI} : dsp_included (lt_dsp zero) dsp.
+Proof. intros ??; simpl in *; exfalso; eapply index_lt_zero_is_normal; eauto. Qed.
+Lemma lt_dsp_included {SI} {dsp : downset_pred SI} (α : downset dsp) : dsp_included (lt_dsp α) dsp.
+Proof. intros ??; eapply dsp_pred_downwards; [|apply (ds_in_dsp α)]; eauto. Qed.
+Lemma le_dsp_included {SI} {dsp : downset_pred SI} (α : downset dsp) : dsp_included (le_dsp α) dsp.
+Proof. intros ??; eapply dsp_pred_downwards; [|apply (ds_in_dsp α)]; eauto. Qed.
+
+Definition dsp_include {SI} {dsp dsp' : downset_pred SI} (incl : dsp_included dsp dsp')
+  (d : downset dsp) : downset dsp' := MkDS (incl _ (ds_in_dsp d)).
+
+Lemma le_dsp_included_eq {SI} {dsp : downset_pred SI} (α : downset dsp) :
+  α = dsp_include (le_dsp_included α) (MkDS (le_dsp α) (reflexivity _)).
+Proof. destruct α; rewrite /dsp_include /=; f_equal; apply proof_irrelevance. Qed.
+
+Definition dsp_include_le {SI} {dsp dsp' : downset_pred SI} (incl : dsp_included dsp dsp')
+  {d d' : downset dsp} (Hle : d ⪯ d') : (dsp_include incl d) ⪯ (dsp_include incl d').
+Proof. done. Qed.
+
+Definition dsp_include_le_refl {SI} {dsp dsp' : downset_pred SI} (incl : dsp_included dsp dsp')
+  {d : downset dsp} : (dsp_include_le incl (reflexivity (d : SI))) = reflexivity _.
+Proof. apply proof_irrel. Qed.
 
 Program Definition OrdDSCat {SI} (dsp : downset_pred SI) : category :=
   MkCat (downset dsp) (λ α β, α ⪯ β)
@@ -467,6 +491,281 @@ Section extend_ord_ds_cat_nat.
   Fail Next Obligation.
 
 End extend_ord_ds_cat_nat.
+
+Section cut_ord_ds_cat_func.
+  Context {SI : indexT} {dsp : downset_pred SI} (dsp' : downset_pred SI)
+    (Hdsps : dsp_included dsp' dsp) {C : category} (F : functor ((OrdDSCat dsp)ᵒᵖ) C).
+
+  Definition cut_ord_ds_cat_func_o_map (β : downset dsp') : obj C :=
+    F ₒ (dsp_include Hdsps β).
+
+  Definition cut_ord_ds_cat_func_h_map {β γ : downset dsp'} (Hle : β ⪯ γ) :
+    hom (cut_ord_ds_cat_func_o_map γ) (cut_ord_ds_cat_func_o_map β) :=
+    F ₕ (dsp_include_le Hdsps Hle).
+
+  Global Instance cut_ord_ds_cat_func_h_map_proper (β γ : downset dsp') :
+    Proper ((≡) ==> (≡)) (@cut_ord_ds_cat_func_h_map β γ).
+  Proof. repeat intros ?; f_equiv; apply proof_irrel. Qed.
+
+  Program Definition cut_ord_ds_cat_func : functor ((OrdDSCat dsp')ᵒᵖ) C :=
+    MkFunc cut_ord_ds_cat_func_o_map (λ _ _ f, cut_ord_ds_cat_func_h_map f) _ _ _.
+  Next Obligation.
+    intros ?????; rewrite /= /cut_ord_ds_cat_func_h_map -h_map_comp; f_equiv; done.
+  Qed.
+  Next Obligation.
+    intros ?; rewrite /= /cut_ord_ds_cat_func_h_map dsp_include_le_refl h_map_id; done.
+  Qed.
+  Fail Next Obligation.
+
+End cut_ord_ds_cat_func.
+
+Section cut_ord_ds_cat_nat.
+  Context {SI : indexT} {dsp : downset_pred SI} (dsp' : downset_pred SI)
+    (Hdsps : dsp_included dsp' dsp) {C : category} {F F' : functor ((OrdDSCat dsp)ᵒᵖ) C}
+    (η : natural F F').
+
+  Definition cut_ord_ds_cat_nat_map β :
+    hom (cut_ord_ds_cat_func_o_map dsp' Hdsps F β) (cut_ord_ds_cat_func_o_map dsp' Hdsps F' β) :=
+    η ₙ (MkDS (Hdsps _ (ds_in_dsp β))).
+
+  Program Definition cut_ord_ds_cat_nat :
+    natural (cut_ord_ds_cat_func dsp' Hdsps F) (cut_ord_ds_cat_func dsp' Hdsps F') :=
+    MkNat cut_ord_ds_cat_nat_map _.
+  Next Obligation.
+    intros ???; rewrite /= /cut_ord_ds_cat_func_h_map naturality //.
+  Qed.
+  Fail Next Obligation.
+
+End cut_ord_ds_cat_nat.
+
+(* Section cut_ord_ds_cat_iso. *)
+(*   Context {SI : indexT} {dsp : downset_pred SI} {C : category} *)
+(*     (F F' : functor ((OrdDSCat dsp)ᵒᵖ) C) *)
+(*     (isos : ∀ α : downset dsp, *)
+(*         cut_ord_ds_cat_func _ (le_dsp_included α) F *)
+(*         ≃@{FuncCat ((OrdDSCat (le_dsp α))ᵒᵖ) C} *)
+(*         cut_ord_ds_cat_func _ (le_dsp_included α) F'). *)
+
+(*   Program Definition cut_le_iso_fw {α β : SI} (Hα : dsp α) (Hβ : dsp β) (Hβα : β ⪯ α) : *)
+(*     hom (F ₒ (MkDS Hβ)) (F' ₒ (MkDS Hβ)) := *)
+(*     hom_trans *)
+(*       _ *)
+(*       _ *)
+(*       (forward (isos (MkDS Hα)) ₙ (MkDS (le_dsp α) Hβα)). *)
+(*   Next Obligation. *)
+(*     intros. *)
+(*     rewrite /cut_ord_ds_cat_func /cut_ord_ds_cat_func_o_map /dsp_include /=. *)
+
+
+(*   Lemma cut_le_iso_naturality (α : downset dsp) *)
+(*     (β γ : downset (le_dsp α)) (Hle : γ ⪯ β) : *)
+(*     (forward (isos (dsp_include (le_dsp_included α) β)) ₙ (MkDS (le_dsp β) Hle)) ∘ *)
+(*       (F ₕ (dsp_include_le (le_dsp_included α) Hle)) ≡ *)
+(*     F' ₕ (dsp_include_le (le_dsp_included α) Hle) ∘ (forward (isos α) ₙ β). *)
+(*   Proof. rewrite -naturality //. Qed. *)
+
+
+(*   Program Definition cut_le_iso_iso : *)
+(*     F ≃@{FuncCat ((OrdDSCat dsp)ᵒᵖ) C} F' := *)
+(*     MkIsoIc *)
+(*       (MkNat (λ α, hom_trans *)
+(*          (o_map_eq F (eq_sym (le_dsp_included_eq α))) *)
+(*          (o_map_eq F' (eq_sym (le_dsp_included_eq α))) *)
+(*          (forward (isos α) ₙ (MkDS (le_dsp α) (reflexivity _)))) _) *)
+(*       (MkNat (λ α, hom_trans *)
+(*          (o_map_eq F' (eq_sym (le_dsp_included_eq α))) *)
+(*          (o_map_eq F (eq_sym (le_dsp_included_eq α))) *)
+(*          (backward (isos α) ₙ (MkDS (le_dsp α) (reflexivity _)))) _) *)
+(*       _. *)
+(*   Next Obligation. *)
+(*     intros α β Hle; simpl in *. *)
+(*     rewrite hom_trans_compose_take_in_l hom_trans_compose_take_in_r. *)
+(*     rewrite !o_map_eq_sym !eq_sym_involutive. *)
+(*     rewrite h_map_eq_l h_map_eq_r. *)
+(*     apply hom_trans_sym'. *)
+
+(*     etrans; last apply (cut_le_iso_naturality α (MkDS (le_dsp α) (reflexivity _)) (MkDS (le_dsp α) Hle)). *)
+
+(*     replace (@hom_trans ((OrdDSCat dsp)ᵒᵖ) _ _ _ _ (le_dsp_included_eq α) eq_refl Hle) with *)
+(*       (@dsp_include_le _ _ _ (le_dsp_included α) (MkDS (le_dsp α) Hle) (MkDS (le_dsp α) (reflexivity _)) Hle) by apply proof_irrel. *)
+
+(*     pose proof (cut_le_iso_naturality α (MkDS (le_dsp α) (reflexivity _)) (MkDS (le_dsp α) Hle)). *)
+
+
+(*     pose proof (@hom_trans ((OrdDSCat dsp)ᵒᵖ) _ _ _ _ (le_dsp_included_eq α) eq_refl Hle). *)
+(*     pose proof (@dsp_include_le _ _ _ (le_dsp_included α) (MkDS (le_dsp α) Hle) (MkDS (le_dsp α) (reflexivity _)) Hle). *)
+(*     simpl in *. *)
+
+(*     assert (dsp_include (le_dsp_included α) (MkDS (le_dsp α) Hle) *)
+(*            ⪯ dsp_include (le_dsp_included α) (MkDS (le_dsp α) (reflexivity _))). *)
+(*     { eapply . } *)
+
+
+(*     pose proof (@hom_trans ((OrdDSCat dsp)ᵒᵖ) _ _ _ _ (le_dsp_included_eq α) eq_refl Hle). *)
+(*     simpl in *. *)
+
+(*     match goal with *)
+(*     |- context [@h_map _ _ F' ?B ?C ?Hz ∘ (forward (isos _) ₙ ?A)] => *)
+(*       pose proof (@h_map _ _ F' B C Hz); *)
+(*       pose B; *)
+(*       pose A; *)
+(*       pose proof (@naturality _ _ _ _ (forward (isos α)) A) *)
+(*     end. *)
+
+
+
+
+(*   Program Definition cut_le_iso_iso *)
+(*     (isos : ∀ α : downset dsp, cut_ord_ds_cat_func _ (le_dsp_included α) F *)
+(*       ≃@{FuncCat ((OrdDSCat (le_dsp α))ᵒᵖ) C} *)
+(*       cut_ord_ds_cat_func _ (le_dsp_included α) F') : *)
+(*     F ≃@{FuncCat ((OrdDSCat dsp)ᵒᵖ) C} F' := *)
+(*     MkIsoIc *)
+(*       (MkNat (λ α, *)
+(*            hom_trans *)
+(*              (o_map_eq F (eq_sym (le_dsp_included_eq α))) *)
+(*              (o_map_eq F' (eq_sym (le_dsp_included_eq α))) *)
+(*              (forward (isos α) ₙ _)) _) *)
+(*       (MkNat (λ α, *)
+(*            hom_trans *)
+(*              (o_map_eq F (eq_sym (le_dsp_included_eq α))) *)
+(*              (o_map_eq F' (eq_sym (le_dsp_included_eq α))) *)
+(*              (backward (isos α) ₙ (MkDS (le_dsp _) (reflexivity _)))) _) _. *)
+(*   Next Obligation. *)
+(*     intros. *)
+(*     simpl in *. *)
+
+(*     intros isos α β Hle; simpl in *. *)
+(*     rewrite hom_trans_compose_take_in_l hom_trans_compose_take_in_r. *)
+(*     rewrite !o_map_eq_sym !eq_sym_involutive. *)
+(*     rewrite h_map_eq_l h_map_eq_r. *)
+(*     match goal with *)
+(*     |- context [@h_map _ _ F' ?B ?C ?Hz ∘ (forward (isos _) ₙ ?A)] => *)
+(*       pose proof (@h_map _ _ F' B C Hz); *)
+(*       pose B; *)
+(*       pose A; *)
+(*       pose proof (@naturality _ _ _ _ (forward (isos α)) A) *)
+(*     end. *)
+    
+
+(*     rewrite /= /cut_ord_ds_cat_func_o_map /cut_ord_ds_cat_func_h_map /= in Hn. *)
+(*     rewrite -Hn. *)
+
+(*     pose proof (F' ₕ (@hom_trans (opposite (@OrdDSCat SI dsp)) α β *)
+(*                 (@MkDS SI dsp (@ds_idx SI dsp α) *)
+(*                    (@le_dsp_included SI dsp α (@ds_idx SI dsp α) *)
+(*                       (@reflexivity (index_car SI) (index_le SI) *)
+(*                          (@index_le_refl SI) (@ds_idx SI dsp α)))) β *)
+(*                 (@le_dsp_included_eq SI dsp α) *)
+(*                 (@eq_refl (obj (opposite (@OrdDSCat SI dsp))) β) Hle)). *)
+(*     pose proof (@naturality _ _ _ _ (forward (isos α)) (MkDS (le_dsp _) (reflexivity _)) *)
+(*                   (MkDS (le_dsp _) Hle) ) as Hn; *)
+(*       rewrite /= /cut_ord_ds_cat_func_o_map /cut_ord_ds_cat_func_h_map /= in Hn. *)
+    
+
+
+(*  rewrite -Hn. *)
+
+(*      simpl in *. *)
+(*     apply hom_trans_sym'. *)
+(*     rewrite -hom_trans_trans /= eq_trans_refl_l. *)
+(*     rewrite hom_trans_compose_take_in_r hom_trans_refl eq_sym_involutive. *)
+
+(*     intros Hisos [α Hα] [β Hβ] Hle; simpl in *. *)
+
+(*     symmetry; apply hom_trans_sym'; symmetry. *)
+(*     rewrite hom_trans_compose -!hom_trans_trans eq_trans_refl_l !eq_sym_involutive. *)
+
+(*     pose (@cut_ord_ds_cat_func_h_map _ _ _ (le_dsp_included α) _ F). *)
+(*     unfold cut_ord_ds_cat_func_o_map, cut_ord_ds_cat_func_h_map in h. *)
+
+
+
+(*   Program Definition cut_ord_ds_cat_func_iso : *)
+(*     cut_ord_ds_cat_func dsp' Hdsps F *)
+(*     ≃@{FuncCat (OrdDSCat dsp')ᵒᵖ C} *)
+(*     cut_ord_ds_cat_func dsp' Hdsps F' := *)
+(*     MkIsoIc *)
+(*       (cut_ord_ds_cat_nat dsp' Hdsps (forward iso)) *)
+(*       (cut_ord_ds_cat_nat dsp' Hdsps (backward iso)) _. *)
+(*   Next Obligation. *)
+(*     split; intros ?; [apply (iso_lr (is_iso iso))|apply (iso_rl (is_iso iso))]. *)
+(*   Qed. *)
+(*   Fail Next Obligation. *)
+
+(* End cut_ord_ds_cat_iso. *)
+
+
+(* (* Context {SI : indexT} {dsp : downset_pred SI} (dsp' : downset_pred SI) *) *)
+(* (*     (Hdsps : ∀ α, dsp' α → dsp α) {C : category} (F F' : functor ((OrdDSCat dsp)ᵒᵖ) C) *) *)
+(* (*     (iso : F ≃@{FuncCat ((OrdDSCat dsp)ᵒᵖ) C} F'). *) *)
+
+(* (*   Program Definition cut_ord_ds_cat_func_zero_iso *) *)
+(* (*     {SI : indexT} {dsp : downset_pred SI} {C : category} (F F' : functor ((OrdDSCat dsp)ᵒᵖ) C) : *) *)
+(* (*     cut_ord_ds_cat_func  F *) *)
+(* (*     ≃@{FuncCat (OrdDSCat dsp')ᵒᵖ C} *) *)
+(* (*     cut_ord_ds_cat_func dsp' Hdsps F' := *) *)
+(* (*     MkIsoIc *) *)
+(* (*       (cut_ord_ds_cat_nat dsp' Hdsps (forward iso)) *) *)
+(* (*       (cut_ord_ds_cat_nat dsp' Hdsps (backward iso)) _. *) *)
+(* (*   Next Obligation. *) *)
+(* (*     split; intros ?; [apply (iso_lr (is_iso iso))|apply (iso_rl (is_iso iso))]. *) *)
+(* (*   Qed. *) *)
+(* (*   Fail Next Obligation. *) *)
+
+(* Section cut_ord_ds_cat_iso. *)
+(*   Context {SI : indexT} {dsp : downset_pred SI} (dsp' : downset_pred SI) *)
+(*     (Hdsps : ∀ α, dsp' α → dsp α) {C : category} (F F' : functor ((OrdDSCat dsp)ᵒᵖ) C) *)
+(*     (iso : F ≃@{FuncCat ((OrdDSCat dsp)ᵒᵖ) C} F'). *)
+
+(*   Program Definition cut_ord_ds_cat_func_iso : *)
+(*     cut_ord_ds_cat_func dsp' Hdsps F *)
+(*     ≃@{FuncCat (OrdDSCat dsp')ᵒᵖ C} *)
+(*     cut_ord_ds_cat_func dsp' Hdsps F' := *)
+(*     MkIsoIc *)
+(*       (cut_ord_ds_cat_nat dsp' Hdsps (forward iso)) *)
+(*       (cut_ord_ds_cat_nat dsp' Hdsps (backward iso)) _. *)
+(*   Next Obligation. *)
+(*     split; intros ?; [apply (iso_lr (is_iso iso))|apply (iso_rl (is_iso iso))]. *)
+(*   Qed. *)
+(*   Fail Next Obligation. *)
+
+(* End cut_ord_ds_cat_iso. *)
+
+(* (* Section cut_ord_ds_cat_facts. *) *)
+(* (*   Context {SI : indexT} {dsp : downset_pred SI} {C : category} *) *)
+(* (*     (F F' : functor ((OrdDSCat dsp)ᵒᵖ) C). *) *)
+
+(* (*   Program Definition cut_ord_ds_cat_eq_dsps *) *)
+(* (*     (dsp1 : downset_pred SI) (Hdsps1 : ∀ α, dsp1 α → dsp α) *) *)
+(* (*     (dsp2 : downset_pred SI) (Hdsps2 : ∀ α, dsp2 α → dsp α) *) *)
+(* (*     (Hdspseq : ∀ α, dsp2 α → dsp1 α) *) *)
+(* (*     (iso : cut_ord_ds_cat_func dsp1 Hdsps1 F *) *)
+(* (*        ≃@{FuncCat (OrdDSCat dsp1)ᵒᵖ C} *) *)
+(* (*        cut_ord_ds_cat_func dsp1 Hdsps1 F') : *) *)
+(* (*     cut_ord_ds_cat_func dsp2 Hdsps2 F *) *)
+(* (*     ≃@{FuncCat (OrdDSCat dsp2)ᵒᵖ C} *) *)
+(* (*     cut_ord_ds_cat_func dsp2 Hdsps2 F' *) *)
+(* (*     := *) *)
+(* (*     MkIsoIc *) *)
+(* (*       (forward iso) *) *)
+(* (*       _ *) *)
+(* (*       _. *) *)
+
+
+(* (*   Definition cut_ord_ds_cat_nat_map β : *) *)
+(* (*     hom (cut_ord_ds_cat_func_o_map dsp' Hdsps F β) (cut_ord_ds_cat_func_o_map dsp' Hdsps F' β) := *) *)
+(* (*     η ₙ (MkDS (Hdsps _ (ds_in_dsp β))). *) *)
+
+(* (*   Program Definition cut_ord_ds_cat_nat : *) *)
+(* (*     natural (cut_ord_ds_cat_func dsp' Hdsps F) (cut_ord_ds_cat_func dsp' Hdsps F') := *) *)
+(* (*     MkNat cut_ord_ds_cat_nat_map _. *) *)
+(* (*   Next Obligation. *) *)
+(* (*     intros ???; rewrite /= /cut_ord_ds_cat_func_h_map naturality //. *) *)
+(* (*   Qed. *) *)
+(* (*   Fail Next Obligation. *) *)
+
+(* (* End cut_ord_ds_cat_nat. *) *)
 
 Section limit_at.
   Context {SI : indexT} {C : category}.

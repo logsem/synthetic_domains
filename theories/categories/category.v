@@ -191,6 +191,35 @@ Proof.
   - f_equiv; done.
 Qed.
 
+Definition o_map_eq {C D} (F : functor C D) {a b : obj C} (Heq : a = b) : F ₒ a = F ₒ b :=
+  f_equal (F ₒ) Heq.
+
+Lemma o_map_eq_refl {C D} (F : functor C D) (a : obj C) : @o_map_eq _ _ F a a eq_refl = eq_refl.
+Proof. done. Qed.
+
+Lemma o_map_eq_sym {C D} (F : functor C D) {a b : obj C} (Heq : a = b) :
+  o_map_eq F (eq_sym Heq) = eq_sym (o_map_eq F Heq).
+Proof. rewrite /o_map_eq eq_sym_map_distr //. Qed.
+
+Lemma o_map_eq_trans {C D} (F : functor C D) {a b c : obj C} (Heq : a = b) (Heq' : b = c) :
+  o_map_eq F (eq_trans Heq Heq') = eq_trans (o_map_eq F Heq) (o_map_eq F Heq').
+Proof. rewrite /o_map_eq eq_trans_map_distr //. Qed.
+
+Lemma h_map_eq {C D} (F : functor C D) {a b a' b': obj C} (Heqa : a = a') (Heqb : b = b')
+  (h : hom a b) :
+  hom_trans (o_map_eq F Heqa) (o_map_eq F Heqb) (F ₕ h) = F ₕ (hom_trans Heqa Heqb h).
+Proof. destruct Heqa; destruct Heqb; done. Qed.
+
+Lemma h_map_eq_l {C D} (F : functor C D) {a b a': obj C} (Heqa : a = a')
+  (h : hom a b) :
+  hom_trans (o_map_eq F Heqa) eq_refl (F ₕ h) = F ₕ (hom_trans Heqa eq_refl h).
+Proof. destruct Heqa; done. Qed.
+
+Lemma h_map_eq_r {C D} (F : functor C D) {a b b': obj C} (Heqb : b = b')
+  (h : hom a b) :
+  hom_trans eq_refl (o_map_eq F Heqb) (F ₕ h) = F ₕ (hom_trans eq_refl Heqb h).
+Proof. destruct Heqb; done. Qed.
+
 Program Definition Cat : category :=
   MkCat category functor id_functor (λ _ _ _ F G, functor_compose F G) (λ _ _, (≡)) _ _ _ _ _.
 Next Obligation.
@@ -2787,6 +2816,21 @@ Arguments eq_cones_vertexes {_ _ _ _ _ _ _} _.
 Arguments eq_cones_sides {_ _ _ _ _ _ _} _ _.
 Arguments eq_cones_sides' {_ _ _ _ _ _ _} _ _.
 
+Program Definition MkEqCones' {J C} {F F' : functor J C} {Fiso : F ≃@{FuncCat J C} F'}
+  {cn : cone F} {cn' : cone F'} (eq_cones_vertexes : vertex cn ≃ vertex cn')
+  (eq_cones_sides : ∀ j : obj J,
+      forward Fiso ₙ j ∘ side cn j ≡ side cn' j ∘ forward eq_cones_vertexes) :
+  equiv_cones Fiso cn cn' :=
+  MkEqCones eq_cones_vertexes eq_cones_sides _.
+Next Obligation.
+  intros ???? iso ?? Heqv Heqs j.
+  apply (compose_along_iso_left (natural_iso_proj iso j)).
+  rewrite /= -!comp_assoc (iso_rl (is_iso (natural_iso_proj iso j))) left_id.
+  apply (compose_along_iso_right Heqv).
+  rewrite /= !comp_assoc (iso_lr (is_iso Heqv)) right_id; done.
+Qed.
+Fail Next Obligation.
+
 Program Definition limit_of_isos_cone {C J} {F G : functor J C} (iso : F ≃@{FuncCat J C} G)
   (l : limit F) : cone G :=
   MkCone (vertex (term l)) (λ j, (forward iso ₙ j) ∘ side (term l) j) _.
@@ -2805,12 +2849,11 @@ Fail Next Obligation.
 
 Program Definition limit_of_isos_equiv_cones {C J} {F G : functor J C} (iso : F ≃@{FuncCat J C} G)
   (l : limit F) (l' : limit G) : equiv_cones iso (term l) (term l') :=
-  MkEqCones
+  @MkEqCones' _ _ _ _ iso _ _
     (MkIsoIc
        (cone_hom_map (bang (term_is_terminal l') (limit_of_isos_cone iso l)))
        (cone_hom_map (bang (term_is_terminal l) (limit_of_isos_cone (isomorphic_sym iso) l')))
        _)
-    _
     _.
 Next Obligation.
   intros ? ? ? ? iso l l'; split.
@@ -2835,7 +2878,6 @@ Next Obligation.
       rewrite left_id //.
     + intros j; rewrite /= right_id //.
 Qed.
-Next Obligation. intros; simpl; rewrite_cone_hom_commutes_back; done. Qed.
 Next Obligation. intros; simpl; rewrite_cone_hom_commutes_back; done. Qed.
 Fail Next Obligation.
 
@@ -3002,6 +3044,20 @@ Next Obligation.
   pose proof (side_commutes cn f) as Hsc;
   apply alg_hom_map_eq' in Hsc; rewrite /= /alg_hom_comp /= in Hsc;
     rewrite -Hsc //.
+Qed.
+Fail Next Obligation.
+
+Program Definition alg_func_on_eq_cones {C : category} {T : functor C C}
+  {J} {F F' : functor J (Alg T)} {iso : F ≃@{FuncCat J (Alg T)} F'}
+  {cn : cone F} {cn' : cone F'} (cneq : equiv_cones iso cn cn') :
+  equiv_cones iso (alg_func_on_cone cn) (alg_func_on_cone cn') :=
+  @MkEqCones' _ _ _ _ _ (alg_func_on_cone cn) (alg_func_on_cone cn')
+    (functor_preserves_iso (alg_func_func T) (eq_cones_vertexes cneq)) _.
+Next Obligation.
+  intros ????? iso ?? cneq j; apply alg_hom_map_eq; rewrite /= -!alg_hom_commutes /=.
+  rewrite !comp_assoc -!alg_hom_commutes /= -!comp_assoc.
+  epose proof (eq_cones_sides cneq _) as Heqcs; apply alg_hom_map_eq' in Heqcs;
+    simpl in Heqcs; rewrite Heqcs //.
 Qed.
 Fail Next Obligation.
 

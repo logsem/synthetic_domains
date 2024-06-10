@@ -120,7 +120,7 @@ Section solution.
   Arguments parsolext_side_iso {_ _} _ _.
   Arguments parsolext_cons_iso {_ _} _ _.
 
-  Program Definition extend_partial_solution {α} {ps : partial_solution (lt_dsp α)}
+  Program Definition apply_par_sol_extension {α} {ps : partial_solution (lt_dsp α)}
     (pse : par_sol_extension ps) : partial_solution (le_dsp α) :=
     MkParSol (extend_ord_ds_cat_func pse) _ _.
   Next Obligation.
@@ -149,8 +149,8 @@ Section solution.
     (psiso : ps ≃@{FuncCat ((OrdDSCat (lt_dsp α))ᵒᵖ) (Alg F)} ps')
     {pse : par_sol_extension ps} {pse' : par_sol_extension ps'}
     (pseseq : equiv_cones psiso pse pse') :
-    extend_partial_solution pse ≃@{FuncCat ((OrdDSCat (le_dsp α))ᵒᵖ) (Alg F)}
-    extend_partial_solution pse' :=
+    apply_par_sol_extension pse ≃@{FuncCat ((OrdDSCat (le_dsp α))ᵒᵖ) (Alg F)}
+    apply_par_sol_extension pse' :=
     MkIsoIc
       (extend_ord_ds_cat_nat (forward psiso) (forward (eq_cones_vertexes pseseq))
          (eq_cones_sides pseseq))
@@ -219,7 +219,7 @@ Section solution.
                 (term_is_terminal (complete (functor_compose ps (forgetful F)))))
              α (ds_in_dsp α)); last done.
     intros; simpl.
-    eapply iso_at_downwards; last by apply parsol_edge_iso.
+    eapply is_iso_at_downwards; last by apply parsol_edge_iso.
     done.
   Qed.
   Next Obligation.
@@ -234,7 +234,7 @@ Section solution.
                 (term_is_terminal (complete (functor_compose ps (forgetful F)))))
              β (ds_in_dsp β)); last done.
       intros; simpl.
-      eapply iso_at_downwards; last by apply parsol_edge_iso.
+      eapply is_iso_at_downwards; last by apply parsol_edge_iso.
       done. }
     eapply is_iso_at_uncompose_r; first apply Hiso.
     eapply is_iso_at_proper; last by rewrite_cone_hom_commutes_back; reflexivity.
@@ -245,7 +245,100 @@ Section solution.
   Qed.
   Fail Next Obligation.
 
+  Definition the_extension_eq_cones {α} {ps ps' : partial_solution (lt_dsp α)}
+    (psiso : ps ≃@{FuncCat ((OrdDSCat (lt_dsp α))ᵒᵖ) (Alg F)} ps') :
+    equiv_cones psiso (the_extension ps) (the_extension ps') :=
+    alg_func_on_eq_cones (limit_of_isos_equiv_cones psiso (complete ps) (complete ps')).
 
+  Definition extend_par_sol_lt_le {α} (ps : partial_solution (lt_dsp α)) :
+    partial_solution (le_dsp α) :=
+    apply_par_sol_extension (the_extension ps).
+
+  Definition extend_par_sol_lt_le_iso {α} {ps ps' : partial_solution (lt_dsp α)}
+    (psiso : ps ≃@{FuncCat ((OrdDSCat (lt_dsp α))ᵒᵖ) (Alg F)} ps') :
+    extend_par_sol_lt_le ps ≃@{FuncCat ((OrdDSCat (le_dsp α))ᵒᵖ) (Alg F)}
+    extend_par_sol_lt_le ps' :=
+    extend_partial_solution_iso psiso (the_extension_eq_cones psiso).
+
+  Program Definition cut_par_sol {dsp} (ps : partial_solution dsp) {dsp' : downset_pred SI}
+    (Hdsps : ∀ α, dsp' α → dsp α) : partial_solution dsp' :=
+    MkParSol (cut_ord_ds_cat_func dsp' Hdsps ps) _ _.
+  Next Obligation. intros ? ps ?????; apply ps. Qed.
+  Next Obligation. intros ? ps ???; apply ps. Qed.
+  Fail Next Obligation.
+
+  Record canonical_par_sol dsp := MkCanParSol {
+    can_par_sol_ps :> partial_solution dsp;
+    can_par_sol_iso : ∀ α : downset dsp,
+      cut_par_sol can_par_sol_ps (le_dsp_included α)
+      ≃@{FuncCat ((OrdDSCat (le_dsp α))ᵒᵖ) (Alg F)}
+      extend_par_sol_lt_le (cut_par_sol can_par_sol_ps (lt_dsp_included α));
+  }.
+
+  Goal ∀ {dsp} (ps ps' : canonical_par_sol dsp) (can_iso : ps ≃@{FuncCat ((OrdDSCat dsp)ᵒᵖ) (Alg F)} ps') (α : downset dsp), False.
+    intros dsp ps ps' can_iso α.
+    pose proof (backward (can_par_sol_iso _ ps α)).
+    pose proof (forward (can_par_sol_iso _ ps' α)).
+    pose proof (cut_ord_ds_cat_nat _ (le_dsp_included α) (forward can_iso)).
+    simpl in *.
+    unfold cut_ord_ds_cat_func_o_map in *.
+    pose proof (X0 ∘@{FuncCat _ _} X1 ∘@{FuncCat _ _} X).
+    
+
+
+  Record canonical_iso {dsp} (ps ps' : canonical_par_sol dsp) := MkCanIso {
+    can_iso : ps ≃@{FuncCat ((OrdDSCat dsp)ᵒᵖ) (Alg F)} ps';
+    can_iso_lr : ∀ α, (forward (can_par_sol_iso _ ps' α) ₙ (MkDS (le_dsp α) (reflexivity _))) ∘ ((forward can_iso) ₙ α) ≡
+                        (forward (can_par_sol_iso _ ps' α)) ∘ (forward can_iso α);
+  }.
+
+
+  Program Definition can_par_sols_iso {dsp} (ps ps' : canonical_par_sol dsp)
+
+
+  Program Definition canonical_par_sols_iso_zero {dsp} (ps ps' : canonical_par_sol dsp) :
+    cut_par_sol ps (lt_dsp_included (zero)) ≃@{FuncCat ((OrdDSCat dsp)ᵒᵖ) (Alg F)} ps' :=
+    MkIsoIc _ _ _.
+  Next Obligation.
+    intros dsp ps ps'.
+
+  Program Definition canonical_par_sols_iso {dsp} (ps ps' : canonical_par_sol dsp) :
+    ps ≃@{FuncCat ((OrdDSCat dsp)ᵒᵖ) (Alg F)} ps' :=
+    MkIsoIc _ _ _.
+  Next Obligation.
+    intros dsp ps ps'.
+    
+
+  Definition compat_zero {α} (ps : partial_solution (le_dsp α)) :=
+    cut_par_sol ps (le_dsp_included (MkDS (le_dsp α) (index_zero_minimum α)))
+    ≃@{FuncCat (OrdDSCat (le_dsp zero))ᵒᵖ (Alg F)}
+    extend_par_sol_lt_le par_sol_set_emp.
+
+
+  Lemma canonical_par_sols_iso {dsp} (ps : canonical_par_sol dsp)
+    {dsp'} (ps' : canonical_par_sol dsp') {α} (Hα : dsp α) (Hα' : dsp' α) :
+    
+
+  Definition can_par_sol_glue_func_o_map {dsp : downset_pred SI}
+    (pss : ∀ α, dsp α → canonical_par_sol (le_dsp α)) (α : downset dsp) : algebra F :=
+    pss α (ds_in_dsp α) ₒ (MkDS (le_dsp α) (reflexivity _)).
+
+  Definition can_par_sol_glue_func_h_map {dsp : downset_pred SI}
+    (pss : ∀ α, dsp α → canonical_par_sol (le_dsp α)) {α β : downset dsp}
+    (Hle : β ⪯ α) :
+    alg_hom (can_par_sol_glue_func_o_map pss α) (can_par_sol_glue_func_o_map pss β).
+    pose proof (pss α (ds_in_dsp α) ₕ (Hle : (MkDS (le_dsp α) Hle) ⪯ (MkDS (le_dsp α) (reflexivity _)))).
+    simpl in *.
+
+
+    :=
+    pss α (ds_in_dsp α) ₒ (MkDS (le_dsp α) (reflexivity _)).
+  
+  Program Definition can_par_sol_glue_func {dsp : downset_pred SI}
+    (pss : ∀ α, dsp α → canonical_par_sol (le_dsp α)) : functor ((OrdDSCat dsp)ᵒᵖ) (Alg F) :=
+    MkFunc (λ α, pss α (ds_in_dsp α) ₒ (MkDS (le_dsp α) (reflexivity _))) _ _ _ _.
+
+  Definition par_sols : ∀ α, canonical_par_sol (le_dsp α).
 
   Program Definition par_sol_set_func {dsp: downset_pred SI} (pss : partial_solution_set dsp) :
     functor ((OrdDSCat dsp)ᵒᵖ) C :=
@@ -379,17 +472,6 @@ Section solution.
             | right Heq => _
             end).
 
-
-
-  Definition par_sol_set_emp : partial_solution_set (lt_dsp zero) :=
-    MkParSolSet
-      (λ β, fun_on_empty_set β _)
-      (λ β, fun_on_empty_set β _)
-      (λ β, fun_on_empty_set β _)
-      (λ β, fun_on_empty_set β _)
-      (λ β, fun_on_empty_set β _)
-      (λ β, fun_on_empty_set β _)
-      (λ β, fun_on_empty_set β _).
 
 
 
@@ -584,13 +666,14 @@ zzzzzzzzzzzzzzzzzzz
 
 
 
-  Definition par_sol_set_emp : partial_solution_set (lt_dsp zero) :=
-    MkParSolSet
-      (λ β, fun_on_empty_set β _)
-      (λ β, fun_on_empty_set β _)
-      (λ β, fun_on_empty_set β _)
-      (λ β, fun_on_empty_set β _)
-      (λ β, fun_on_empty_set β _)
+
+  Program Definition par_sol_set_emp : partial_solution (lt_dsp zero) :=
+    MkParSol
+      (MkFunc
+         (λ β, fun_on_empty_set β _)
+         (λ β, fun_on_empty_set β _)
+         (λ β, fun_on_empty_set β _)
+         (λ β, fun_on_empty_set β _)
+         (λ β, fun_on_empty_set β _))
       (λ β, fun_on_empty_set β _)
       (λ β, fun_on_empty_set β _).
-
