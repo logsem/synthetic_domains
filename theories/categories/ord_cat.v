@@ -646,7 +646,7 @@ End cut_ord_ds_cat_nat.
 (*       pose A; *)
 (*       pose proof (@naturality _ _ _ _ (forward (isos α)) A) *)
 (*     end. *)
-    
+
 
 (*     rewrite /= /cut_ord_ds_cat_func_o_map /cut_ord_ds_cat_func_h_map /= in Hn. *)
 (*     rewrite -Hn. *)
@@ -661,7 +661,7 @@ End cut_ord_ds_cat_nat.
 (*     pose proof (@naturality _ _ _ _ (forward (isos α)) (MkDS (le_dsp _) (reflexivity _)) *)
 (*                   (MkDS (le_dsp _) Hle) ) as Hn; *)
 (*       rewrite /= /cut_ord_ds_cat_func_o_map /cut_ord_ds_cat_func_h_map /= in Hn. *)
-    
+
 
 
 (*  rewrite -Hn. *)
@@ -1466,17 +1466,48 @@ End basic_constructs.
 Section earlier_preserves.
   Context {SI : indexT}.
 
+  Program Definition earlier_prod_forward
+    (α1 : obj (PSh (OrdCat SI))) (α2 : obj (PSh (OrdCat SI))) :
+    natural (functor_compose (opposite_func (Succ SI)) (α1 ×ₒ α2))
+      (functor_compose (opposite_func (Succ SI)) α1
+         ×ₒ functor_compose (opposite_func (Succ SI)) α2) :=
+    (MkNat (λ α, setoid_id _) _).
+  Next Obligation. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
+
+  Program Definition earlier_prod_backward
+    (α1 : obj (PSh (OrdCat SI))) (α2 : obj (PSh (OrdCat SI))) :
+    natural (functor_compose (opposite_func (Succ SI)) α1
+               ×ₒ functor_compose (opposite_func (Succ SI)) α2)
+      (functor_compose (opposite_func (Succ SI)) (α1 ×ₒ α2))
+    :=
+    (MkNat (λ α, setoid_id _) _).
+  Next Obligation. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
+
+  Program Definition earlier_prod_nat :
+    (functor_compose (prod_func _) (earlier (SI := SI)))
+      ≃@{FuncCat (cat_prod (PSh (OrdCat SI)) (PSh (OrdCat SI)))
+           (PSh (OrdCat SI))}
+      (functor_compose (functor_prod earlier earlier) (prod_func _))
+    := MkIsoIc
+         (MkNat (λ α, earlier_prod_forward α.1 α.2) _)
+         (MkNat (λ α, earlier_prod_backward α.1 α.2) _)
+         _.
+  Next Obligation.
+    intros ???? [? ?] [? ?] [? ?]; simpl; setoid_subst.
+    reflexivity.
+  Qed.
+  Next Obligation.
+    intros ???? [? ?] [? ?] [? ?]; simpl; setoid_subst.
+    reflexivity.
+  Qed.
+  Next Obligation. split; simpl; repeat intros ?; simpl; done. Qed.
+
   Program Definition earlier_prod (F G : PreSheaf (OrdCat SI)) :
     earlier ₒ (F ×ₒ@{PSh (OrdCat SI)} G)
     ≃@{PSh (OrdCat SI)}
-    (earlier ₒ F) ×ₒ (earlier ₒ G) :=
-    MkIsoIc
-      (MkNat (λ α, setoid_id _) _)
-      (MkNat (λ α, setoid_id _) _)
-      _.
-  Next Obligation. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
-  Next Obligation. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
-  Next Obligation. split; simpl; repeat intros ?; simpl; done. Qed.
+    (earlier ₒ F) ×ₒ (earlier ₒ G) := natural_iso_proj
+                                        earlier_prod_nat
+                                        (F, G).
 
 End earlier_preserves.
 
@@ -1528,6 +1559,143 @@ Section later_preserves.
 End later_preserves.
 Global Arguments later_preserves_prods_nat _ : clear implicits.
 Global Arguments later_preserves_terminal_nat _ : clear implicits.
+
+Section later_preserves.
+  Context {SI : indexT}.
+
+  Local Opaque earlier later earlier_later_nat_iso
+    earlier_prod_nat iso_prod natural_iso_proj.
+
+  Definition earlier_later_prod_nat
+    : (prod_func _) ∘@{Cat} (functor_prod earlier (id (C := Cat) _))
+        ≃@{FuncCat (cat_prod (PSh (OrdCat SI)) (PSh (OrdCat SI)))
+             (PSh (OrdCat SI))}
+        (earlier ∘@{Cat} ((prod_func _)
+                            ∘@{Cat} (functor_prod (id (C := Cat) _) later)))
+    := isomorphic_sym
+         (isomorphic_trans (isomorphic_sym functor_compose_assoc_iso)
+            (isomorphic_trans
+               (functor_compose_iso_proper
+                  (isomorphic_refl _)
+                  earlier_prod_nat)
+               (isomorphic_trans functor_compose_assoc_iso
+                  (isomorphic_trans
+                     (functor_compose_iso_proper functor_prod_prod_iso
+                        (isomorphic_refl _))
+                     (functor_compose_iso_proper
+                        (functor_prod_iso_proper
+                           (isomorphic_sym functor_compose_left_id_iso)
+                           earlier_later_nat_iso)
+                        (isomorphic_refl _)))))).
+
+  Definition earlier_later_prod (F G : PreSheaf (OrdCat SI))
+    : earlier ₒ F ×ₒ G
+        ≃@{PSh (OrdCat SI)}
+        earlier ₒ (F ×ₒ (later ₒ G)) :=
+    natural_iso_proj earlier_later_prod_nat (F, G).
+
+
+  Program Definition later_preserves_exp_nat (Y : obj (PSh (OrdCat SI))) :
+    functor_compose (functor_fix_left exp_func ₒ Y) later
+      ≃@{FuncCat (PSh (OrdCat SI)) (PSh (OrdCat SI))}
+      functor_compose later (functor_fix_left exp_func ₒ (later ₒ Y)) :=
+    fully_faithful_iso (in_right_of_hom _ _)
+      (isomorphic_sym
+         (isomorphic_trans
+            (adj_compose_swap
+               (id_functor _)
+               later
+               (prod_exp_adj (later ₒ Y)))
+            (isomorphic_trans
+               (functor_compose_iso_proper
+                  (functor_prod_iso_proper
+                     (isomorphic_refl _)
+                     functor_compose_left_id_iso)
+                  (isomorphic_refl _))
+               (isomorphic_trans
+                  (adj_compose_swap
+                     (functor_compose (id_functor _)
+                        (opposite_func
+                           (functor_fix_right (prod_func _) ₒ (later ₒ Y))))
+                     (id_functor _)
+                     later_adj)
+                  (isomorphic_sym
+                     (isomorphic_trans
+                        (adj_compose_swap
+                           (id_functor _)
+                           (functor_fix_left_o_map exp_func Y)
+                           later_adj)
+                        (isomorphic_trans
+                           (functor_compose_iso_proper
+                              (functor_prod_iso_proper
+                                 (isomorphic_refl _)
+                                 (functor_compose_left_id_iso))
+                              (isomorphic_refl _))
+                           (isomorphic_trans
+                              (adj_compose_swap
+                                 (functor_compose (id_functor _)
+                                    (opposite_func earlier))
+                                 (id_functor _)
+                                 (prod_exp_adj Y))
+                              (functor_compose_iso_proper
+                                 (functor_prod_iso_proper
+                                    (isomorphic_trans
+                                       (functor_compose_iso_proper
+                                          (isomorphic_sym
+                                             functor_compose_left_id_iso)
+                                          (isomorphic_refl _))
+                                       (isomorphic_sym
+                                          (isomorphic_trans
+                                             (functor_compose_iso_proper
+                                                (isomorphic_sym
+                                                   functor_compose_left_id_iso)
+                                                (isomorphic_refl _))
+                                             (isomorphic_trans
+                                                functor_opposite_compose
+                                                (isomorphic_sym
+                                                   (isomorphic_trans
+                                                      functor_opposite_compose
+                                                      (functor_opposite_proper
+                                                         (isomorphic_trans
+                                                            functor_fix_right_pre_comp
+                                                            (isomorphic_sym
+                                                               (isomorphic_trans
+                                                                  functor_fix_right_post_comp
+                                                                  (isomorphic_sym
+                                                                     (isomorphic_trans
+                                                                        (natural_iso_proj
+                                                                           (functor_fix_right_proper_iso
+                                                                              earlier_later_prod_nat) _)
+                                                                        (isomorphic_sym
+                                                                           (isomorphic_trans functor_fix_right_commute
+                                                                              (natural_iso_proj
+                                                                                 (functor_fix_right_proper_iso
+                                                                                    (isomorphic_trans
+                                                                                       functor_compose_assoc_iso
+                                                                                       (isomorphic_refl _))) _)))))))))))))))
+                                    (isomorphic_refl _))
+                                 (isomorphic_refl _)))))))))).
+  Next Obligation.
+    intros; reflexivity.
+  Defined.
+  Next Obligation.
+    intros; reflexivity.
+  Defined.
+  Next Obligation.
+    intros; reflexivity.
+  Defined.
+  Next Obligation.
+    intros; reflexivity.
+  Defined.
+  (* Solve All Obligations with reflexivity. *)
+
+  Definition later_preserves_exp (F G : obj (PSh (OrdCat SI)))
+    : later ₒ (G ↑ₒ F)
+        ≃
+        ((later ₒ G) ↑ₒ (later ₒ F)) :=
+    natural_iso_proj (later_preserves_exp_nat F) G.
+
+End later_preserves.
 
 Section earlier_later_earlier_later_prod.
   Local Transparent right_adj_preserves_prods.
@@ -1695,7 +1863,7 @@ Section fixpoint.
       (index_zero_minimum _,
        setoid_conv (eq_sym (later_func_o_map_zero X)) ()).
 
-  Lemma fx_raw_zero_ext X 
+  Lemma fx_raw_zero_ext X
     {α} (η : natural (yoneda ₒ α ×ₒ (later ₒ X)) X)
     {α'} (η' : natural (yoneda ₒ α' ×ₒ (later ₒ X)) X) :
     (∀ Hle Hle' x, (η ₙ zero) (Hle, x) ≡ (η' ₙ zero) (Hle', x)) →

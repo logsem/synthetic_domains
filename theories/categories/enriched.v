@@ -8,8 +8,8 @@ Unset Universe Minimization ToSet.
 
 Opaque later next earlier_later_nat_iso.
 
-Class LocallyContractiveFunctor {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
-  (F : functor C C) := MkLocContrFunc {
+Class LocallyContractiveFunctor {SI : indexT} {C D : category} `{!Enriched C (PSh (OrdCat SI))} `{!Enriched D (PSh (OrdCat SI))}
+  (F : functor C D) := MkLocContrFunc {
   contr_enriched :: EnrichedFunctor F;
   contr_func_h_map : ∀ a b : obj C, hom (later ₒ (enr_hom a b)) (enr_hom (F ₒ a) (F ₒ b));
   contr_func_h_map_is_h_map :
@@ -24,11 +24,11 @@ Class LocallyContractiveFunctor {SI : indexT} {C : category} `{!Enriched C (PSh 
   contr_func_h_map_id : ∀ a,
   (contr_func_h_map a a) ∘ (later ₕ ⌜id a⌝) ∘ (next ₙ (1ₒ)) ≡ ⌜id (F ₒ a)⌝
 }.
-Global Arguments MkLocContrFunc {_ _ _ _ _} _ _ _ _.
-Global Arguments contr_func_h_map {_ _ _} _ {_} _ _.
-Global Arguments contr_func_h_map_is_h_map {_ _ _} _ {_} _ _.
-Global Arguments contr_func_h_map_comp {_ _ _} _ {_} _ _ _.
-Global Arguments contr_func_h_map_id {_ _ _} _ {_} _.
+Global Arguments MkLocContrFunc {_ _ _ _ _ _ _} _ _ _ _.
+Global Arguments contr_func_h_map {_ _ _ _ _} _ {_} _ _.
+Global Arguments contr_func_h_map_is_h_map {_ _ _ _ _} _ {_} _ _.
+Global Arguments contr_func_h_map_comp {_ _ _ _ _} _ {_} _ _ _.
+Global Arguments contr_func_h_map_id {_ _ _ _ _} _ {_} _.
 
 Global Instance locally_contractive_contractive
   {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} (F : functor C C)

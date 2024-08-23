@@ -178,7 +178,7 @@ Proof.
     intros ???; rewrite hom_trans_trans Hheq; done.
 Qed.
 
-Global Instance functor_compose_proepr C D E :
+Global Instance functor_compose_proper C D E :
   Proper ((≡) ==> (≡) ==> (≡)) (@functor_compose C D E).
 Proof.
   intros F G [Hoeq Hheq] F' G' [Hoeq' Hheq']; simpl in *.
@@ -536,6 +536,15 @@ Next Obligation.
   repeat intros ?; split; rewrite /=.
   - rewrite (iso_lr (is_iso iso1)) (iso_lr (is_iso iso2)) //.
   - rewrite (iso_rl (is_iso iso1)) (iso_rl (is_iso iso2)) //.
+Qed.
+Fail Next Obligation.
+
+Program Definition iso_op {C c d} (iso : c ≃@{C} d) : c ≃@{C ᵒᵖ} d :=
+  MkIsoIc (backward iso) (forward iso) _.
+Next Obligation.
+  intros ??? iso; split.
+  - apply (iso_lr (is_iso iso)).
+  - apply (iso_rl (is_iso iso)).
 Qed.
 Fail Next Obligation.
 
@@ -2232,9 +2241,281 @@ Proof.
     simpl in Hbf; rewrite Hbf //.
 Qed.
 
+Lemma right_adj_preserves_prods_backward_comm {C D}
+  `{!HasProducts C, !HasProducts D} {F : functor C D} {G : functor D C}
+  (H : adjunction F G) (a b : obj D)
+  : (backward (right_adj_preserves_prods H)) ₙ (b, a) ∘ commutator (G ₒ a) (G ₒ b)
+      ≡ G ₕ (commutator a b) ∘ ((backward (right_adj_preserves_prods H))ₙ (a, b)).
+Proof.
+  rewrite /right_adj_preserves_prods //=.
+  rewrite !right_id.
+  rewrite -(right_id ((forward H ₙ (G ₒ a ×ₒ (G ₒ b), a ×ₒ b))
+        (<< (backward H ₙ (G ₒ a ×ₒ (G ₒ b), a)) (prj1 (product_of (G ₒ a) (G ₒ b))),
+          (backward H ₙ (G ₒ a ×ₒ (G ₒ b), b)) (prj2 (product_of (G ₒ a) (G ₒ b))) >>))).
+  rewrite -commutator_involutive.
+  rewrite -!comp_assoc.
+  epose proof (@naturality _ _ _ _ (forward H)
+                 (G ₒ a ×ₒ (G ₒ b), a ×ₒ b)
+                 (G ₒ b ×ₒ (G ₒ a), b ×ₒ a) (commutator _ _, commutator a b)
+                 (<< (backward H ₙ (G ₒ a ×ₒ (G ₒ b), a)) (prj1 (product_of (G ₒ a) (G ₒ b))),
+      (backward H ₙ (G ₒ a ×ₒ (G ₒ b), b)) (prj2 (product_of (G ₒ a) (G ₒ b))) >>)
+                 _ (reflexivity _))
+    as Hn'.
+  simpl in Hn'.
+  rewrite -Hn'; clear Hn'.
+  rewrite commute_hom_to_prod.
+  do 2 f_equiv.
+  rewrite hom_to_prod_comp_r.
+  f_equiv.
+  - epose proof (@naturality _ _ _ _ (backward H) (G ₒ a ×ₒ (G ₒ b), b)
+                   (G ₒ b ×ₒ (G ₒ a), b)
+                   (commutator _ _, id _) (prj2 (product_of (G ₒ a) (G ₒ b))) _ (reflexivity _)) as Hn.
+    simpl in Hn.
+    rewrite left_id in Hn.
+    rewrite <-Hn; clear Hn.
+    rewrite h_map_id.
+    rewrite left_id.
+    rewrite hom_to_prod_prj2.
+    reflexivity.
+  - epose proof (@naturality _ _ _ _ (backward H) (G ₒ a ×ₒ (G ₒ b), a)
+                   (G ₒ b ×ₒ (G ₒ a), a)
+                   (commutator _ _, id _) (prj1 (product_of (G ₒ a) (G ₒ b))) _ (reflexivity _)) as Hn.
+    simpl in Hn.
+    rewrite left_id in Hn.
+    rewrite <-Hn; clear Hn.
+    rewrite h_map_id.
+    rewrite left_id.
+    rewrite hom_to_prod_prj1.
+    reflexivity.
+Qed.
+
+Lemma right_adj_preserves_prods_backward_prj1 {C D}
+  `{!HasProducts C, !HasProducts D} {F : functor C D} {G : functor D C}
+  (H : adjunction F G) (a b : obj D) (x y : obj C) (f : hom x (G ₒ a)) (g : hom y (G ₒ b))
+  : ((G ₕ (prj1 _) : hom (G ₒ (a ×ₒ b)) (G ₒ a))
+       ∘ ((backward (right_adj_preserves_prods H)) ₙ (a, b) : hom (G ₒ a ×ₒ (G ₒ b)) (G ₒ (a ×ₒ b)))
+       ∘ (f ×ₕ g))
+      ≡ (f ∘ (prj1 _) : hom (x ×ₒ y) (G ₒ a)).
+Proof.
+  rewrite /right_adj_preserves_prods //=.
+  rewrite !right_id.
+  unshelve epose proof (@naturality _ _ _ _ (forward H)
+                 (G ₒ a ×ₒ (G ₒ b), a ×ₒ b)
+                 (G ₒ a ×ₒ (G ₒ b), a)
+                 (id _, prj1 (product_of a b))
+                 (<< (backward H ₙ (G ₒ a ×ₒ (G ₒ b), a)) (prj1 (product_of (G ₒ a) (G ₒ b))),
+                   (backward H ₙ (G ₒ a ×ₒ (G ₒ b), b)) (prj2 (product_of (G ₒ a) (G ₒ b))) >>) _
+                 (reflexivity _)) as Hn.
+  simpl in Hn.
+  rewrite right_id in Hn.
+  rewrite <-Hn; clear Hn.
+  rewrite hom_to_prod_prj1.
+  rewrite h_map_id right_id.
+  pose proof (iso_rl (is_iso (natural_iso_proj H (G ₒ a ×ₒ (G ₒ b), a)))
+                (prj1 (product_of (G ₒ a) (G ₒ b))) _ (reflexivity _)) as HEQ.
+  simpl in HEQ; rewrite HEQ; clear HEQ.
+  apply hom_prod_prj1.
+Qed.
+
+Lemma right_adj_preserves_prods_backward_prj2 {C D}
+  `{!HasProducts C, !HasProducts D} {F : functor C D} {G : functor D C}
+  (H : adjunction F G) (a b : obj D) (x y : obj C) (f : hom x (G ₒ a)) (g : hom y (G ₒ b))
+  : ((G ₕ (prj2 _) : hom (G ₒ (a ×ₒ b)) (G ₒ b))
+       ∘ ((backward (right_adj_preserves_prods H)) ₙ (a, b) : hom (G ₒ a ×ₒ (G ₒ b)) (G ₒ (a ×ₒ b)))
+       ∘ (f ×ₕ g))
+      ≡ (g ∘ (prj2 _) : hom (x ×ₒ y) (G ₒ b)).
+Proof.
+  rewrite /right_adj_preserves_prods //=.
+  rewrite !right_id.
+  unshelve epose proof (@naturality _ _ _ _ (forward H)
+                 (G ₒ a ×ₒ (G ₒ b), a ×ₒ b)
+                 (G ₒ a ×ₒ (G ₒ b), b)
+                 (id _, prj2 (product_of a b))
+                 (<< (backward H ₙ (G ₒ a ×ₒ (G ₒ b), a)) (prj1 (product_of (G ₒ a) (G ₒ b))),
+                   (backward H ₙ (G ₒ a ×ₒ (G ₒ b), b)) (prj2 (product_of (G ₒ a) (G ₒ b))) >>) _
+                 (reflexivity _)) as Hn.
+  simpl in Hn.
+  rewrite right_id in Hn.
+  rewrite <-Hn; clear Hn.
+  rewrite hom_to_prod_prj2.
+  rewrite h_map_id right_id.
+  pose proof (iso_rl (is_iso (natural_iso_proj H (G ₒ a ×ₒ (G ₒ b), b)))
+                (prj2 (product_of (G ₒ a) (G ₒ b))) _ (reflexivity _)) as HEQ.
+  simpl in HEQ; rewrite HEQ; clear HEQ.
+  apply hom_prod_prj2.
+Qed.
+
+Opaque right_adj_preserves_prods.
+Program Definition right_adj_preserves_prods_trivial_prod
+  `{!HasProducts C, !HasProducts D} {F : functor C D} {G : functor D C}
+  (H : adjunction F G) (c : obj D)
+  : product (G ₒ c) (G ₒ c) :=
+  MkProd (G ₒ (c ×ₒ c)) (G ₕ (prj1 _)) (G ₕ (prj2 _))
+    (λ d f g, (backward (right_adj_preserves_prods H)ₙ (c, c) ∘ (<< f, g >>))) _ _ _.
+Next Obligation.
+  intros ????????.
+  intros d p1 p2; simpl.
+  rewrite -comp_assoc.
+  rewrite -{2}(right_id p1).
+  rewrite -(right_id p2).
+  rewrite hom_to_prod_comp.
+  rewrite -!comp_assoc.
+  rewrite right_adj_preserves_prods_backward_prj1.
+  rewrite !comp_assoc.
+  rewrite hom_to_prod_prj1.
+  rewrite right_id.
+  reflexivity.
+Qed.
+Next Obligation.
+  intros ????????.
+  intros d p1 p2; simpl.
+  rewrite -comp_assoc.
+  rewrite -(right_id p1).
+  rewrite -{2}(right_id p2).
+  rewrite hom_to_prod_comp.
+  rewrite -!comp_assoc.
+  rewrite right_adj_preserves_prods_backward_prj2.
+  rewrite !comp_assoc.
+  rewrite hom_to_prod_prj2.
+  rewrite right_id.
+  reflexivity.
+Qed.
+Next Obligation.
+  intros ????????.
+  intros ???? HEQ1 HEQ2; simpl.
+  rewrite HEQ1 HEQ2.
+  rewrite -{1}(left_id h).
+  rewrite -(iso_lr (is_iso (natural_iso_proj (right_adj_preserves_prods H) (c, c)))).
+  rewrite !comp_assoc.
+  f_equiv; last done.
+  simpl.
+  rewrite right_adj_preserves_prods_forward.
+  simpl.
+  rewrite hom_to_prod_comp_r.
+  reflexivity.
+Qed.
+Transparent right_adj_preserves_prods.
+
+Opaque right_adj_preserves_prods.
+Lemma right_adj_preserves_prods_backward_diag {C D}
+  `{!HasProducts C, !HasProducts D} {F : functor C D} {G : functor D C}
+  (H : adjunction F G) (c : obj D)
+  : G ₕ << id c, id c >>
+                   ≡ backward (right_adj_preserves_prods H)ₙ (c, c)
+                   ∘ << id (G ₒ c), id (G ₒ c) >>.
+Proof.
+  eapply (prd_hom_unique' (right_adj_preserves_prods_trivial_prod H c));
+    [reflexivity | reflexivity | |]; simpl.
+  - rewrite -(left_id (id (G ₒ c))).
+    rewrite hom_to_prod_comp.
+    rewrite -!comp_assoc.
+    rewrite right_adj_preserves_prods_backward_prj1.
+    rewrite left_id.
+    rewrite -h_map_comp.
+    rewrite !hom_to_prod_prj1.
+    rewrite h_map_id.
+    reflexivity.
+  - rewrite -(left_id (id (G ₒ c))).
+    rewrite hom_to_prod_comp.
+    rewrite -!comp_assoc.
+    rewrite right_adj_preserves_prods_backward_prj2.
+    rewrite left_id.
+    rewrite -h_map_comp.
+    rewrite !hom_to_prod_prj2.
+    rewrite h_map_id.
+    reflexivity.
+Qed.
+Transparent right_adj_preserves_prods.
+
+Opaque right_adj_preserves_prods.
+Lemma right_adj_preserves_prods_backward_prd_hom {C D}
+  `{!HasProducts C, !HasProducts D} {F : functor C D} {G : functor D C}
+  (H : adjunction F G) (a b c : obj D) (f : hom c a) (g : hom c b)
+  : (G ₕ (<< f, g>>))
+      ≡ (((backward (right_adj_preserves_prods H) ₙ (a, b)))
+           ∘ (<<(G ₕ f), (G ₕ g)>>)).
+Proof.
+  rewrite -(right_id (G ₕ f)).
+  rewrite -(right_id (G ₕ g)).
+  rewrite hom_to_prod_comp.
+  rewrite -comp_assoc.
+  epose proof (@naturality _ _ _ _
+                 (backward (right_adj_preserves_prods H))
+                 (c, c)
+                 (a, b)
+                 (f, g)) as Hn.
+  simpl in Hn; rewrite Hn; clear Hn.
+  rewrite -{1}(right_id f).
+  rewrite -{1}(right_id g).
+  rewrite hom_to_prod_comp.
+  rewrite h_map_comp.
+  rewrite !comp_assoc.
+  f_equiv.
+  apply right_adj_preserves_prods_backward_diag.
+Qed.
+Transparent right_adj_preserves_prods.
+
+Opaque right_adj_preserves_prods.
+Lemma right_adj_preserves_prods_backward_assoc {C D}
+  `{!HasProducts C, !HasProducts D} {F : functor C D} {G : functor D C}
+  (H : adjunction F G) (a b c : obj D) :
+  (((backward (right_adj_preserves_prods H) ₙ (a ×ₒ b, c)))
+     ∘ (((backward (right_adj_preserves_prods H) ₙ (a, b))) ×ₕ id (G ₒ _))
+     ∘ associator' (G ₒ a) (G ₒ b) (G ₒ c))
+    ≡ ((G ₕ (associator' a b c))
+         ∘ ((backward (right_adj_preserves_prods H) ₙ (a, b ×ₒ c)))
+         ∘ (id (G ₒ a)
+              ×ₕ (backward (right_adj_preserves_prods H) ₙ (b, c)))).
+Proof.
+  unfold associator'.
+  rewrite (right_adj_preserves_prods_backward_prd_hom H).
+  rewrite !comp_assoc.
+  f_equiv; last done.
+  rewrite -hom_to_prod_comp.
+  rewrite hom_to_prod_comp_r.
+  f_equiv.
+  - rewrite (right_adj_preserves_prods_backward_prd_hom H).
+    rewrite !comp_assoc.
+    f_equiv; last done.
+    rewrite hom_to_prod_comp_r.
+    f_equiv.
+    + rewrite -!comp_assoc.
+      rewrite right_adj_preserves_prods_backward_prj1.
+      rewrite left_id.
+      reflexivity.
+    + rewrite h_map_comp.
+      rewrite (comp_assoc _ (G ₕ prj2 (product_of a (b ×ₒ c)))).
+      rewrite -(comp_assoc _ _ (G ₕ prj2 (product_of a (b ×ₒ c)))).
+      rewrite right_adj_preserves_prods_backward_prj2.
+      simpl.
+      rewrite -comp_assoc.
+      f_equiv.
+      rewrite -(right_id (G ₕ prj1 (product_of b c)
+                            ∘ (backward (right_adj_preserves_prods H)ₙ (b, c)))).
+      rewrite -hom_prod_id.
+      rewrite right_adj_preserves_prods_backward_prj1.
+      rewrite left_id.
+      reflexivity.
+  - rewrite left_id.
+    rewrite h_map_comp.
+    rewrite (comp_assoc _ (G ₕ prj2 (product_of a (b ×ₒ c)))).
+    rewrite -(comp_assoc _ _ (G ₕ prj2 (product_of a (b ×ₒ c)))).
+    rewrite right_adj_preserves_prods_backward_prj2.
+    simpl.
+    rewrite -comp_assoc.
+    f_equiv.
+    rewrite -(right_id (G ₕ prj2 (product_of b c)
+                          ∘ (backward (right_adj_preserves_prods H)ₙ (b, c)))).
+    rewrite -hom_prod_id.
+    rewrite right_adj_preserves_prods_backward_prj2.
+    rewrite left_id.
+    reflexivity.
+Qed.
+Transparent right_adj_preserves_prods.
+
 Global Opaque right_adj_preserves_prods.
 
-(* Right adjoints preserve terminal objects. *)(* Right adjoints preserve products. *)
+(* Right adjoints preserve terminal objects. *)
 
 Program Definition hom_to_term_iso {A B C} `{!HasTerm B} `{!HasTerm C}
   (F : functor A (B ᵒᵖ)) (G : functor A (C ᵒᵖ)) :
@@ -2526,6 +2807,70 @@ End setoid_limit.
 Global Program Instance setoid_complete : Complete Setoid :=
   λ _ F, MkTerm (setoid_lim_cone F) (setoid_lim_cone_is_limiting_cone F).
 
+Section setoid_colimit.
+  Context {J} (F : functor J (Setoid ᵒᵖ)).
+
+  Program Definition setoid_colim_obj :=
+    MkSetoid
+      (sigT (F ₒ))
+      (rtsc
+         (λ X Y, (exists (ϕ : hom (J ᵒᵖ) (projT1 X) (projT1 Y)),
+                    (F ₕ ϕ) (projT2 X) ≡ (projT2 Y))))
+      _.
+
+  Program Definition setoid_colim_side : ∀ j, hom Setoid (F ₒ j) setoid_colim_obj :=
+  λ j, λset x, existT j x.
+  Next Obligation.
+    intros ????; apply rtsc_lr; exists (id _); setoid_subst; by rewrite h_map_id.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition setoid_colim_cone : cone F :=
+    MkCone setoid_colim_obj setoid_colim_side _.
+  Next Obligation.
+    intros ?? f ?? ->.
+    rewrite /setoid_lim_side /=.
+    apply rtsc_lr.
+    exists f.
+    reflexivity.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition setoid_fun_from_setoid_colim_cone (cn : cone F) :
+    setoid_fun (vertex setoid_colim_cone) (vertex cn) :=
+    λset x, (side cn (projT1 x) (projT2 x)).
+  Next Obligation.
+    intros ? ?? H.
+    rewrite /=.
+    induction H as [| ??? H ? IH].
+    - reflexivity.
+    - rewrite -IH.
+      destruct H as [[ϕ H] | [ϕ H]];
+        by rewrite (side_commutes cn ϕ) //= H.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition cone_hom_from_setoid_colim_cone (cn : cone F) :
+    cone_hom cn setoid_colim_cone :=
+    MkConeHom (setoid_fun_from_setoid_colim_cone cn) _.
+  Solve All Obligations with by intros ???? ->.
+
+  Program Definition setoid_colim_cone_is_colimiting_cone :
+    is_limiting_cone setoid_colim_cone :=
+    MkIsTerm setoid_colim_cone cone_hom_from_setoid_colim_cone _.
+  Next Obligation.
+    intros cn [chm chmc] x y Heq.
+    pose proof (chmc (projT1 y) (projT2 y) (projT2 y) (reflexivity _)) as H.
+    simpl in *.
+    by rewrite H Heq -sigT_eta.
+  Qed.
+  Fail Next Obligation.
+
+End setoid_colimit.
+
+Global Program Instance setoid_cocomplete : Complete (Setoid ᵒᵖ) :=
+  λ _ F, MkTerm (setoid_colim_cone F) (setoid_colim_cone_is_colimiting_cone F).
+
 Section func_cat_limit.
   Context {C D} `{!Complete D} {J} (F : functor J (FuncCat C D)).
 
@@ -2763,6 +3108,291 @@ Definition func_cat_complete {C D} `{!Complete D} : Complete (FuncCat C D) :=
 
 Global Program Instance psh_complete C : Complete (PSh C) := func_cat_complete.
 
+Section func_cat_colimit.
+  Context {C D} `{!Complete (D ᵒᵖ)} {J} (F : functor J ((FuncCat C D) ᵒᵖ)).
+
+  Ltac rewrite_cocone_hom_commutes_back :=
+    match goal with
+      |- context [cone_hom_map ?c ∘ side _ ?j] =>
+        let H := fresh "H" in
+        pose proof (cone_hom_commutes c j)
+          as H; simpl in H; rewrite -H; clear H
+    | |- context [cone_hom_map ?c ∘ ic_side _ ?j] =>
+        let H := fresh "H" in
+        pose proof (cone_hom_commutes c j)
+          as H; simpl in H; rewrite H; clear H
+    end.
+
+  Program Definition pointwise_func_colim : ∀ c : obj C, functor J (D ᵒᵖ) :=
+    λ c, MkFunc (λ j, (F ₒ j) ₒ c) (λ _ _ f, F ₕ f ₙ c) _ _ _.
+  Solve All Obligations with
+    repeat first [intros ->|intros ?]; rewrite /= ?h_map_comp ?h_map_id //=.
+  Fail Next Obligation.
+
+  Definition func_colimit_func_o_map (c : obj C) : obj (D ᵒᵖ) :=
+    vertex (term (complete (pointwise_func_colim c))).
+
+  Program Definition cocone_on_pointwise_func_colim
+    {c c' : obj (C ᵒᵖ)} (f : hom c c') :
+    cone (pointwise_func_colim c') :=
+    MkCone (func_colimit_func_o_map c)
+      (λ j, ((F ₒ j)ₕ f) ∘ (side (term (complete (pointwise_func_colim c))) j)) _.
+  Next Obligation.
+    intros ????? g; rewrite /=. rewrite comp_assoc -naturality -comp_assoc.
+    rewrite (side_commutes (term (complete (pointwise_func_colim c))) g).
+    reflexivity.
+  Qed.
+  Fail Next Obligation.
+
+  Definition func_colimit_func_h_map {c c' : obj (C ᵒᵖ)} (f : hom c c') :
+    hom (func_colimit_func_o_map c) (func_colimit_func_o_map c') :=
+    (cone_hom_map
+       (bang (term_is_terminal (complete (pointwise_func_colim c')))
+          (cocone_on_pointwise_func_colim f))).
+
+  Global Instance func_colimit_func_h_map_proper (c c' : obj (C ᵒᵖ)) :
+    Proper ((≡) ==> (≡)) (@func_colimit_func_h_map c c').
+  Proof.
+    rewrite /func_colimit_func_h_map; intros f g Heq.
+    apply (hom_to_limit_unique
+             _ _ _ (limit_is_limit (complete (pointwise_func_colim c')))
+             (cone_is_cone (cocone_on_pointwise_func_colim f))).
+    - intros ?.
+      simpl; rewrite_cocone_hom_commutes_back.
+      reflexivity.
+    - intros ?.
+      simpl; rewrite_cocone_hom_commutes_back.
+      rewrite Heq.
+      reflexivity.
+  Qed.
+
+  Program Definition func_colimit_func : obj ((FuncCat C D) ᵒᵖ) :=
+    MkFunc func_colimit_func_o_map _ _ _ _.
+  Next Obligation.
+    intros a b c f g; rewrite /func_colimit_func_h_map.
+    apply (hom_to_limit_unique
+             _ _ _ (limit_is_limit (complete (pointwise_func_colim a)))
+             (cone_is_cone (cocone_on_pointwise_func_colim (g ∘ f)))).
+    - intros ?; simpl; rewrite_cocone_hom_commutes_back; done.
+    - intros ?; rewrite -comp_assoc; simpl; rewrite_cocone_hom_commutes_back; simpl.
+      rewrite -comp_assoc.
+      rewrite_cocone_hom_commutes_back.
+      rewrite h_map_comp comp_assoc //.
+  Qed.
+  Next Obligation.
+    intros c; rewrite /func_colimit_func_h_map.
+    apply (hom_to_limit_unique
+             _ _ _ (limit_is_limit (complete (pointwise_func_colim c)))
+             (cone_is_cone (cocone_on_pointwise_func_colim (id c)))).
+    - intros ?; rewrite -cone_hom_commutes //.
+    - intros ?; rewrite /= h_map_id left_id right_id //.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition func_colimit_cocone_side (j : obj J)
+    : natural (F ₒ j) func_colimit_func :=
+    MkNat (λ c, side (term (complete (pointwise_func_colim c))) j) _.
+  Next Obligation.
+    intros j a b f; rewrite /= /func_colimit_func_h_map /=.
+    rewrite_cocone_hom_commutes_back.
+    reflexivity.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition func_colimit_cocone : cone F :=
+    MkCone func_colimit_func func_colimit_cocone_side _.
+  Next Obligation.
+    intros ????; rewrite /= side_commutes // //=.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition func_cocone_to_cocone (cn : cone F) c : cone (pointwise_func_colim c) :=
+    MkCone (vertex cn ₒ c) (λ j, (side cn j) ₙ c) _.
+  Next Obligation.
+    repeat intros ?; apply (side_commutes cn).
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition func_cocone_hom_pointwise {cn cn' : cone F}
+    c (h : cone_hom cn cn') :
+    cone_hom (func_cocone_to_cocone cn c) (func_cocone_to_cocone cn' c) :=
+    MkConeHom (cone_hom_map h ₙ c) _.
+  Next Obligation. repeat intros ?; apply (cone_hom_commutes h). Qed.
+  Fail Next Obligation.
+
+  Global Instance func_cocone_hom_pointwise_proper cn cn' c :
+    Proper ((≡) ==> (≡)) (@func_cocone_hom_pointwise cn cn' c).
+  Proof.
+    intros ???; rewrite /func_cocone_hom_pointwise /=.
+    rewrite /equiv /cone_hom_eq /=; solve_by_equiv_rewrite.
+  Qed.
+
+  Program Definition func_cocone_to_colimit_pointwise {cn : cone F}
+    (h : cone_hom cn func_colimit_cocone) c :
+    cone_hom (func_cocone_to_cocone cn c) (term (complete (pointwise_func_colim c))) :=
+    MkConeHom (cone_hom_map h ₙ c) _.
+  Next Obligation. repeat intros ?; apply (cone_hom_commutes h). Qed.
+  Fail Next Obligation.
+
+  Program Definition cocone_hom_to_func_colimit_cocone (cn : cone F) : cone_hom cn func_colimit_cocone :=
+    MkConeHom
+      (MkNat (λ c, cone_hom_map (bang (term_is_terminal (complete (pointwise_func_colim c)))
+        (func_cocone_to_cocone cn c))) _)
+      _.
+  Next Obligation.
+    intros cn a b f; simpl in *.
+    rewrite /func_limit_func_h_map /=.
+    apply (hom_to_limit_unique
+             _ _ _ (limit_is_limit (complete (pointwise_func_colim a)))
+             (cone_is_cone (@extend_cone _ _ _ _ (func_cocone_to_cocone cn a) (vertex cn ₕ f)))).
+    - intros ?; rewrite /=.
+      rewrite comp_assoc.
+      simpl.
+      epose proof (@cone_hom_commutes _ _ _
+                     _
+                     (term (complete (pointwise_func_colim a)))
+                     (bang (term_is_terminal (complete (pointwise_func_colim a))) (cocone_on_pointwise_func_colim f))) as H.
+      simpl in H.
+      rewrite -H.
+      rewrite -naturality //.
+      rewrite -comp_assoc.
+      rewrite_cocone_hom_commutes_back.
+      reflexivity.
+    - intros ?; rewrite /= comp_assoc.
+      rewrite_cocone_hom_commutes_back.
+      reflexivity.
+  Qed.
+  Next Obligation.
+    intros cn j c; simpl.
+    rewrite_cocone_hom_commutes_back.
+    reflexivity.
+  Qed.
+  Fail Next Obligation.
+
+  Program Definition func_colimit_cocone_is_colimiting_cocone : is_limiting_cone func_colimit_cocone :=
+    MkIsTerm func_colimit_cocone cocone_hom_to_func_colimit_cocone _.
+  Next Obligation.
+    intros cn f c.
+    apply (bang_unique (term_is_terminal (complete (pointwise_func_colim c)))
+             (func_cocone_to_colimit_pointwise f c)).
+  Qed.
+  Fail Next Obligation.
+
+  Definition func_colimit : limit F
+    := MkTerm _ func_colimit_cocone_is_colimiting_cocone.
+
+  Program Definition func_cocone_to_cocone_preserves_isos
+    {cn cn' : cone F} (iso : cn ≃@{ConeCat F} cn') c :
+    func_cocone_to_cocone cn c
+      ≃@{ConeCat (pointwise_func_colim c)} func_cocone_to_cocone cn' c :=
+    MkIsoIc ((func_cocone_hom_pointwise c (forward iso)))
+      (func_cocone_hom_pointwise c (backward iso)) _.
+  Next Obligation.
+    intros; split; simpl.
+    - pose proof (iso_lr (is_iso iso)).
+      match goal with
+      Heq : ?A ≡ ?B |- _ =>
+        assert (func_cocone_hom_pointwise c A ≡ func_cocone_hom_pointwise c B)
+        by rewrite Heq //
+      end; done.
+    - pose proof (iso_rl (is_iso iso)).
+      match goal with
+      Heq : ?A ≡ ?B |- _ =>
+        assert (func_cocone_hom_pointwise c A ≡ func_cocone_hom_pointwise c B)
+        by rewrite Heq //
+      end; done.
+  Qed.
+
+  Program Definition func_cocone_to_cocone_func_colimit_cocone_iso c :
+    (func_cocone_to_cocone func_colimit_cocone c)
+      ≃@{ConeCat (pointwise_func_colim c)}
+    (term (complete (pointwise_func_colim c))) :=
+    MkIsoIc (MkConeHom (id _) _) (MkConeHom (id _) _) _.
+  Next Obligation. repeat intros; rewrite right_id //. Qed.
+  Next Obligation. repeat intros; rewrite right_id //. Qed.
+  Next Obligation. repeat intros; split; rewrite /= /equiv /cone_hom_eq /= right_id //. Qed.
+
+  Definition func_cat_colimits_pointwise {L : functor C D} (il : is_limit F L) c :
+    is_limit (pointwise_func_colim c) (L ₒ c) :=
+    MkIsLimit (cone_is_cone (func_cocone_to_cocone (cone_of_is_cone (il_is_cone il)) c))
+      (iso_cones_equi_limit
+         (func_cocone_to_cocone_preserves_isos
+            (is_term_unique func_colimit_cocone_is_colimiting_cocone (il_is_limiting_cone F L il)) c)
+         (iso_cones_equi_limit (isomorphic_sym (func_cocone_to_cocone_func_colimit_cocone_iso c))
+            (term_is_terminal (complete (pointwise_func_colim c))))).
+
+  Record coherent_partial_cocone c :=
+    MkCohParCocone {
+        coh_par_cocone : cone (pointwise_func_colim c);
+        coh_par_cocone_down c' (f : hom c c') : cone (pointwise_func_colim c');
+        coh_par_cocone_hom c' (f : hom c c') :
+        hom (vertex (coh_par_cocone_down c' f)) (vertex coh_par_cocone);
+        coh_par_cocone_hom_natural c' (f : hom c c') j :
+        (side (coh_par_cocone_down c' f) j ∘ ((F ₒ j) ₕ f)) ≡
+          ((side (coh_par_cocone) j) ∘ (coh_par_cocone_hom c' f))
+      }.
+  Arguments coh_par_cocone {_} _.
+  Arguments coh_par_cocone_down {_} _ {_} _.
+  Arguments coh_par_cocone_hom {_} _ {_} _.
+  Arguments coh_par_cocone_hom_natural {_} _ {_} _ _.
+
+  Program Definition extend_cocone (L : functor C D)
+    (il : is_limit F L)
+    (c' : obj C)
+    (cn : coherent_partial_cocone c')
+    (c : obj C)
+    (f : hom c' c)
+    : is_cone (pointwise_func_colim c') (vertex (coh_par_cocone_down cn f))
+    := MkIsCone (λ j, ((F ₒ j) ₕ f) ∘ (side (coh_par_cocone_down cn f) j))
+         (λ j j' g, _).
+  Next Obligation.
+    intros; simpl.
+    by rewrite (side_commutes (coh_par_cocone_down cn f) g) comp_assoc
+    -naturality -comp_assoc.
+  Qed.
+
+  Lemma func_cat_colimits_pointwise_natural
+    {L : functor C D} (il : is_limit F L) {c'} (cn : coherent_partial_cocone c')
+    {c : obj C} (f : hom c' c) :
+    (cone_hom_map (bang (il_is_limiting_cone _ _
+                           (func_cat_colimits_pointwise il c'))
+                     (coh_par_cocone cn)) ∘ coh_par_cocone_hom cn f)
+      ≡
+      (L ₕ f ∘ cone_hom_map (bang (il_is_limiting_cone _ _ (func_cat_colimits_pointwise il c))
+                               (coh_par_cocone_down cn f))).
+  Proof.
+    apply (@hom_to_limit_unique J _ (pointwise_func_colim c') _ _ _ _
+             (func_cat_colimits_pointwise il c') (extend_cocone L il _ _ _ _)).
+    - intros j; simpl.
+      rewrite right_id !comp_assoc.
+      epose proof (cone_hom_commutes (bang (il_is_limiting_cone F L il) func_colimit_cocone) _ _)
+        as Hchc; rewrite /= in Hchc; rewrite -Hchc; clear Hchc.
+      rewrite_cocone_hom_commutes_back.
+      apply coh_par_cocone_hom_natural.
+    - intros j; simpl.
+      rewrite right_id.
+      rewrite !(comp_assoc (L ₕ _)).
+      epose proof (naturality (cone_hom_map (bang (il_is_limiting_cone F L il) func_colimit_cocone)) _)
+        as Hn; rewrite /= in Hn; rewrite Hn; clear Hn.
+      rewrite !comp_assoc.
+      epose proof (cone_hom_commutes (bang (il_is_limiting_cone F L il) func_colimit_cocone) _ _)
+        as Hchc; rewrite /= in Hchc; rewrite -Hchc /=; clear Hchc.
+      rewrite /func_colimit_func_h_map.
+      rewrite_cocone_hom_commutes_back; simpl.
+      rewrite -comp_assoc.
+      rewrite_cocone_hom_commutes_back; simpl.
+      reflexivity.
+  Qed.
+
+End func_cat_colimit.
+
+Definition func_cat_cocomplete {C D} `{!Complete (D ᵒᵖ)}
+  : Complete ((FuncCat C D) ᵒᵖ) :=
+  λ J F, func_colimit F.
+
+Global Program Instance psh_cocomplete C : Complete ((PSh C) ᵒᵖ)
+  := func_cat_cocomplete.
+
 (* special cases of lemmas for presheaves and setoids *)
 Lemma psh_side_commutes {J C : category} {F : functor J (PSh C)}
   (cn : cone F) [j j' : obj J] (f : hom j j') (c : obj C) (x : vertex cn ₒ c) :
@@ -2800,6 +3430,18 @@ Ltac rewrite_cone_hom_commutes_back :=
   | |- context [setoid_fun_map _ _ (setoid_lim_side _ ?j)
                   (setoid_fun_map _ _ (cone_hom_map ?c) _)] =>
       rewrite -(setoid_cone_hom_commutes c j)
+  end.
+
+Ltac rewrite_cocone_hom_commutes_back :=
+  match goal with
+    |- context [cone_hom_map ?c ∘ side _ ?j] =>
+      let H := fresh "H" in
+      pose proof (cone_hom_commutes c j)
+        as H; simpl in H; rewrite -H; clear H
+  | |- context [cone_hom_map ?c ∘ ic_side _ ?j] =>
+      let H := fresh "H" in
+      pose proof (cone_hom_commutes c j)
+        as H; simpl in H; rewrite H; clear H
   end.
 
 Record equiv_cones {J C} {F F' : functor J C}
@@ -3147,3 +3789,515 @@ End algebra_limits.
 
 Global Instance alg_complete `{!Complete C} (T : functor C C) : Complete (Alg T) :=
   λ _ F, alg_lim F.
+
+Program Definition prod_exp_forward {C : category} `{!CCC C} (y : obj C) :
+  natural
+    (in_left_of_hom C C ₒ (functor_fix_right (prod_func _) ₒ y))
+    (in_right_of_hom C C ₒ (functor_fix_left exp_func ₒ y))
+  := (MkNat (λ c, λset f, (transpose (f ∘ commutator _ _))) _).
+Next Obligation.
+  solve_proper.
+Qed.
+Next Obligation.
+  repeat intros ?; simpl in *; setoid_subst.
+  rewrite comp_assoc.
+  rewrite commute_hom_prod.
+  rewrite !comp_assoc.
+  rewrite /hom_exp.
+  rewrite -exp_hom_unique; last reflexivity.
+  symmetry.
+  apply exp_hom_unique.
+  rewrite /transpose.
+  rewrite -!comp_assoc.
+  rewrite -(left_id (id _)).
+  rewrite hom_prod_comp.
+  rewrite -(left_id (id _)).
+  rewrite hom_prod_comp.
+  rewrite -!comp_assoc.
+  rewrite -exp_hom_commutes.
+  f_equiv.
+  - by rewrite !left_id.
+  - rewrite !comp_assoc.
+    f_equiv.
+    by rewrite -exp_hom_commutes.
+Qed.
+
+Program Definition prod_exp_backward {C : category} `{!CCC C} (y : obj C) :
+  natural
+    (in_right_of_hom C C ₒ (functor_fix_left exp_func ₒ y))
+    (in_left_of_hom C C ₒ (functor_fix_right (prod_func _) ₒ y))
+  := (MkNat (λ c, λset f, untranspose f ∘ commutator _ _) _).
+Next Obligation.
+  solve_proper.
+Qed.
+Next Obligation.
+  repeat intros ?; simpl in *; setoid_subst.
+  rewrite /untranspose.
+  rewrite !comp_assoc.
+  rewrite /hom_exp.
+  rewrite -exp_hom_commutes.
+  rewrite -(left_id (id _)).
+  rewrite hom_prod_comp.
+  rewrite -!comp_assoc.
+  rewrite -exp_hom_commutes.
+  rewrite !comp_assoc.
+  do 2 f_equiv.
+  rewrite left_id.
+  rewrite commute_hom_prod.
+  rewrite -!comp_assoc.
+  rewrite commute_hom_prod.
+  rewrite !comp_assoc.
+  rewrite -hom_prod_comp.
+  rewrite left_id.
+  reflexivity.
+Qed.
+
+Program Definition prod_exp_adj {C : category} `{!CCC C} (y : obj C)
+  : (adjunction (C := C)
+        (functor_fix_right (prod_func _) ₒ y) (functor_fix_left exp_func ₒ y))
+  := MkIsoIc (prod_exp_forward y)
+       (prod_exp_backward y)
+       _.
+Next Obligation.
+  intros; simpl.
+  constructor.
+  - repeat intros ?; simpl in *; setoid_subst.
+    rewrite untranspose_transpose.
+    rewrite comp_assoc.
+    rewrite commutator_involutive.
+    by rewrite right_id.
+  - intros ?? x ?; simpl in *; setoid_subst.
+    rewrite /transpose.
+    erewrite (exp_hom_unique _ _ x); last reflexivity.
+    f_equiv.
+    rewrite untranspose_transpose.
+    rewrite !comp_assoc.
+    rewrite commutator_involutive.
+    rewrite right_id.
+    reflexivity.
+Qed.
+
+
+Global Instance functor_prod_proper C D E H :
+  Proper ((≡) ==> (≡) ==> (≡)) (@functor_prod C D E H).
+Proof.
+  intros F G [Hoeq Hheq] F' G' [Hoeq' Hheq']; simpl in *.
+  set (g := λ α : obj C * obj E,
+           eq_ind (F ₒ α.1) (λ o : obj D, (F ₒ α.1, F' ₒ α.2) = (o, G' ₒ α.2))
+             (eq_ind (F' ₒ α.2) (λ o : obj H, (F ₒ α.1, F' ₒ α.2) = (F ₒ α.1, o)) eq_refl
+                (G' ₒ α.2) (Hoeq' α.2)) (G ₒ α.1) (Hoeq α.1)).
+  refine (MkFuncEq (functor_prod F F') (functor_prod G G') g _).
+  intros ???; subst g; simpl.
+  transitivity ((hom_trans (Hoeq a.1) (Hoeq b.1) (F ₕ f.1)), (hom_trans (Hoeq' a.2) (Hoeq' b.2) (F' ₕ f.2))).
+  - do 2 destruct Hoeq'; rewrite /=.
+    unfold eq_ind.
+    do 2 destruct Hoeq.
+    reflexivity.
+  - f_equiv; done.
+Qed.
+
+Program Definition functor_prod_iso_proper {C D E H} {F F' : functor C D} {G G' : functor E H}
+  (iso : F ≃@{FuncCat C D} F') (iso' : G ≃@{FuncCat E H} G') :
+  functor_prod F G ≃@{FuncCat (cat_prod C E) (cat_prod D H)} functor_prod F' G'
+  := MkIsoIc
+       (MkNat (λ α, (nat_map (forward iso) α.1, nat_map (forward iso') α.2)) _)
+       (MkNat (λ α, (nat_map (backward iso) α.1, nat_map (backward iso') α.2)) _)
+       _.
+Next Obligation.
+  intros; simpl.
+  rewrite !naturality.
+  reflexivity.
+Qed.
+Next Obligation.
+  intros; simpl.
+  rewrite !naturality.
+  reflexivity.
+Qed.
+Next Obligation.
+  intros; simpl.
+  split.
+  - intros ?; simpl.
+    pose proof (iso_lr (is_iso iso) a.1) as HEQ.
+    simpl in HEQ.
+    rewrite HEQ.
+    pose proof (iso_lr (is_iso iso') a.2) as HEQ'.
+    simpl in HEQ'.
+    rewrite HEQ'.
+    reflexivity.
+  - intros ?; simpl.
+    pose proof (iso_rl (is_iso iso) a.1) as HEQ.
+    simpl in HEQ.
+    rewrite HEQ.
+    pose proof (iso_rl (is_iso iso') a.2) as HEQ'.
+    simpl in HEQ'.
+    rewrite HEQ'.
+    reflexivity.
+Qed.
+
+Program Definition functor_eq_natural_backward {C D : category} {F G : functor C D}
+  : F ≡ G → natural G F
+  := λ H, MkNat (λ c, hom_trans eq_refl (eq_sym (func_eq_o_map H c)) (id (G ₒ c))) _.
+Next Obligation.
+  repeat intros ?; simpl.
+  rewrite hom_trans_compose_take_in_r left_id /= hom_trans_refl.
+  rewrite hom_trans_compose_take_in_l right_id /= hom_trans_refl.
+  change (eq_refl (G ₒ a)) with (eq_sym (eq_refl (G ₒ a))).
+  symmetry.
+  apply hom_trans_sym.
+  rewrite eq_sym_involutive.
+  rewrite -hom_trans_trans /= eq_trans_refl_l.
+  apply H.
+Qed.
+
+Program Definition functor_eq_natural_iso {C D} {F G : obj (FuncCat C D)}
+  : F ≡ G → F ≃ G
+  := λ H, MkIsoIc (C := FuncCat _ _)
+            (functor_eq_natural H) (functor_eq_natural_backward H) _.
+Next Obligation.
+  intros.
+  split.
+  - intros ?; simpl.
+    rewrite hom_trans_compose_take_in_r left_id /= hom_trans_refl.
+    destruct (func_eq_o_map H a).
+    simpl.
+    rewrite hom_trans_refl.
+    reflexivity.
+  - intros ?; simpl.
+    rewrite hom_trans_compose_take_in_r left_id /= hom_trans_refl.
+    destruct (func_eq_o_map H a).
+    simpl.
+    rewrite hom_trans_refl.
+    reflexivity.
+Qed.
+
+Program Definition functor_compose_left_id_iso {C D}
+  {F : functor C D} :
+  F ≃@{FuncCat C D} functor_compose (id_functor _) F
+  := MkIsoIc
+       (MkNat (λ α, id _) _)
+       (MkNat (λ α, id _) _)
+       _.
+Next Obligation.
+  intros; simpl.
+  by rewrite left_id right_id.
+Qed.
+Next Obligation.
+  intros; simpl.
+  by rewrite left_id right_id.
+Qed.
+Next Obligation.
+  by intros; split; intros ?; simpl; rewrite left_id.
+Qed.
+
+Program Definition functor_compose_right_id_iso {C D}
+  {F : functor C D} :
+  F ≃@{FuncCat C D} functor_compose F (id_functor _)
+  := MkIsoIc
+       (MkNat (λ α, id _) _)
+       (MkNat (λ α, id _) _)
+       _.
+Next Obligation.
+  intros; simpl.
+  by rewrite left_id right_id.
+Qed.
+Next Obligation.
+  intros; simpl.
+  by rewrite left_id right_id.
+Qed.
+Next Obligation.
+  by intros; split; intros ?; simpl; rewrite left_id.
+Qed.
+
+Program Definition functor_compose_assoc_iso {A B C D}
+  {F : functor A B} {G : functor B C} {H : functor C D} :
+  functor_compose F (functor_compose G H) ≃@{FuncCat A D}
+    functor_compose (functor_compose F G) H
+  := MkIsoIc
+       (MkNat (λ α, id _) _)
+       (MkNat (λ α, id _) _)
+       _.
+Next Obligation.
+  intros; simpl.
+  by rewrite left_id right_id.
+Qed.
+Next Obligation.
+  intros; simpl.
+  by rewrite left_id right_id.
+Qed.
+Next Obligation.
+  by intros; split; intros ?; simpl; rewrite left_id.
+Qed.
+
+Program Definition functor_prod_prod_iso {C D C' D' E E'}
+  {F : functor C D} {F' : functor D E}
+  {G : functor C' D'} {G' : functor D' E'}
+  : functor_compose (functor_prod F G) (functor_prod F' G')
+      ≃@{FuncCat (cat_prod C C') (cat_prod E E')}
+      functor_prod (functor_compose F F') (functor_compose G G')
+  := MkIsoIc
+       (MkNat (λ α, (F' ₕ (F ₕ (id _)), G' ₕ (G ₕ (id _)))) _)
+       (MkNat (λ α, (F' ₕ (F ₕ (id _)), G' ₕ (G ₕ (id _)))) _)
+       _.
+Next Obligation.
+  intros; simpl.
+  rewrite !h_map_id.
+  rewrite !left_id.
+  rewrite !right_id.
+  reflexivity.
+Qed.
+Next Obligation.
+  intros; simpl.
+  rewrite !h_map_id.
+  rewrite !left_id.
+  rewrite !right_id.
+  reflexivity.
+Qed.
+Next Obligation.
+  intros; simpl; split.
+  - intros ?; simpl.
+    rewrite !h_map_id.
+    rewrite !left_id.
+    reflexivity.
+  - intros ?; simpl.
+    rewrite !h_map_id.
+    rewrite !left_id.
+    reflexivity.
+Qed.
+
+Program Definition functor_fix_left_proper_iso {C D E}
+  {F G : functor (cat_prod C D) E} (H : F ≃@{FuncCat _ _} G) :
+  functor_fix_left F ≃@{FuncCat _ _} functor_fix_left G
+  := MkIsoIc
+       (MkNat (λ α,
+            MkNat (λ β, forward (natural_iso_proj H (α, β)))
+              (λ a b f, naturality (forward H) (id α, f))) _)
+       (MkNat (λ α,
+            MkNat (λ β, backward (natural_iso_proj H (α, β)))
+              (λ a b f, naturality (backward H) (id α, f))) _)
+       _.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl.
+  intro; simpl.
+  rewrite naturality.
+  reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl.
+  intro; simpl.
+  rewrite naturality.
+  reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl.
+  split; do 2 intro; simpl.
+  - rewrite iso_lr; first reflexivity.
+    apply (is_iso (natural_iso_proj H _)).
+  - rewrite iso_rl; first reflexivity.
+    apply (is_iso (natural_iso_proj H _)).
+Defined.
+
+Program Definition functor_fix_right_proper_iso {C D E}
+  {F G : functor (cat_prod C D) E} (H : F ≃@{FuncCat _ _} G) :
+  functor_fix_right F ≃@{FuncCat _ _} functor_fix_right G
+  := MkIsoIc
+       (MkNat (λ α,
+            MkNat (λ β, forward (natural_iso_proj H (β, α)))
+              (λ a b f, naturality (forward H) (f, id α))) _)
+       (MkNat (λ α,
+            MkNat (λ β, backward (natural_iso_proj H (β, α)))
+              (λ a b f, naturality (backward H) (f, id α))) _)
+       _.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl.
+  intro; simpl.
+  rewrite naturality.
+  reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl; reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl.
+  intro; simpl.
+  rewrite naturality.
+  reflexivity.
+Defined.
+Next Obligation.
+  intros; simpl.
+  split; do 2 intro; simpl.
+  - rewrite iso_lr; first reflexivity.
+    apply (is_iso (natural_iso_proj H _)).
+  - rewrite iso_rl; first reflexivity.
+    apply (is_iso (natural_iso_proj H _)).
+Defined.
+
+Program Definition functor_opposite_compose {C D E}
+  {F : functor C D}
+  {G : functor D E} :
+  functor_compose (opposite_func F) (opposite_func G)
+    ≃@{FuncCat (C ᵒᵖ) (E ᵒᵖ)} opposite_func (functor_compose F G)
+  := MkIsoIc
+       (MkNat (λ x, id _) _)
+       (MkNat (λ x, id _) _)
+       _.
+Next Obligation.
+  intros; simpl.
+  by rewrite left_id right_id.
+Qed.
+Next Obligation.
+  intros; simpl.
+  by rewrite left_id right_id.
+Qed.
+Next Obligation.
+  intros; split; intros ?; simpl; by rewrite left_id.
+Qed.
+
+Program Definition functor_opposite_proper {C D} {F G : functor C D}
+  (H : F ≃@{FuncCat C D} G)
+  : opposite_func F ≃@{FuncCat (C ᵒᵖ) (D ᵒᵖ)} opposite_func G
+  := MkIsoIc
+       (MkNat (λ x, (backward H ₙ) x) _)
+       (MkNat (λ x, (forward H ₙ) x) _)
+       _.
+Next Obligation.
+  intros; simpl.
+  by rewrite naturality.
+Qed.
+Next Obligation.
+  intros; simpl.
+  by rewrite naturality.
+Qed.
+Next Obligation.
+  intros; split; intros ?; simpl.
+  - apply (iso_lr (is_iso H)).
+  - apply (iso_rl (is_iso H)).
+Qed.
+
+Program Definition functor_fix_right_post_comp {C D E E'}
+  {F : functor (cat_prod C D) E} {G : functor E E'}
+  {X : obj D}
+  : functor_compose (functor_fix_right F ₒ X) G
+      ≃@{FuncCat C E'}
+      functor_fix_right (functor_compose F G) ₒ X
+  := MkIsoIc
+       (MkNat (λ X, id _) _)
+       (MkNat (λ X, id _) _)
+       _.
+Next Obligation.
+  intros; simpl; by rewrite left_id right_id.
+Qed.
+Next Obligation.
+  intros; simpl; by rewrite left_id right_id.
+Qed.
+Next Obligation.
+  intros; split; intros ?; simpl; by rewrite right_id.
+Qed.
+
+Program Definition functor_fix_right_pre_comp {C C' D E}
+  {F : functor (cat_prod C D) E} {G : functor C' C}
+  {X : obj D}
+  : functor_compose G (functor_fix_right F ₒ X)
+      ≃@{FuncCat C' E}
+      functor_fix_right (functor_compose (functor_prod G (id_functor _)) F) ₒ X
+  := MkIsoIc
+       (MkNat (λ X, id _) _)
+       (MkNat (λ X, id _) _)
+       _.
+Next Obligation.
+  intros; simpl; by rewrite left_id right_id.
+Qed.
+Next Obligation.
+  intros; simpl; by rewrite left_id right_id.
+Qed.
+Next Obligation.
+  intros; split; intros ?; simpl; by rewrite right_id.
+Qed.
+
+Program Definition functor_fix_right_commute {C D E}
+  {F : functor (cat_prod C D) E} {G : functor C D}
+  {X : obj C}
+  : functor_fix_right F ₒ (G ₒ X)
+      ≃@{FuncCat C E}
+      functor_fix_right (functor_compose (functor_prod (id_functor _) G) F) ₒ X
+  := MkIsoIc
+       (MkNat (λ X, id _) _)
+       (MkNat (λ X, id _) _)
+       _.
+Next Obligation.
+  intros; simpl; by rewrite left_id right_id h_map_id.
+Qed.
+Next Obligation.
+  intros; simpl; by rewrite left_id right_id h_map_id.
+Qed.
+Next Obligation.
+  intros; split; intros ?; simpl; by rewrite right_id.
+Qed.
