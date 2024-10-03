@@ -598,7 +598,7 @@ Fail Next Obligation.
 
 (* Category of setoids (Set) *)
 
-Record setoid := MkSetoid {
+#[projections(primitive = yes)] Record setoid := MkSetoid {
   setoid_set :> Type;
   setoid_eq : Equiv setoid_set;
   setoid_eq_equiv : Equivalence setoid_eq;

@@ -706,13 +706,13 @@ Proof.
     intros α [] [] _.
     rewrite /is_iso_upto_total_inv /is_iso_upto_total_inv_embedded.
     rewrite enr_comp_comp /=.
-    apply iso_at_lr, (iso (MkDS (total_dsp SI) I)).
+    apply iso_at_lr, (iso (MkDS (total_dsp SI) (squash I))).
   - rewrite -{2}(enr_embed_project f).
     apply enr_embed_inj.
     intros α [] [] _.
     rewrite /is_iso_upto_total_inv /is_iso_upto_total_inv_embedded.
     rewrite enr_comp_comp /=.
-    apply iso_at_rl, (iso (MkDS (total_dsp SI) I)).
+    apply iso_at_rl, (iso (MkDS (total_dsp SI) (squash I))).
 Qed.
 
 Definition is_iso_upto_total {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))}
@@ -764,13 +764,13 @@ Program Definition iso_upto_contr_func
   MkIsIsoAt
     ((contr_func_h_map F b a ₙ α)
        (into_later_psh _
-          (λ β (Hβ : β ≺ α), inv_at (iso (MkDS dsp (Hdsp _ Hβ)))) _))
+          (λ β (Hβ : β ≺ α), inv_at (iso (MkDS dsp (squash (Hdsp _ Hβ))))) _))
     _.
 Next Obligation.
   intros ???????? dsp ?? Hdsp β γ Hβ Hγ Hle; simpl in *.
   symmetry.
   apply (is_iso_upto_functorial _ _ _
-    (Hle : (MkDS dsp (Hdsp _ Hβ)) ⪯ (MkDS dsp (Hdsp _ Hγ)))).
+    (Hle : (MkDS dsp (squash (Hdsp _ Hβ))) ⪯ (MkDS dsp (squash (Hdsp _ Hγ))))).
 Qed.
 Next Obligation.
   intros ??? F ? a b f dsp iso α Hdsp; simpl in *.
@@ -793,8 +793,10 @@ Next Obligation.
     rewrite -(psh_naturality (next ₙ enr_hom _ _)) /=.
     epose proof (psh_naturality (⌜f⌝)) as Hn;
       simpl in Hn; rewrite -Hn; clear Hn.
-    pose proof (side_of_later' (enr_hom b a) (MkDS (lt_dsp α) Hβ)) as Hsdl;
-      simpl in Hsdl; rewrite Hsdl /=; clear Hsdl.
+    pose proof (side_of_later' (enr_hom b a) (MkDS (lt_dsp α) (squash Hβ))) as Hsdl;
+      simpl in Hsdl.
+    replace (unsquash _) with Hβ in Hsdl by apply proof_irrel.
+    rewrite Hsdl /=; clear Hsdl.
     rewrite into_later_side_psh /=.
     apply (compose_along_iso_right_setoid
              (natural_iso_proj
@@ -817,7 +819,7 @@ Next Obligation.
       rewrite /= h_map_id /= in Heq; rewrite Heq; clear Heq.
     epose proof (naturality ⌜ f ⌝ _ _ _ (reflexivity _)) as Hn;
       simpl in Hn; rewrite -Hn; clear Hn.
-    apply (iso_at_lr (iso_at (iso (MkDS dsp (Hdsp _ Hβ))))).
+    apply (iso_at_lr (iso_at (iso (MkDS dsp (squash (Hdsp _ Hβ)))))).
   - rewrite -{3}(enr_embed_project f) enr_func_h_map_is_h_map /=.
     rewrite -enr_func_h_map_id.
     rewrite !contr_func_h_map_is_h_map /=.
@@ -836,8 +838,9 @@ Next Obligation.
     rewrite -(psh_naturality (next ₙ enr_hom _ _)) /=.
     epose proof (psh_naturality (⌜f⌝)) as Hn;
       simpl in Hn; rewrite -Hn; clear Hn.
-    pose proof (side_of_later' (enr_hom b a) (MkDS (lt_dsp α) Hβ)) as Hsdl;
-      simpl in Hsdl; rewrite Hsdl /=; clear Hsdl.
+    pose proof (side_of_later' (enr_hom b a) (MkDS (lt_dsp α) (squash Hβ))) as Hsdl.
+    replace (unsquash _) with Hβ in Hsdl by apply proof_irrel.
+    simpl in Hsdl; rewrite Hsdl /=; clear Hsdl.
     rewrite into_later_side_psh /=.
     apply (compose_along_iso_right_setoid
              (natural_iso_proj
@@ -860,7 +863,7 @@ Next Obligation.
       rewrite /= h_map_id /= in Heq; rewrite Heq; clear Heq.
     epose proof (naturality ⌜ f ⌝ _ _ _ (reflexivity _)) as Hn;
       simpl in Hn; rewrite -Hn; clear Hn.
-    apply (iso_at_rl (iso_at (iso (MkDS dsp (Hdsp _ Hβ))))).
+    apply (iso_at_rl (iso_at (iso (MkDS dsp (squash (Hdsp _ Hβ)))))).
 Qed.
 Fail Next Obligation.
 
@@ -988,8 +991,8 @@ Definition limit_side_iso_at {SI : indexT} {C : category} `{!Enriched C (PSh (Or
   j : is_iso_at (ic_side (il_is_cone il) j) α :=
   limit_side_iso_at' Hsc Hmp (limits_enriched il) isos j.
 
-Record downset_up {SI} (dsp : downset_pred SI) α :=
-  MkDSUP { ds_up_idx :> index_car SI; ds_up_in_dsp : dsp ds_up_idx; ds_up_up : α ⪯ ds_up_idx }.
+#[projections(primitive = yes)] Record downset_up {SI} (dsp : downset_pred SI) α :=
+  MkDSUP { ds_up_idx :> index_car SI; ds_up_in_dsp : squashed (dsp ds_up_idx); ds_up_up : α ⪯ ds_up_idx }.
 
 Global Arguments MkDSUP {_ _ _ _} _ _.
 Global Arguments ds_up_idx {_ _ _} _.
@@ -1009,7 +1012,7 @@ Proof. by destruct γ. Qed.
 
 Lemma downset_to_downset_up_eq_eq {SI} {dsp : downset_pred SI} {α}
   {γ} (Hγ : dsp γ) (Hle : α ⪯ γ) :
-  downset_to_downset_up_eq (MkDS Hγ) Hle = eq_refl.
+  downset_to_downset_up_eq (MkDS (squash Hγ)) Hle = eq_refl.
 Proof. apply proof_irrelevance. Qed.
 
 Program Definition OrdDSUpCat {SI} (dsp : downset_pred SI) α : category :=
@@ -1044,8 +1047,8 @@ Program Definition is_limit_up_make_cone {SI} {dsp : downset_pred SI}
           match downset_to_downset_up_eq j Hle in _ = Z return hom (vertex cn) (F ₒ Z) with
             eq_refl => side cn (MkDSUP (ds_in_dsp j) Hle)
           end
-      | right Hlt => (@h_map _ _ F (MkDS Hα) j (index_lt_le_subrel _ _ Hlt)) ∘
-                       side cn (MkDSUP Hα (reflexivity _))
+      | right Hlt => (@h_map _ _ F (MkDS (squash Hα)) j (index_lt_le_subrel _ _ Hlt)) ∘
+                       side cn (MkDSUP (squash Hα) (reflexivity _))
       end)
     _.
 Next Obligation.
@@ -1053,11 +1056,12 @@ Next Obligation.
   destruct (index_le_lt_dec α j) as [Hlej|Hltj];
     destruct (index_le_lt_dec α j') as [Hlej'|Hltj'].
   - destruct j as [j Hj]; destruct j' as [j' Hj'];
-      rewrite !downset_to_downset_up_eq_eq /=; simpl in *.
+      rewrite (downset_to_downset_up_eq_eq (unsquash Hj) _) /=; simpl in *.
+    rewrite (downset_to_downset_up_eq_eq (unsquash Hj') _) /=; simpl in *.
     apply (@side_commutes _ _ _ cn (MkDSUP Hj Hlej) (MkDSUP Hj' Hlej') f).
   - destruct j as [j Hj];
-      rewrite !downset_to_downset_up_eq_eq /=; simpl in *.
-    rewrite (@side_commutes _ _ _ cn (MkDSUP Hj Hlej) (MkDSUP Hα (reflexivity _)) Hlej).
+      rewrite (downset_to_downset_up_eq_eq (unsquash Hj) _) /=; simpl in *.
+    rewrite (@side_commutes _ _ _ cn (MkDSUP Hj Hlej) (MkDSUP (squash Hα) (reflexivity _)) Hlej).
     rewrite /= -comp_assoc -h_map_comp.
     repeat f_equiv; done.
   - assert (j' ≺ α).
@@ -1080,9 +1084,10 @@ Next Obligation.
   simpl in *.
   destruct index_le_lt_dec as [Hle|Hlt].
   - destruct j as [j Hj Hjle]; simpl in *.
-    rewrite downset_to_downset_up_eq_eq /= in Hcm.
+    rewrite (downset_to_downset_up_eq_eq (unsquash Hj) Hle) /= in Hcm.
     replace Hjle with Hle by apply proof_irrel.
-    done.
+    rewrite -Hcm.
+    reflexivity.
   - rewrite -Hcm.
     rewrite -side_commutes //.
 Qed.
@@ -1099,9 +1104,9 @@ Next Obligation.
   destruct index_le_lt_dec as [Hle|Hlt].
   - pose proof (cone_hom_commutes h (downset_to_downset_up j Hle)) as Hcm.
     destruct j as [j Hj]; simpl in *.
-    rewrite downset_to_downset_up_eq_eq /=.
+    rewrite (downset_to_downset_up_eq_eq (unsquash Hj)) /=.
     rewrite Hcm //.
-  - rewrite (cone_hom_commutes h (MkDSUP Hα (reflexivity _))).
+  - rewrite (cone_hom_commutes h (MkDSUP (squash Hα) (reflexivity _))).
     rewrite -comp_assoc.
     rewrite -(side_commutes cn') //.
 Qed.

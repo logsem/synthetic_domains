@@ -7,13 +7,47 @@ From Coq.Logic Require Import FunctionalExtensionality.
 Local Set Universe Polymorphism.
 Local Unset Universe Minimization ToSet.
 
+Inductive squashed (P : Prop) : SProp :=
+| squash : P → squashed P.
+Arguments squash {_}.
+
+Inductive empty : SProp := .
+
+Lemma unsquash {P : Prop} `{!Decision P} (s : squashed P) : P.
+Proof.
+  destruct (decide P) as [| H]; first done.
+  apply empty_ind.
+  destruct s.
+  exfalso.
+  by apply H.
+Qed.
+
+Global Instance le_decision {SI : indexT} (α : SI) : ∀  (β : SI),
+  Decision (β ⪯ α).
+Proof.
+  intros β.
+  destruct (index_le_lt_dec β α) as [H | H].
+  - by left.
+  - right; intros contra.
+    by eapply index_lt_le_contradict.
+Qed.
+
+Global Instance lt_decision {SI : indexT} (α : SI) : ∀  (β : SI),
+  Decision (β ≺ α).
+Proof.
+  intros β.
+  destruct (index_le_lt_dec α β) as [H | H].
+  - right; intros contra.
+    by eapply index_lt_le_contradict.
+  - by left.
+Qed.
+
 Open Scope category_scope.
 
 Lemma index_succ_le_lt1 : ∀ {I : indexT} (α β : I), succ α ⪯ β → α ≺ β.
 Proof. intros; apply index_succ_le_lt; done. Qed.
 Lemma index_succ_le_lt2 : ∀ {I : indexT} (α β : I), α ≺ β → succ α ⪯ β.
 Proof. intros; apply index_succ_le_lt; done. Qed.
-
 
 Global Instance index_le_equiv (SI : indexT) (α β : SI) : Equiv (α ⪯ β) := λ _ _, True.
 
@@ -66,10 +100,14 @@ Solve All Obligations with repeat intros ?; done.
 
 Polymorphic Record downset_pred (SI : indexT) := MkDownSetPred {
   dsp_pred :> SI → Prop;
+  dsp_pred_dec : ∀ α, Decision (dsp_pred α);
   dsp_pred_downwards : ∀ α β, α ⪯ β → dsp_pred β → dsp_pred α;
 }.
+Existing Instance dsp_pred_dec.
+
 Global Arguments MkDownSetPred {_} _ _.
 Global Arguments dsp_pred {_} _ _.
+Global Arguments dsp_pred_dec {_} _ _.
 Global Arguments dsp_pred_downwards {_} _ {_ _} _ _.
 
 Lemma dsp_lt {SI} {dsp : downset_pred SI} {α β} : α ≺ β → dsp β → dsp α.
@@ -78,53 +116,53 @@ Proof. intros ? ?; eapply dsp_pred_downwards; [|eassumption]; apply index_lt_le_
 Lemma dsp_unsucc {SI} {dsp : downset_pred SI} {α} : dsp (succ α) → dsp α.
 Proof. intros ?; eapply dsp_lt; eauto. Qed.
 
-Program Definition total_dsp SI : downset_pred SI := MkDownSetPred (λ _, True) _.
+Program Definition total_dsp SI : downset_pred SI := MkDownSetPred (λ _, True) _ _.
 Solve All Obligations with done.
 Fail Next Obligation.
-Program Definition le_dsp {SI} α : downset_pred SI := MkDownSetPred (λ β, β ⪯ α ) _.
+Program Definition le_dsp {SI} α : downset_pred SI := MkDownSetPred (λ β, β ⪯ α ) _ _.
 Next Obligation. intros ??????; simpl in *; etrans; eauto. Qed.
 Fail Next Obligation.
-Program Definition lt_dsp {SI} α : downset_pred SI := MkDownSetPred (λ β, β ≺ α ) _.
+Program Definition lt_dsp {SI} α : downset_pred SI := MkDownSetPred (λ β, β ≺ α ) _ _.
 Next Obligation. intros ??????; simpl in *; eapply index_le_lt_trans; eauto. Qed.
 Fail Next Obligation.
 
 Definition dsp_included {SI} (dsp dsp' : downset_pred SI) := ∀ α, dsp α → dsp' α.
 
-Record downset {SI} (dsp : downset_pred SI) := MkDS {
+#[projections(primitive = yes)] Record downset {SI} (dsp : downset_pred SI) := MkDS {
   ds_idx :> SI;
-  ds_in_dsp : dsp ds_idx;
+  ds_in_dsp : squashed (dsp ds_idx);
 }.
 Global Arguments MkDS {_ _ _} _, {_} _ {_} _.
 Global Arguments ds_idx {_ _} _.
 Global Arguments ds_in_dsp {_ _} _.
 
 Lemma downset_eq {SI} {dsp : downset_pred SI} (ds ds' : downset dsp) : ds = ds' :> SI → ds = ds'.
-Proof. destruct ds; destruct ds'; simpl; intros ->; f_equal; apply proof_irrelevance. Qed.
+Proof. destruct ds; destruct ds'; simpl; intros ->; reflexivity. Qed.
 
 Definition fun_on_empty_set {SI} (α : @downset SI (lt_dsp zero)) (T : Type) : T :=
-  False_rect T (index_lt_zero_is_normal _ (ds_in_dsp α)).
+  False_rect T (index_lt_zero_is_normal _ (unsquash (ds_in_dsp α))).
 
 Lemma empty_dsp_included {SI} {dsp : downset_pred SI} : dsp_included (lt_dsp zero) dsp.
 Proof. intros ??; simpl in *; exfalso; eapply index_lt_zero_is_normal; eauto. Qed.
 Lemma lt_dsp_included {SI} {dsp : downset_pred SI} (α : downset dsp) : dsp_included (lt_dsp α) dsp.
-Proof. intros ??; eapply dsp_pred_downwards; [|apply (ds_in_dsp α)]; eauto. Qed.
+Proof. intros ??; eapply dsp_pred_downwards; [|apply (unsquash (ds_in_dsp α))]; eauto. Qed.
 Lemma le_dsp_included {SI} {dsp : downset_pred SI} (α : downset dsp) : dsp_included (le_dsp α) dsp.
-Proof. intros ??; eapply dsp_pred_downwards; [|apply (ds_in_dsp α)]; eauto. Qed.
+Proof. intros ??; eapply dsp_pred_downwards; [|apply (unsquash (ds_in_dsp α))]; eauto. Qed.
 
 Definition dsp_include {SI} {dsp dsp' : downset_pred SI} (incl : dsp_included dsp dsp')
-  (d : downset dsp) : downset dsp' := MkDS (incl _ (ds_in_dsp d)).
+  (d : downset dsp) : downset dsp' := MkDS (squash (incl _ (unsquash (ds_in_dsp d)))).
 
 Lemma le_dsp_included_eq {SI} {dsp : downset_pred SI} (α : downset dsp) :
-  α = dsp_include (le_dsp_included α) (MkDS (le_dsp α) (reflexivity _)).
-Proof. destruct α; rewrite /dsp_include /=; f_equal; apply proof_irrelevance. Qed.
+  α = dsp_include (le_dsp_included α) (MkDS (le_dsp α) (squash (reflexivity _))).
+Proof. destruct α; rewrite /dsp_include /=; reflexivity. Qed.
 
 Definition dsp_include_le {SI} {dsp dsp' : downset_pred SI} (incl : dsp_included dsp dsp')
   {d d' : downset dsp} (Hle : d ⪯ d') : (dsp_include incl d) ⪯ (dsp_include incl d').
-Proof. done. Qed.
+Proof. done. Defined.
 
 Definition dsp_include_le_refl {SI} {dsp dsp' : downset_pred SI} (incl : dsp_included dsp dsp')
   {d : downset dsp} : (dsp_include_le incl (reflexivity (d : SI))) = reflexivity _.
-Proof. apply proof_irrel. Qed.
+Proof. reflexivity. Qed.
 
 Program Definition OrdDSCat {SI} (dsp : downset_pred SI) : category :=
   MkCat (downset dsp) (λ α β, α ⪯ β)
@@ -148,8 +186,8 @@ Fail Next Obligation.
 Program Definition unlift_func {SI} {C} (F : functor ((OrdDSCat (total_dsp SI))ᵒᵖ) C) :
   functor ((OrdCat SI)ᵒᵖ) C :=
   MkFunc
-    (λ α, F ₒ (ds_idx (@MkDS SI (total_dsp SI) α I)))
-    (λ α β f, F ₕ (f : (@MkDS SI (total_dsp SI) β I) ⪯ (@MkDS SI (total_dsp SI) α I)))
+    (λ α, F ₒ (ds_idx (@MkDS SI (total_dsp SI) α (squash I))))
+    (λ α β f, F ₕ (f : (@MkDS SI (total_dsp SI) β (squash I)) ⪯ (@MkDS SI (total_dsp SI) α (squash I))))
     _ _ _.
 Next Obligation.
 Proof. repeat intros ?; simpl; setoid_subst; done. Qed.
@@ -170,47 +208,47 @@ Fail Next Obligation.
 Program Definition unlift_natural {SI} {C} {F G : functor ((OrdCat SI)ᵒᵖ) C}
   (η : natural (lift_func (total_dsp SI) F) (lift_func (total_dsp SI) G)) :
   natural F G :=
-  MkNat (λ α, η ₙ (@MkDS SI (total_dsp SI) α I)) _.
+  MkNat (λ α, η ₙ (@MkDS SI (total_dsp SI) α (squash I))) _.
 Next Obligation.
 Proof.
   intros ?? F G η α β Hle; rewrite /=.
   rewrite (naturality η
-    (Hle : (@MkDS SI (total_dsp SI) β I) ⪯ (@MkDS SI (total_dsp SI) α I))) //.
+    (Hle : (@MkDS SI (total_dsp SI) β (squash I)) ⪯ (@MkDS SI (total_dsp SI) α (squash I)))) //.
 Qed.
 Fail Next Obligation.
 
 Definition lift_in_lt_ds
   {SI : indexT} {α β : SI} (Hle : β ⪯ α) (γ : downset (lt_dsp β)) : downset (lt_dsp α) :=
-  MkDS (lt_dsp α) (index_lt_le_trans _ _ _ (ds_in_dsp γ) Hle).
+  MkDS (lt_dsp α) (squash (index_lt_le_trans _ _ _ (unsquash (ds_in_dsp γ)) Hle)).
 
 Lemma in_lt_dsp_le {SI : indexT} {α β : SI} :
   β ⪯ α → ∀ γ : downset (lt_dsp β), γ ⪯ α.
 Proof.
   intros ? γ; etrans; last eassumption.
-  apply index_lt_le_subrel, (ds_in_dsp γ).
+  apply index_lt_le_subrel, (unsquash (ds_in_dsp γ)).
 Qed.
 
 Lemma in_lt_dsp_succ {SI : indexT} (α : SI) : ∀ β : downset (lt_dsp (succ α)), β ⪯ α.
-Proof. intros ?; apply index_succ_iff_proj_r2l, (ds_in_dsp β). Qed.
+Proof. intros ?; apply index_succ_iff_proj_r2l, (unsquash (ds_in_dsp β)). Qed.
 
 Lemma in_lt_dsp {SI : indexT} (α : SI) : ∀ β : downset (lt_dsp α), β ⪯ α.
-Proof. intros ?; apply index_lt_le_subrel, (ds_in_dsp β). Qed.
+Proof. intros ?; apply index_lt_le_subrel, (unsquash (ds_in_dsp β)). Qed.
 
 Section extend_ord_ds_cat_func.
   Context {SI : indexT} {C : category} {α : SI} {F : functor ((OrdDSCat (lt_dsp α))ᵒᵖ) C}
     (cn : cone F).
 
   Definition extend_ord_ds_cat_func_o_map (β : downset (le_dsp α)) : obj C :=
-    match index_le_lt_eq_dec _ _ (ds_in_dsp β) with
-    | left Hlt => F ₒ (MkDS (lt_dsp α) Hlt)
+    match index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp β)) with
+    | left Hlt => F ₒ (MkDS (lt_dsp α) (squash Hlt))
     | right _ => vertex cn
     end.
 
   Lemma extend_ord_ds_cat_func_o_map_lt {β : downset (le_dsp α)} (Hlt : β ≺ α) :
-    extend_ord_ds_cat_func_o_map β = F ₒ (MkDS (lt_dsp α) Hlt).
+    extend_ord_ds_cat_func_o_map β = F ₒ (MkDS (lt_dsp α) (squash Hlt)).
   Proof.
     rewrite /extend_ord_ds_cat_func_o_map; destruct index_le_lt_eq_dec as [Hlt'| Heq].
-    - replace Hlt' with Hlt by apply proof_irrel; done.
+    - reflexivity.
     - exfalso; eapply index_lt_le_contradict; first exact Hlt.
       rewrite Heq; done.
   Qed.
@@ -226,29 +264,29 @@ Section extend_ord_ds_cat_func.
 
   Program Definition extend_ord_ds_cat_func_h_map {β γ : downset (le_dsp α)} (Hle : β ⪯ γ) :
     hom (extend_ord_ds_cat_func_o_map γ) (extend_ord_ds_cat_func_o_map β) :=
-    match index_le_lt_eq_dec _ _ (ds_in_dsp γ)
+    match index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp γ))
           return hom (extend_ord_ds_cat_func_o_map γ) (extend_ord_ds_cat_func_o_map β) with
     | left Hlt =>
-        match index_le_lt_eq_dec _ _ (ds_in_dsp β)
+        match index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp β))
               return hom (extend_ord_ds_cat_func_o_map γ) (extend_ord_ds_cat_func_o_map β) with
         | left Hlt' =>
             (hom_trans
                (eq_sym (extend_ord_ds_cat_func_o_map_lt Hlt))
                (eq_sym (extend_ord_ds_cat_func_o_map_lt Hlt'))
-               (@h_map _ _ F (MkDS (lt_dsp α) Hlt) (MkDS (lt_dsp α) Hlt') Hle))
+               (@h_map _ _ F (MkDS (lt_dsp α) (squash Hlt)) (MkDS (lt_dsp α) (squash Hlt')) Hle))
         | right Heq =>
             False_rect _
               (index_lt_le_contradict _ _ Hlt
                  match Heq in _ = z return z ⪯ γ with eq_refl => Hle end)
         end
     | right Heq =>
-        match index_le_lt_eq_dec _ _ (ds_in_dsp β)
+        match index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp β))
               return hom (extend_ord_ds_cat_func_o_map γ) (extend_ord_ds_cat_func_o_map β) with
         | left Hlt' =>
             (hom_trans
                (eq_sym (extend_ord_ds_cat_func_o_map_at Heq))
                (eq_sym (extend_ord_ds_cat_func_o_map_lt Hlt'))
-               (side cn (MkDS (lt_dsp α) Hlt')))
+               (side cn (MkDS (lt_dsp α) (squash Hlt'))))
         | right Heq' =>
             (hom_trans
                (eq_sym (extend_ord_ds_cat_func_o_map_at Heq))
@@ -263,11 +301,11 @@ Section extend_ord_ds_cat_func.
       hom_trans
         (eq_sym (extend_ord_ds_cat_func_o_map_lt Hlt'))
         (eq_sym (extend_ord_ds_cat_func_o_map_lt Hlt))
-        (@h_map _ _ F (MkDS (lt_dsp α) Hlt') (MkDS (lt_dsp α) Hlt) Hle).
+        (@h_map _ _ F (MkDS (lt_dsp α) (squash Hlt')) (MkDS (lt_dsp α) (squash Hlt)) Hle).
   Proof.
     rewrite /extend_ord_ds_cat_func_h_map.
-    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
-      destruct (index_le_lt_eq_dec _ _ (ds_in_dsp γ)) as [Hltγ|Heqγ];
+    destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp β))) as [Hltβ|Heqβ];
+      destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp γ))) as [Hltγ|Heqγ];
       try destruct index_lt_le_contradict.
     - replace Hltγ with Hlt' by apply proof_irrel;
         replace Hltβ with Hlt by apply proof_irrel; done.
@@ -283,11 +321,11 @@ Section extend_ord_ds_cat_func.
       hom_trans
         (eq_sym (extend_ord_ds_cat_func_o_map_at Heq))
         (eq_sym (extend_ord_ds_cat_func_o_map_lt Hlt))
-        (side cn (MkDS (lt_dsp α) Hlt)).
+        (side cn (MkDS (lt_dsp α) (squash Hlt))).
   Proof.
     rewrite /extend_ord_ds_cat_func_h_map.
-    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
-      destruct (index_le_lt_eq_dec _ _ (ds_in_dsp γ)) as [Hltγ|Heqγ];
+    destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp β))) as [Hltβ|Heqβ];
+      destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp γ))) as [Hltγ|Heqγ];
       try destruct index_lt_le_contradict.
     - exfalso; eapply index_lt_le_contradict; first by apply Hltγ.
       rewrite Heq; done.
@@ -306,8 +344,8 @@ Section extend_ord_ds_cat_func.
         (id (vertex cn)).
   Proof.
     rewrite /extend_ord_ds_cat_func_h_map.
-    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
-      destruct (index_le_lt_eq_dec _ _ (ds_in_dsp γ)) as [Hltγ|Heqγ];
+    destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp β))) as [Hltβ|Heqβ];
+      destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp γ))) as [Hltγ|Heqγ];
       try destruct index_lt_le_contradict.
     - exfalso; eapply index_lt_le_contradict; first by apply Hltγ.
       rewrite Heq'; done.
@@ -353,11 +391,11 @@ Section extend_ord_ds_cat_func.
     MkFunc extend_ord_ds_cat_func_o_map (λ _ _ f, extend_ord_ds_cat_func_h_map f) _ _ _.
   Next Obligation.
     intros β γ δ Hγβ Hδγ; simpl in *.
-    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
-      destruct (index_le_lt_eq_dec _ _ (ds_in_dsp γ)) as [Hltγ|Heqγ];
-      destruct (index_le_lt_eq_dec _ _ (ds_in_dsp δ)) as [Hltδ|Heqδ];
+    destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp β))) as [Hltβ|Heqβ];
+      destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp γ))) as [Hltγ|Heqγ];
+      destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp δ))) as [Hltδ|Heqδ];
       repeat simplify_extend_ord_ds_cat_func_h_map.
-    - rewrite (@h_map_comp _ _ F (MkDS (lt_dsp α) Hltβ) (MkDS (lt_dsp α) Hltγ)).
+    - rewrite (@h_map_comp _ _ F (MkDS (lt_dsp α) (squash Hltβ)) (MkDS (lt_dsp α) (squash Hltγ))).
       rewrite hom_trans_compose /=.
       rewrite !hom_trans_compose_take_in_l -!hom_trans_trans.
       rewrite !eq_trans_refl_r eq_trans_sym_inv_r //.
@@ -372,7 +410,7 @@ Section extend_ord_ds_cat_func.
   Qed.
   Next Obligation.
     intros β; simpl.
-    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
+    destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp β))) as [Hltβ|Heqβ];
       simplify_extend_ord_ds_cat_func_h_map.
     - rewrite h_map_id hom_trans_id //.
     - rewrite hom_trans_id //.
@@ -414,7 +452,7 @@ Section extend_ord_ds_cat_nat.
 
   Definition extend_ord_ds_cat_nat_map β :
     hom (extend_ord_ds_cat_func_o_map cn β) (extend_ord_ds_cat_func_o_map cn' β) :=
-    match index_le_lt_eq_dec _ _ (ds_in_dsp β) return
+    match index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp β)) return
           hom
             (extend_ord_ds_cat_func_o_map cn β)
             (extend_ord_ds_cat_func_o_map cn' β) with
@@ -422,7 +460,7 @@ Section extend_ord_ds_cat_nat.
         hom_trans
           (eq_sym (extend_ord_ds_cat_func_o_map_lt cn Hlt))
           (eq_sym (extend_ord_ds_cat_func_o_map_lt cn' Hlt))
-          (η ₙ (MkDS (lt_dsp α) Hlt))
+          (η ₙ (MkDS (lt_dsp α) (squash Hlt)))
     | right Heq =>
         hom_trans
           (eq_sym (extend_ord_ds_cat_func_o_map_at cn Heq))
@@ -435,10 +473,10 @@ Section extend_ord_ds_cat_nat.
       hom_trans
       (eq_sym (extend_ord_ds_cat_func_o_map_lt cn Hlt))
       (eq_sym (extend_ord_ds_cat_func_o_map_lt cn' Hlt))
-      (η ₙ (MkDS (lt_dsp α) Hlt)).
+      (η ₙ (MkDS (lt_dsp α) (squash Hlt))).
   Proof.
     rewrite /extend_ord_ds_cat_nat_map /=.
-    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
+    destruct (index_le_lt_eq_dec _ _ (unsquash _)) as [Hltβ|Heqβ];
       repeat simplify_extend_ord_ds_cat_func_h_map.
     - replace Hltβ with Hlt by apply proof_irrel; done.
     - exfalso; eapply index_lt_le_contradict; [by apply Hlt|by rewrite -{1}Heqβ].
@@ -452,7 +490,7 @@ Section extend_ord_ds_cat_nat.
       h.
   Proof.
     rewrite /extend_ord_ds_cat_nat_map /=.
-    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
+    destruct (index_le_lt_eq_dec _ _ (unsquash _)) as [Hltβ|Heqβ];
       repeat simplify_extend_ord_ds_cat_func_h_map.
     - exfalso; eapply index_lt_le_contradict; [by apply Hltβ|by rewrite -{1}Heq].
     - replace Heqβ with Heq by apply proof_irrel; done.
@@ -463,8 +501,8 @@ Section extend_ord_ds_cat_nat.
     MkNat extend_ord_ds_cat_nat_map _.
   Next Obligation.
     intros β γ Hle; simpl in *.
-    destruct (index_le_lt_eq_dec _ _ (ds_in_dsp β)) as [Hltβ|Heqβ];
-      destruct (index_le_lt_eq_dec _ _ (ds_in_dsp γ)) as [Hltγ|Heqγ];
+    destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp β))) as [Hltβ|Heqβ];
+      destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp γ))) as [Hltγ|Heqγ];
       repeat simplify_extend_ord_ds_cat_func_h_map.
     - rewrite (extend_ord_ds_cat_nat_map_lt Hltβ)
         (extend_ord_ds_cat_nat_map_lt Hltγ).
@@ -526,7 +564,7 @@ Section cut_ord_ds_cat_nat.
 
   Definition cut_ord_ds_cat_nat_map β :
     hom (cut_ord_ds_cat_func_o_map dsp' Hdsps F β) (cut_ord_ds_cat_func_o_map dsp' Hdsps F' β) :=
-    η ₙ (MkDS (Hdsps _ (ds_in_dsp β))).
+    η ₙ (MkDS (squash (Hdsps _ (unsquash (ds_in_dsp β))))).
 
   Program Definition cut_ord_ds_cat_nat :
     natural (cut_ord_ds_cat_func dsp' Hdsps F) (cut_ord_ds_cat_func dsp' Hdsps F') :=
@@ -781,9 +819,9 @@ Section limit_at.
   Program Definition is_limit_at {α dsp} (Hle : ∀ β : downset dsp, β ⪯ α)
     (Hin : dsp α) : is_limit (lift_func dsp F) (F ₒ α) :=
     MkIsLimit _ (cone_is_cone (cone_at Hle))
-      (MkIsTerm _ (λ cn, MkConeHom (side cn (MkDS Hin)) _) _).
+      (MkIsTerm _ (λ cn, MkConeHom (side cn (MkDS (squash Hin))) _) _).
   Next Obligation.
-    intros ????? δ; apply (@side_commutes _ _ _ cn (MkDS Hin)).
+    intros ????? δ; apply (@side_commutes _ _ _ cn (MkDS (squash Hin))).
   Qed.
   Next Obligation.
     intros ???? cn [f fcomm]; simpl in *.
@@ -794,13 +832,13 @@ Section limit_at.
 
   Program Definition is_limit_at_zero {t} (Hterm : is_terminal t) :
     is_limit (lift_func (lt_dsp zero) F) t :=
-    MkIsLimit _ (MkIsCone (λ β, False_rect _ (index_lt_zero_is_normal β (ds_in_dsp β))) _)
+    MkIsLimit _ (MkIsCone (λ β, False_rect _ (index_lt_zero_is_normal β (unsquash (ds_in_dsp β)))) _)
       (MkIsTerm _
          (λ cn, MkConeHom (bang Hterm _) _) _).
   Next Obligation.
-  Proof. intros ?? β; exfalso; exact (index_lt_zero_is_normal _ (ds_in_dsp β)). Qed.
+  Proof. intros ?? β; exfalso; exact (index_lt_zero_is_normal _ (unsquash (ds_in_dsp β))). Qed.
   Next Obligation.
-  Proof. intros ??? β; exfalso; exact (index_lt_zero_is_normal _ (ds_in_dsp β)). Qed.
+  Proof. intros ??? β; exfalso; exact (index_lt_zero_is_normal _ (unsquash (ds_in_dsp β))). Qed.
   Next Obligation.
   Proof. intros ????; apply bang_unique. Qed.
   Fail Next Obligation.
@@ -844,7 +882,9 @@ Section later_func_gen.
   Lemma il_side_eq α (β : SI) Hβ1 Hβ2 :
     ic_side (il_is_cone (lo_map_il α)) (@MkDS _ _ β Hβ1) =
     ic_side (il_is_cone (lo_map_il α)) (@MkDS _ _ β Hβ2).
-  Proof. by replace Hβ1 with Hβ2 by apply proof_irrel. Qed.
+  Proof.
+    reflexivity.
+  Qed.
 
   Definition proj_cone_hom {α β} (Hle : β ⪯ α) :
     cone_hom
@@ -904,7 +944,7 @@ Section later_func_gen.
     assert (β ≺ succ α) as Hβsα.
     { apply index_succ_iff; done. }
     pose proof (ic_side_commutes (il_is_cone (lo_map_il (succ α)))
-       (Hle : MkDS (lt_dsp (succ α)) Hβsα ⪯ MkDS (lt_dsp (succ α)) (index_succ_greater α)))
+       (Hle : MkDS (lt_dsp (succ α)) (squash Hβsα) ⪯ MkDS (lt_dsp (succ α)) (squash (index_succ_greater α))))
         as Hicc; simpl in Hicc; rewrite -Hicc; clear Hicc.
     match goal with |- ?A ≡ ?B => assert (A = B) as ->; last done end.
     apply il_side_eq.
@@ -935,19 +975,19 @@ Section later_func_gen.
   Lemma side_of_later_gen {α} (β : downset (lt_dsp α)) :
     ic_side (il_is_cone (lo_map_il α)) β ≡
     (forward earlier_later_iso ₙ (β : SI)) ∘
-    (later_func_gen ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))).
+    (later_func_gen ₕ (index_succ_le_lt2 _ _ (unsquash (ds_in_dsp β)))).
   Proof.
     assert (succ β ⪯ α) as Hsβsα.
-    { apply index_succ_le_lt2, (ds_in_dsp β). }
+    { apply index_succ_le_lt2, (unsquash (ds_in_dsp β)). }
     apply (hom_to_limit_unique _ _ _
       (is_limit_at F (in_lt_dsp_succ β) (index_succ_greater β))
       (cone_is_cone (proj_cone Hsβsα (cone_of_is_cone (il_is_cone (lo_map_il α)))))).
     - intros γ; simpl.
       assert (γ ≺ α) as Hγα.
-      { eapply index_le_lt_trans; last apply (ds_in_dsp β).
-        apply index_succ_iff_proj_r2l, (ds_in_dsp γ). }
+      { eapply index_le_lt_trans; last apply (unsquash (ds_in_dsp β)).
+        apply index_succ_iff_proj_r2l, (unsquash (ds_in_dsp γ)). }
       pose proof (ic_side_commutes (il_is_cone (lo_map_il α))
-       (in_lt_dsp_succ β γ : MkDS (lt_dsp α) Hγα ⪯ MkDS (lt_dsp α) (ds_in_dsp β)))
+       (in_lt_dsp_succ β γ : MkDS (lt_dsp α) (squash Hγα) ⪯ MkDS (lt_dsp α) (ds_in_dsp β)))
         as Hicc.
       destruct β; simpl in *; rewrite -Hicc.
       match goal with |- ?A ≡ ?B => assert (A = B) as ->; last done end.
@@ -962,7 +1002,7 @@ Section later_func_gen.
   Qed.
 
   Lemma side_of_later'_gen {α} (β : downset (lt_dsp α)) :
-    (later_func_gen ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))) ≡
+    (later_func_gen ₕ (index_succ_le_lt2 _ _ (unsquash (ds_in_dsp β)))) ≡
     (backward earlier_later_iso ₙ (β : SI)) ∘ ic_side (il_is_cone (lo_map_il α)) β.
   Proof.
     symmetry.
@@ -994,7 +1034,7 @@ Section later_func_gen.
     (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ),
         (F ₕ Hle) ∘ (f γ Hγ) ≡ (f β Hβ)) :
     cone (lift_func (lt_dsp α) F) :=
-    MkCone c (λ β, f _ (ds_in_dsp β)) _.
+    MkCone c (λ β, f _ (unsquash (ds_in_dsp β))) _.
   Next Obligation.
     intros ?? f Hf β γ Hle; simpl.
     symmetry; apply Hf.
@@ -1012,7 +1052,7 @@ Section later_func_gen.
     (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ),
         (F ₕ Hle) ∘ (f γ Hγ) ≡ (f β Hβ))
     (β : downset (lt_dsp α)) :
-    (ic_side (il_is_cone (lo_map_il α)) β) ∘ (into_later_gen c f Hf) ≡ f _ (ds_in_dsp β).
+    (ic_side (il_is_cone (lo_map_il α)) β) ∘ (into_later_gen c f Hf) ≡ f _ (unsquash (ds_in_dsp β)).
   Proof. rewrite /into_later_gen; rewrite_cone_hom_commutes_back; simpl; done. Qed.
 
 End later_func_gen.
@@ -1262,11 +1302,11 @@ Section later.
   Lemma side_of_later F {α} (β : downset (lt_dsp α)) :
     ic_side (il_is_cone (later_func_o_map_is_limit F α)) β ≡
     (forward earlier_later_nat_iso) ₙ F ₙ (β : SI) ∘
-    ((later ₒ F)ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))).
+    ((later ₒ F)ₕ (index_succ_le_lt2 _ _ (unsquash (ds_in_dsp β)))).
   Proof. apply side_of_later_gen. Qed.
 
   Lemma side_of_later' F {α} (β : downset (lt_dsp α)) :
-    ((later ₒ F)ₕ (index_succ_le_lt2 _ _ (ds_in_dsp β))) ≡
+    ((later ₒ F)ₕ (index_succ_le_lt2 _ _ (unsquash (ds_in_dsp β)))) ≡
     (backward earlier_later_nat_iso) ₙ F ₙ (β : SI) ∘
     ic_side (il_is_cone (later_func_o_map_is_limit F α)) β.
   Proof. apply side_of_later'_gen. Qed.
@@ -1290,7 +1330,7 @@ Section later.
         (F ₕ Hle) ∘ (f γ Hγ) ≡ (f β Hβ))
     (β : downset (lt_dsp α)) :
     (ic_side (il_is_cone (later_func_o_map_is_limit F α)) β) ∘ (into_later F c f Hf) ≡
-    f _ (ds_in_dsp β).
+    f _ (unsquash (ds_in_dsp β)).
   Proof. apply into_later_side_gen. Qed.
 
 End later.
@@ -1300,7 +1340,7 @@ Section Adjunction.
 
   Program Definition to_later_F_succ_cone (F : functor ((OrdCat SI) ᵒᵖ) C) α :
     is_cone (lift_func (lt_dsp α) (functor_compose (opposite_func (Succ SI)) F)) (F ₒ α) :=
-    MkIsCone (λ β, F ₕ (index_succ_iff_proj_r2l _ _ _ (index_lt_succ_mono _ _ (ds_in_dsp β)))) _.
+    MkIsCone (λ β, F ₕ (index_succ_iff_proj_r2l _ _ _ (index_lt_succ_mono _ _ (unsquash (ds_in_dsp β))))) _.
   Next Obligation. repeat intros ?; rewrite /= -h_map_comp; f_equiv; done. Qed.
 
   Program Definition to_later_F_succ F :
@@ -1334,7 +1374,7 @@ Section Adjunction.
     : cone (lift_func (lt_dsp α) G2) :=
     MkCone (F2 ₒ α)
       (λ j, (η2 ₙ (j : SI)) ∘ (δ ₙ (j : SI)) ∘ (η1 ₙ (succ j)) ∘
-              (F2 ₕ (index_succ_least _ _ (ds_in_dsp j)))) _.
+              (F2 ₕ (index_succ_least _ _ (unsquash (ds_in_dsp j))))) _.
   Next Obligation.
     intros ???? η1 η2 δ ????; rewrite /=.
     rewrite -!comp_assoc -!(naturality η2) !comp_assoc. f_equiv.
@@ -1455,7 +1495,7 @@ Section basic_constructs.
     (Hf : ∀ β γ (Hβ : β ≺ α) (Hγ : γ ≺ α) (Hle : β ⪯ γ), (F ₕ Hle) (f γ Hγ) ≡ (f β Hβ))
     (β : downset (lt_dsp α)) :
     (ic_side (il_is_cone (later_func_o_map_is_limit F α)) β) (into_later_psh f Hf) ≡
-    f _ (ds_in_dsp β).
+    f _ (unsquash (ds_in_dsp β)).
   Proof.
     apply (λ Hf, into_later_side F terminal_setoid (λ β Hβ, λset _, f β Hβ)
                    Hf β () _ (reflexivity _)).
@@ -1829,32 +1869,32 @@ Section fixpoint.
 
   Lemma fx_raw_applied_eq {X : PreSheaf (OrdCat SI)} {dsp : downset_pred SI}
     (fx : fx_raw X dsp) (α : SI) (Hα Hα' : dsp α) :
-    fx (MkDS Hα) ≡ fx (MkDS Hα').
+    fx (MkDS (squash Hα)) ≡ fx (MkDS (squash Hα')).
   Proof. replace Hα with Hα'; first done. apply proof_irrelevance. Qed.
 
   Program Definition fx_raw_down_le
     (X : PreSheaf (OrdCat SI)) {dsp : downset_pred SI}
     (fx : fx_raw X dsp) {α} (Hin : dsp α) : fx_raw X (le_dsp α) :=
-  Mkfxr (λ β, fx (MkDS (dsp_pred_downwards _ (ds_in_dsp β) Hin))) _.
+  Mkfxr (λ β, fx (MkDS (squash (dsp_pred_downwards _ (unsquash (ds_in_dsp β)) Hin)))) _.
   Next Obligation.
     repeat intros ????? β γ ?; rewrite /=.
     rewrite -(@fxr_map_commutes _ _ fx
-                (MkDS (dsp_pred_downwards _ (ds_in_dsp β) Hin))
-                (MkDS (dsp_pred_downwards _ (ds_in_dsp γ) Hin))) //.
+                (MkDS (squash (dsp_pred_downwards _ (unsquash (ds_in_dsp β)) Hin)))
+                (MkDS (squash (dsp_pred_downwards _ (unsquash (ds_in_dsp γ)) Hin)))) //.
   Qed.
 
   Program Definition fx_raw_down_lt
     (X : PreSheaf (OrdCat SI)) {dsp : downset_pred SI}
     (fx : fx_raw X dsp) {α} (Hin : dsp α) : fx_raw X (lt_dsp α) :=
-    Mkfxr (λ β, fx (MkDS (dsp_pred_downwards _
-      (index_lt_le_subrel _ _ (ds_in_dsp β)) Hin))) _.
+    Mkfxr (λ β, fx (MkDS (squash (dsp_pred_downwards _
+      (index_lt_le_subrel _ _ (unsquash (ds_in_dsp β))) Hin)))) _.
   Next Obligation.
     repeat intros ????? β γ ?; rewrite /=.
     rewrite -(@fxr_map_commutes _ _ fx
-     (MkDS (dsp_pred_downwards _
-              (index_lt_le_subrel _ _ (ds_in_dsp β)) Hin))
-     (MkDS (dsp_pred_downwards _
-              (index_lt_le_subrel _ _ (ds_in_dsp γ)) Hin))) //.
+     (MkDS (squash (dsp_pred_downwards _
+              (index_lt_le_subrel _ _ (unsquash (ds_in_dsp β))) Hin)))
+     (MkDS (squash (dsp_pred_downwards _
+              (index_lt_le_subrel _ _ (unsquash (ds_in_dsp γ))) Hin)))) //.
   Qed.
 
   Definition fx_raw_zero (X : PreSheaf (OrdCat SI)) {α}
@@ -1932,7 +1972,7 @@ Section fixpoint.
     {α'} (η' : natural (yoneda ₒ α' ×ₒ (later ₒ X)) X)
     {β : limit_idx SI} (Hβ : β ⪯ α) (Hβ' : β ⪯ α') (fx fx' : fx_raw X (lt_dsp β)) :
     (∀ Hle Hle' x, (η ₙ (β : SI)) (Hle, x) ≡ (η' ₙ (β : SI)) (Hle', x)) →
-    (∀ γ (Hγ : γ ≺ β), fx (MkDS (lt_dsp β) Hγ) ≡ fx' (MkDS (lt_dsp β) Hγ)) →
+    (∀ γ (Hγ : γ ≺ β), fx (MkDS (lt_dsp β) (squash Hγ)) ≡ fx' (MkDS (lt_dsp β) (squash Hγ))) →
     fx_raw_lim X η Hβ fx ≡ fx_raw_lim X η' Hβ' fx'.
   Proof.
     rewrite /fx_raw_lim; intros Heq Hfxfx'.
@@ -1943,14 +1983,14 @@ Section fixpoint.
                 (term_is_terminal (complete (lift_func (lt_dsp β) X))))
              (cone_is_cone (fx_raw_cone X β fx))).
     - intros ????; rewrite //=.
-    - intros [] ???; rewrite /= Hfxfx' //.
+    - intros [? Hpr] ???; rewrite /= (Hfxfx' _ (unsquash Hpr)) //.
   Qed.
 
   Lemma fx_raw_lim_ext' (X : PreSheaf (OrdCat SI)) {α}
     (η η': natural (yoneda ₒ α ×ₒ later_func X) X)
     {β : limit_idx SI} (Hβ Hβ' : β ⪯ α) (fx fx' : fx_raw X (lt_dsp β)) :
     (η ₙ (β : SI) ≡ η' ₙ (β : SI)) →
-    (∀ γ (Hγ : γ ≺ β), fx (MkDS (lt_dsp β) Hγ) ≡ fx' (MkDS (lt_dsp β) Hγ)) →
+    (∀ γ (Hγ : γ ≺ β), fx (MkDS (lt_dsp β) (squash Hγ)) ≡ fx' (MkDS (lt_dsp β) (squash Hγ))) →
     fx_raw_lim X η Hβ fx ≡ fx_raw_lim X η' Hβ' fx'.
   Proof.
     intros Heq; apply fx_raw_lim_ext; intros ???; rewrite Heq; by f_equiv.
@@ -1959,36 +1999,36 @@ Section fixpoint.
   Definition fx_raw_compat_zero (X : PreSheaf (OrdCat SI)) {α}
     (η : natural (yoneda ₒ α ×ₒ later_func X) X)
     {dsp} (fx : fx_raw X dsp) (Hz : dsp zero) : Prop :=
-    fx (MkDS Hz) ≡ fx_raw_zero X η.
+    fx (MkDS (squash Hz)) ≡ fx_raw_zero X η.
 
   Definition fx_raw_compat_succ (X : PreSheaf (OrdCat SI)) {α}
     (η : natural (yoneda ₒ α ×ₒ later_func X) X)
     {dsp} (fx : fx_raw X dsp) {β}
     (Hsβ : dsp (succ β)) (Hβα : succ β ⪯ α) : Prop :=
-    fx (MkDS Hsβ) ≡
+    fx (MkDS (squash Hsβ)) ≡
         fx_raw_succ X η Hβα
-         (fx (MkDS (dsp_pred_downwards _
-           (index_lt_le_subrel _ _ (index_succ_greater β)) Hsβ))).
+         (fx (MkDS (squash (dsp_pred_downwards _
+           (index_lt_le_subrel _ _ (index_succ_greater β)) Hsβ)))).
 
   Definition fx_raw_compat_lim (X : PreSheaf (OrdCat SI)) {α}
     (η : natural (yoneda ₒ α ×ₒ later_func X) X)
     {dsp} (fx : fx_raw X dsp) {β : limit_idx SI}
     (Hβ : dsp β) (Hβα : β ⪯ α) : Prop :=
-    fx (MkDS Hβ) ≡ fx_raw_lim X η Hβα (fx_raw_down_lt X fx Hβ).
+    fx (MkDS (squash Hβ)) ≡ fx_raw_lim X η Hβα (fx_raw_down_lt X fx Hβ).
 
   Program Definition fx_raw_compat (X : PreSheaf (OrdCat SI)) {α}
     (η : natural (yoneda ₒ α ×ₒ later_func X) X)
     {dsp} (fx : fx_raw X dsp) :
     index_rect (λ β, dsp β → β ⪯ α → Prop) :=
     MkIR
-      (λ Hz _, fx (MkDS Hz) ≡ fx_raw_zero X η)
+      (λ Hz _, fx (MkDS (squash Hz)) ≡ fx_raw_zero X η)
       (λ β _ Hsβ Hsβ',
-        fx (MkDS Hsβ) ≡
+        fx (MkDS (squash Hsβ)) ≡
         fx_raw_succ X η Hsβ'
-         (fx (MkDS (dsp_pred_downwards _
-           (index_lt_le_subrel _ _ (index_succ_greater β)) Hsβ))))
+         (fx (MkDS (squash (dsp_pred_downwards _
+           (index_lt_le_subrel _ _ (index_succ_greater β)) Hsβ)))))
       (λ β _ Hβ Hsβ',
-        fx (MkDS Hβ) ≡ fx_raw_lim X η Hsβ' (fx_raw_down_lt X fx Hβ))
+        fx (MkDS (squash Hβ)) ≡ fx_raw_lim X η Hsβ' (fx_raw_down_lt X fx Hβ))
       _.
   Next Obligation.
     split; last reflexivity.
@@ -2003,7 +2043,7 @@ Section fixpoint.
     (η : natural (yoneda ₒ α ×ₒ later_func X) X)
     {dsp} (fx : fx_raw X dsp) {dsp'} (fx' : fx_raw X dsp')
     {β} (Hβid : dsp β) (Hβid' : dsp' β) (Hβle : β ⪯ α) :
-    (∀ γ (Hγ : dsp γ) (Hγ' : dsp' γ), fx (MkDS Hγ) ≡ fx' (MkDS Hγ')) →
+    (∀ γ (Hγ : dsp γ) (Hγ' : dsp' γ), fx (MkDS (squash Hγ)) ≡ fx' (MkDS (squash Hγ'))) →
     fx_raw_compat X η fx β Hβid Hβle ↔ fx_raw_compat X η fx' β Hβid' Hβle.
   Proof.
     intros Hfxfx'.
@@ -2037,7 +2077,7 @@ Section fixpoint.
     intros [β Hβid] Hsβ; simpl in *.
     pose proof (fxd_compat fxd) as Hcmp.
     induction β as [|β IHβ|β IHβ] using index_ind;
-      specialize (Hcmp _ Hβid);
+      specialize (Hcmp _ (unsquash Hβid));
       simpl_index_rect in Hcmp; simpl in Hcmp.
     - rewrite Hcmp; last by auto.
       rewrite /fx_raw_zero /fx_raw_succ /= -(psh_naturality η).
@@ -2066,7 +2106,8 @@ Section fixpoint.
         rewrite trans_side_of_is_limit_trans /=.
         rewrite hom_trans_setoid_conv' /=.
         rewrite -setoid_conv_trans eq_trans_sym_inv_r /=.
-        do 2 f_equiv; apply proof_irrel.
+        do 2 f_equiv.
+        reflexivity.
       + intros ??? ->; rewrite /=.
         rewrite later_func_o_map_is_limit_succ.
         rewrite trans_side_of_is_limit_trans /=.
@@ -2084,7 +2125,7 @@ Section fixpoint.
         [intros [] [] _; done|intros [] [] _; done|].
       apply (hom_to_limit_unique _ _ _
                (later_func_o_map_is_limit X β)
-               (cone_is_cone (fx_raw_cone X β (fx_raw_down_lt X fxd Hβid)))).
+               (cone_is_cone (fx_raw_cone X β (fx_raw_down_lt X fxd (unsquash Hβid))))).
       + intros δ [] [] _; simpl in *.
         rewrite_cone_hom_commutes_back; simpl.
         rewrite later_func_o_map_is_limit_succ.
@@ -2092,7 +2133,7 @@ Section fixpoint.
         rewrite hom_trans_setoid_conv' /=.
         rewrite -setoid_conv_trans eq_trans_sym_inv_r /=.
         assert (succ δ ⪯ β) as Hsδ.
-        { apply index_lt_le_subrel, limit_index_is_limit, (ds_in_dsp δ). }
+        { apply index_lt_le_subrel, limit_index_is_limit, (unsquash (ds_in_dsp δ)). }
         assert (succ δ ⪯ α) as Hsδα.
         { etrans; [done|apply Hβα]. }
         match goal with
@@ -2102,7 +2143,7 @@ Section fixpoint.
             by done
         end.
         rewrite h_map_comp /=.
-        rewrite -(IHβ _ (ds_in_dsp δ) _ Hsδα).
+        rewrite -(IHβ _ (unsquash (ds_in_dsp δ)) _ Hsδα).
         f_equiv.
         rewrite -(psh_naturality η) /=.
         rewrite /(fx_raw_succ X η Hsδα).
@@ -2139,7 +2180,7 @@ Section fixpoint.
     (fxd : fx_data X η (lt_dsp β))
     {γ} (Hγβ : γ ≺ β) :
       (X ₕ (index_lt_le_subrel _ _ Hγβ))
-        (fx_raw_lim X η Hβ fxd) ≡ fxd (MkDS (lt_dsp _) Hγβ).
+        (fx_raw_lim X η Hβ fxd) ≡ fxd (MkDS (lt_dsp _) (squash Hγβ)).
   Proof.
     pose proof (fxd_compat fxd) as Hcmp.
     induction γ as [|γ IHγ|γ IHγ] using index_strong_ind;
@@ -2166,14 +2207,14 @@ Section fixpoint.
         rewrite hom_trans_setoid_conv' /=.
         rewrite -setoid_conv_trans eq_trans_sym_inv_r /=.
         rewrite_cone_hom_commutes_back; simpl.
-        apply fx_raw_applied_eq.
+        reflexivity.
       + intros δ' [] [] _; rewrite /=.
         rewrite later_func_o_map_is_limit_succ.
         rewrite trans_side_of_is_limit_trans /=.
         rewrite hom_trans_setoid_conv' /=.
         rewrite -setoid_conv_trans eq_trans_sym_inv_r /=.
         rewrite -IHγ; last first.
-        { by apply index_succ_iff_proj_r2l, (ds_in_dsp δ'). }
+        { by apply index_succ_iff_proj_r2l, (unsquash (ds_in_dsp δ')). }
         rewrite /fx_raw_lim -!(psh_naturality η) /=.
         f_equiv; split; simpl; first done.
         eta_expand_equation () of type terminal_setoid;
@@ -2181,7 +2222,7 @@ Section fixpoint.
         apply (hom_to_limit_unique _ _ _
                  (later_func_o_map_is_limit X δ')
                  (cone_is_cone (fx_raw_cone X δ'
-                   (fx_raw_down_lt X fxd (transitivity (ds_in_dsp δ') Hγβ))))).
+                   (fx_raw_down_lt X fxd (transitivity (unsquash (ds_in_dsp δ')) Hγβ))))).
         * intros δ'' [] [] _; rewrite /=.
           rewrite_cone_hom_commutes_back; simpl.
           rewrite later_func_o_map_is_limit_lim.
@@ -2189,7 +2230,7 @@ Section fixpoint.
           rewrite hom_trans_setoid_conv' /=.
           rewrite -setoid_conv_trans eq_trans_sym_inv_r /=.
           rewrite_cone_hom_commutes_back; simpl.
-          apply fx_raw_applied_eq.
+          reflexivity.
       * intros δ'' [] [] _; rewrite /=.
         repeat (rewrite_cone_hom_commutes_back; simpl).
         rewrite later_func_o_map_is_limit_lim.
@@ -2197,7 +2238,7 @@ Section fixpoint.
         rewrite hom_trans_setoid_conv' /=.
         rewrite -setoid_conv_trans eq_trans_sym_inv_r /=.
         rewrite_cone_hom_commutes_back; simpl.
-        apply fx_raw_applied_eq.
+        reflexivity.
     - assert (γ ⪯ α) as Hγα.
       { eapply index_lt_le_subrel, index_lt_le_trans; done. }
       rewrite (Hcmp Hγα).
@@ -2215,7 +2256,7 @@ Section fixpoint.
         rewrite hom_trans_setoid_conv' /=.
         rewrite -setoid_conv_trans eq_trans_sym_inv_r /=.
         rewrite_cone_hom_commutes_back; simpl.
-        apply fx_raw_applied_eq.
+        reflexivity.
       + intros δ [] [] _; simpl in *.
         rewrite later_func_o_map_is_limit_lim.
         rewrite trans_side_of_is_limit_trans.
@@ -2228,7 +2269,7 @@ Section fixpoint.
     (η : natural (yoneda ₒ α ×ₒ later_func X) X) (dsp dsp' : downset_pred SI)
     (fx : fx_data X η dsp) (fx' : fx_data X η dsp') {β}
     (Hle : β ⪯ α) (Hβ : dsp β) (Hβ' : dsp' β) :
-    fx (MkDS Hβ) ≡ fx' (MkDS Hβ').
+    fx (MkDS (squash Hβ)) ≡ fx' (MkDS (squash Hβ')).
   Proof.
     induction β as [|β IHβ|β IHβ]using index_ind;
       pose proof (fxd_compat fx Hβ) as Hcmp;
@@ -2249,7 +2290,7 @@ Section fixpoint.
     (η : natural (yoneda ₒ α ×ₒ later_func X) X) :
     fx_data X η (le_dsp zero) :=
     Mkfxd (Mkfxr
-      (λ δ, psh_conv X (eq_sym (le_zero_zero _ (ds_in_dsp δ)))
+      (λ δ, psh_conv X (eq_sym (le_zero_zero _ (unsquash (ds_in_dsp δ))))
         (fx_raw_zero X η)) _) _.
   Next Obligation.
     intros ?? η ???; simpl.
@@ -2283,29 +2324,29 @@ Section fixpoint.
     (η : natural (yoneda ₒ α ×ₒ later_func X) X) {β} (Hsβ : succ β ⪯ α)
     (fxd : fx_data X η (le_dsp β)) : fx_data X η (le_dsp (succ β)) :=
     Mkfxd (Mkfxr
-      (λ δ, match le_succ_dec (ds_in_dsp δ) return X ₒ (δ : SI) with
-            | left Hle => fxd (MkDS (le_dsp β) Hle)
+      (λ δ, match le_succ_dec (unsquash (ds_in_dsp δ)) return X ₒ (δ : SI) with
+            | left Hle => fxd (MkDS (le_dsp β) (squash Hle))
             | right Heq =>
                 psh_conv X (eq_sym Heq)
                   (fx_raw_succ X η Hsβ
-                     (fxd (MkDS (le_dsp β) (reflexivity _))))
+                     (fxd (MkDS (le_dsp β) (squash (reflexivity _)))))
             end) _) _.
   Next Obligation.
     intros ????? fxd γ γ' Hγγ'; simpl in *.
     destruct le_succ_dec as [Hle|Heq];
       destruct le_succ_dec as [Hle'|Heq'].
     - rewrite -(@fxr_map_commutes _ _ (fxd_fx fxd)
-        (MkDS (le_dsp β) Hle) (MkDS (le_dsp β) Hle')); done.
+        (MkDS (le_dsp β) (squash Hle)) (MkDS (le_dsp β) (squash Hle'))); done.
     - rewrite psh_conv_hom_action.
       setoid_replace (le_conv_r (eq_sym (eq_sym Heq')) Hγγ') with
         (transitivity Hle
            (index_lt_le_subrel _ _ (index_succ_greater _)))
         by done.
       rewrite h_map_comp /=.
-      etrans; first apply (@fxr_map_commutes _ _ fxd (MkDS (le_dsp β) Hle) (MkDS (le_dsp β)
-        (reflexivity _)) Hle).
+      etrans; first apply (@fxr_map_commutes _ _ fxd (MkDS (le_dsp β) (squash Hle)) (MkDS (le_dsp β)
+        (squash (reflexivity _))) Hle).
       f_equiv.
-      rewrite (fx_data_succ_back X η fxd (MkDS (reflexivity _))) //.
+      rewrite (fx_data_succ_back X η fxd (MkDS (squash (reflexivity _)))) //.
     - exfalso.
       apply (index_le_lt_contradict γ γ'); first done.
       eapply index_le_lt_trans; last by rewrite Heq; apply index_succ_greater.
@@ -2322,20 +2363,21 @@ Section fixpoint.
     intros ??? γ Hγ fxd β Hsβ Hβα; simpl.
     destruct (le_succ_dec Hsβ) as [Hle| ->].
     { pose proof (fxd_compat fxd Hle Hβα) as Hcmp.
-      rewrite fx_raw_compat_equiv in Hcmp; first exact Hcmp.
+      rewrite (@fx_raw_compat_equiv X α η _ fxd (le_dsp (succ γ)) _ β Hle Hsβ) in Hcmp; first exact Hcmp.
       intros γ' Hγ'id Hsγγ'; rewrite /=; destruct le_succ_dec as [|Heq];
-        first by apply fx_raw_applied_eq.
+        first reflexivity.
       exfalso.
       apply (index_le_lt_contradict γ' γ); first done.
-      rewrite Heq; apply index_succ_greater. }
+      rewrite Heq; apply index_succ_greater.
+    }
     simpl_index_rect; rewrite /fx_raw_compat_succ /=.
     assert (¬ (succ γ ⪯ γ)).
     { intros Hle; apply index_succ_le_lt in Hle; eapply index_lt_irrefl; done. }
-    destruct (le_succ_dec Hsβ) as [|Heq]; first done.
+    destruct (le_succ_dec (unsquash _)) as [|Heq]; first done.
     destruct le_succ_dec as [|Heq'].
     - replace Heq with (eq_refl (succ γ)) by apply proof_irrel.
       simpl; f_equiv; first done.
-      apply fx_raw_applied_eq.
+      reflexivity.
     - exfalso.
       eapply (index_lt_irrefl γ), index_succ_le_lt; rewrite {2}Heq'; done.
   Qed.
@@ -2345,19 +2387,19 @@ Section fixpoint.
     (η : natural (yoneda ₒ α ×ₒ later_func X) X) {β}
     (Hle : β ⪯ α)
     (fxds : ∀ γ, γ ≺ β → fx_data X η (le_dsp γ)) : fx_data X η (lt_dsp β) :=
-    Mkfxd (Mkfxr (λ γ, fxds _ (ds_in_dsp γ) (MkDS (reflexivity _))) _) _.
+    Mkfxd (Mkfxr (λ γ, fxds _ (unsquash (ds_in_dsp γ)) (MkDS (squash (reflexivity _)))) _) _.
   Next Obligation.
     intros ??? β Hβ ?; revert Hβ; simpl in *.
     intros Hβα γ' γ Hγ'γ.
-    rewrite -(@fxr_map_commutes _ _ (fxds γ (ds_in_dsp γ))
-      (MkDS (le_dsp γ) Hγ'γ) (MkDS (reflexivity _)) Hγ'γ).
+    rewrite -(@fxr_map_commutes _ _ (fxds γ (unsquash (ds_in_dsp γ)))
+      (MkDS (le_dsp γ) (squash Hγ'γ)) (MkDS (squash (reflexivity _))) Hγ'γ).
     apply fx_data_agree.
     etrans; first done.
-    etrans; first apply index_lt_le_subrel, (ds_in_dsp γ); done.
+    etrans; first apply index_lt_le_subrel, (unsquash (ds_in_dsp γ)); done.
   Qed.
   Next Obligation.
     intros ??? β Hβ fxds γ Hγid Hγle.
-    rewrite fx_raw_compat_equiv.
+    rewrite -(fx_raw_compat_equiv X η (fxds γ Hγid) _ (reflexivity _)).
     { apply (fxd_compat (fxds γ Hγid) (β := γ) (reflexivity _) Hγle). }
     simpl; intros γ' Hγ'1 Hγ'2; apply fx_data_agree.
     etrans; done.
@@ -2368,8 +2410,8 @@ Section fixpoint.
     (η : natural (yoneda ₒ α ×ₒ later_func X) X) {β : limit_idx SI} (Hβ : β ⪯ α)
     (fxd : fx_data X η (lt_dsp β)) : fx_data X η (le_dsp β) :=
     Mkfxd (Mkfxr
-      (λ δ, match index_le_lt_eq_dec _ _ (ds_in_dsp δ) return X ₒ (δ : SI) with
-            | left Hlt => fxd (MkDS (lt_dsp β) Hlt)
+      (λ δ, match index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp δ)) return X ₒ (δ : SI) with
+            | left Hlt => fxd (MkDS (lt_dsp β) (squash Hlt))
             | right Heq => psh_conv X (eq_sym Heq) (fx_raw_lim X η Hβ fxd)
             end) _) _.
   Next Obligation.
@@ -2377,7 +2419,7 @@ Section fixpoint.
     destruct (index_le_lt_eq_dec γ) as [Hltγ|Heqγ];
       destruct (index_le_lt_eq_dec γ') as [Hltγ'|Heqγ'].
     - rewrite -(@fxr_map_commutes _ _ fxd
-        (MkDS (lt_dsp _) Hltγ) (MkDS (lt_dsp _) Hltγ')) //.
+        (MkDS (lt_dsp _) (squash Hltγ)) (MkDS (lt_dsp _) (squash Hltγ'))) //.
     - rewrite psh_conv_hom_action.
       replace (le_conv_r (eq_sym (eq_sym Heqγ')) Hγγ') with
         (index_lt_le_subrel _ _ Hltγ) by apply proof_irrel.
@@ -2396,9 +2438,9 @@ Section fixpoint.
     intros ??? β ?? γ Hγid Hγα; simpl.
     destruct (index_le_lt_eq_dec _ _ Hγid) as [Hlt|Heq].
     - pose proof (fxd_compat fxd Hlt Hγα) as Hcmp.
-      rewrite fx_raw_compat_equiv in Hcmp; first exact Hcmp.
+      rewrite (fx_raw_compat_equiv X η fxd _ Hlt Hγid Hγα) in Hcmp; first exact Hcmp.
       intros γ' Hγ'id Hsγγ'; rewrite /=; destruct index_le_lt_eq_dec as [|Heq];
-        first by apply fx_raw_applied_eq.
+        first reflexivity.
       exfalso; apply (index_lt_irrefl γ'); rewrite {2}Heq //.
     - subst.
       simpl_index_rect; rewrite /fx_raw_compat_lim /=.
@@ -2408,7 +2450,7 @@ Section fixpoint.
       simpl.
       apply fx_raw_lim_ext'; first done.
       intros ??; simpl.
-      destruct index_le_lt_eq_dec as [|Heq']; first by apply fx_raw_applied_eq.
+      destruct index_le_lt_eq_dec as [|Heq']; first reflexivity.
       exfalso; eapply (index_lt_irrefl γ); rewrite {2}Heq' //.
   Qed.
   Fail Next Obligation.
@@ -2490,7 +2532,7 @@ Section fixpoint.
   Lemma make_fx_data_stable (X : PreSheaf (OrdCat SI)) {α}
     (η : natural (yoneda ₒ α ×ₒ later_func X) X) β Hle β' Hle' {γ} (Hγ : γ ⪯ β) (Hγ' : γ ⪯ β')
     (Hβ'β : β' ⪯ β) :
-    make_fx_data X η β Hle (MkDS (le_dsp _) Hγ) ≡ make_fx_data X η β' Hle' (MkDS (le_dsp _) Hγ').
+    make_fx_data X η β Hle (MkDS (le_dsp _) (squash Hγ)) ≡ make_fx_data X η β' Hle' (MkDS (le_dsp _) (squash Hγ')).
   Proof.
     revert Hle β' Hβ'β Hle' γ Hγ Hγ'.
     induction (index_lt_wf _ β) as [β _ IHβ].
@@ -2518,16 +2560,16 @@ Section fixpoint.
   Lemma make_fx_data_stable' (X : PreSheaf (OrdCat SI)) {α}
     (η : natural (yoneda ₒ α ×ₒ later_func X) X) β Hle (γ : downset (le_dsp β)):
     make_fx_data X η β Hle γ ≡
-    make_fx_data X η γ (transitivity (ds_in_dsp γ) Hle) (MkDS (le_dsp _) (reflexivity _)).
+    make_fx_data X η γ (transitivity (unsquash (ds_in_dsp γ)) Hle) (MkDS (le_dsp _) (squash (reflexivity _))).
   Proof.
     destruct γ as [γ Hγ].
-    rewrite -(make_fx_data_stable _ _ β _ γ) /=; done.
+    rewrite -(make_fx_data_stable _ _ β _ γ _ (unsquash Hγ)) /=; first reflexivity. apply (unsquash Hγ).
   Qed.
 
   Lemma make_fx_data_natural (X : PreSheaf (OrdCat SI)) {α}
     (η : natural (yoneda ₒ α ×ₒ later_func X) X) β (Hβα : β ⪯ α) γ (Hγβ : γ ⪯ β) δ (Hδγ : δ ⪯ γ) :
-    make_fx_data X η β Hβα (MkDS (le_dsp _) (transitivity Hδγ Hγβ)) ≡
-    (X ₕ Hδγ) (make_fx_data X η β Hβα (MkDS (le_dsp _) Hγβ)).
+    make_fx_data X η β Hβα (MkDS (le_dsp _) (squash (transitivity Hδγ Hγβ))) ≡
+    (X ₕ Hδγ) (make_fx_data X η β Hβα (MkDS (le_dsp _) (squash Hγβ))).
   Proof.
     revert γ Hγβ δ Hδγ.
     induction (index_lt_wf _ β) as [β _ IHβ].
@@ -2543,7 +2585,7 @@ Section fixpoint.
     { assert (δ = zero) as -> by by apply le_zero_zero.
       replace Hδγ with (reflexivity (zero : SI))
         by by apply proof_irrel.
-      rewrite h_map_id /=. apply fx_raw_applied_eq. }
+      rewrite h_map_id /=. reflexivity. }
     destruct (index_dec_limit β) as [[γ ->]|Hil].
     - simpl_index_rect; rewrite /fx_data_succ /=.
       destruct le_succ_dec as [Hγ'2| ->]; simpl.
@@ -2555,9 +2597,9 @@ Section fixpoint.
           (transitivity Hγ'2 (index_lt_le_subrel _ _ (index_succ_greater γ)))
           by by apply proof_irrel.
         rewrite h_map_comp /=.
-        rewrite (fx_data_succ_back _ _ _ (MkDS (reflexivity γ))).
+        rewrite (fx_data_succ_back _ _ _ (MkDS (squash (reflexivity γ)))).
         rewrite -IHβ; last apply index_succ_greater.
-        apply fx_raw_applied_eq.
+        reflexivity.
       + destruct le_succ_dec as [|Heq].
         { exfalso; eapply index_le_lt_contradict;
             [done|by apply index_succ_greater]. }
@@ -2590,7 +2632,7 @@ Section fixpoint.
         Qed.
 
   Program Definition fixpoint_combinator (X : PreSheaf (OrdCat SI)) : natural (X ↑ₒ (later ₒ X)) X :=
-    MkNat (λ α, λset η, make_fx_data X η α (reflexivity α) (MkDS (reflexivity α))) _.
+    MkNat (λ α, λset η, make_fx_data X η α (reflexivity α) (MkDS (squash (reflexivity α)))) _.
   Next Obligation. repeat intros ?; rewrite make_fx_data_ext'; done. Qed.
   Next Obligation.
     intros ? β γ Hγβ η' η ->; clear η'; simpl in *.
@@ -2612,7 +2654,7 @@ Section fixpoint.
   Proof.
     simpl; simpl_index_rect; simpl.
     rewrite /fx_data_zero /fx_raw_zero /=.
-    replace (le_zero_zero zero (reflexivity zero)) with (eq_refl (zero : SI))
+    replace (le_zero_zero zero (unsquash (squash (reflexivity zero)))) with (eq_refl (zero : SI))
         by apply proof_irrel.
     rewrite /=.
     f_equiv; first done.
@@ -2648,7 +2690,7 @@ Section fixpoint.
   Program Definition fixpoint_lim_cone {X Y : PreSheaf (OrdCat SI)} (η : natural ((later ₒ X) ×ₒ Y) X)
     {α : SI} (y : Y ₒ (α : SI)) : cone (lift_func (lt_dsp α) X) :=
     MkCone terminal_setoid
-      (λ j, λset _, (fixpoint η ₙ (j : SI)) ((Y ₕ (index_lt_le_subrel _ _ (ds_in_dsp j))) y))
+      (λ j, λset _, (fixpoint η ₙ (j : SI)) ((Y ₕ (index_lt_le_subrel _ _ (unsquash (ds_in_dsp j)))) y))
       _.
   Next Obligation.
     intros ??????? h [] [] _; simpl in *.
@@ -2725,7 +2767,7 @@ Section fixpoint.
         rewrite trans_side_of_is_limit_trans.
         rewrite hom_trans_setoid_conv' /=.
         rewrite -setoid_conv_trans eq_trans_sym_inv_r /=.
-        repeat f_equiv; apply proof_irrel.
+        repeat f_equiv; reflexivity.
     - rewrite /= fixpoint_lim.
       f_equiv; split; simpl; last done.
       rewrite later_func_o_map_is_limit_lim.
@@ -2790,7 +2832,7 @@ Section fixpoint.
       + intros β [] [] _; simpl.
         rewrite_cone_hom_commutes_back; simpl.
         rewrite -psh_naturality.
-        rewrite IHα; last apply (ds_in_dsp β).
+        rewrite IHα; last apply (unsquash (ds_in_dsp β)).
         repeat f_equiv; done.
       + intros β [] [] _; rewrite /=.
         rewrite_cone_hom_commutes_back; simpl; done.
