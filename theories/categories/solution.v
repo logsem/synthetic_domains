@@ -1289,7 +1289,6 @@ Section solution.
         {
           simpl; apply proof_irrelevance.
         }
-
         admit.
       +
       admit.
