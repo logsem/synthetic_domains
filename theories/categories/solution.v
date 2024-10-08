@@ -293,6 +293,1057 @@ Proof.
     reflexivity.
 Qed.
 
+Record cones_equiv' {J C} {F F' : functor J C}
+  (Fequiv : functor_equiv F F') (cn : cone F) (cn' : cone F') :=
+  MkConesEq' {
+      cones_eq_vertexes' : vertex cn = vertex cn';
+      cones_eq_sides' :
+      ∀ j, side cn' j
+           ≡ hom_trans cones_eq_vertexes' (func_eq_o_map Fequiv j) (side cn j);
+    }.
+Arguments MkConesEq' {_ _ _ _ _ _ _} _ _.
+Arguments cones_eq_vertexes' {_ _ _ _ _ _ _} _.
+Arguments cones_eq_sides' {_ _ _ _ _ _ _} _ _.
+
+Class StrictComplete D `{!Complete D}
+  := MkStrictComplete {
+         strict_complete
+         : ∀ J
+             (I I' : functor J D)
+             (eq : functor_equiv I I'),
+           cones_equiv' eq (term (complete I)) (term (complete I'));
+         (* strict_complete_bang *)
+         (* : ∀ J *)
+         (*     (I I' : functor J D) *)
+         (*     (eq : functor_equiv I I') (c : obj (ConeCat I)) (c' : obj (ConeCat I')) *)
+         (*     (HEQ : vertex c = vertex c'), *)
+         (*   hom_trans HEQ (cones_eq_vertexes' (strict_complete J I I' eq)) (cone_hom_map (bang (term_is_terminal (complete I)) c)) *)
+         (*   = cone_hom_map (bang (term_is_terminal (complete I')) c'); *)
+       }.
+
+Record SigmaEq {A B} (P : A → Prop) (Q : B → Prop) :=
+  MkSigmaEq {
+      sigma_proj1_eq : A = B;
+      sigma_proj2_eq : ∀ x, P x <-> Q (castT sigma_proj1_eq x);
+    }.
+Arguments MkSigmaEq {_ _ _ _}.
+Arguments sigma_proj1_eq {_ _ _ _}.
+Arguments sigma_proj2_eq {_ _ _ _}.
+
+Program Definition SigmaEqRefl {A} {P : A → Prop} : SigmaEq P P
+  := MkSigmaEq eq_refl _.
+Next Obligation.
+  intros; simpl.
+  reflexivity.
+Qed.
+
+Lemma SigmaEqUIP {A B} {P : A → Prop} {Q : B → Prop}
+  (p q : SigmaEq P Q) : p = q.
+Proof.
+  apply proof_irrelevance.
+Qed.
+
+Lemma SigmaReflUnifyPred {A} {P Q : A → Prop} :
+  SigmaEq P Q → P = Q.
+Proof.
+  intros [p1 p2].
+  assert (p1 = eq_refl) as Hf.
+  { apply proof_irrelevance. }
+  rewrite Hf in p2.
+  apply functional_extensionality.
+  intros; apply propositional_extensionality, p2.
+Qed.
+
+Lemma SigmaEqUnpack {A B} {P : A → Prop} {Q : B → Prop}
+  (p : SigmaEq P Q) : { a : A | P a } = { b : B | Q b }.
+Proof.
+  destruct (sigma_proj1_eq p).
+  rewrite (SigmaReflUnifyPred p).
+  reflexivity.
+Qed.
+
+Lemma SigmaEqCanon {A B : Type}
+  (P : A → Prop) (Q : B → Prop)
+  (G : SigmaEq P Q)
+  (H : { a : A | P a } = { b : B | Q b }) : H = SigmaEqUnpack G.
+Proof.
+  apply proof_irrelevance.
+Qed.
+
+Lemma SigmaEqSymm {A B} {P : A → Prop} {Q : B → Prop}
+  : SigmaEq P Q → SigmaEq Q P.
+Proof.
+  intros p.
+  destruct (sigma_proj1_eq p).
+  destruct (SigmaReflUnifyPred p).
+  apply SigmaEqRefl.
+Qed.
+
+Lemma SigmaEqSymmRefl {A} {P : A → Prop}
+  : SigmaEqSymm (P := P) SigmaEqRefl = SigmaEqRefl.
+Proof. apply proof_irrelevance. Qed.
+
+Lemma SigmaEqTrans {A B C} {P : A → Prop} {Q : B → Prop} {R : C → Prop}
+  : SigmaEq P Q → SigmaEq Q R → SigmaEq P R.
+Proof.
+  intros p q.
+  destruct (sigma_proj1_eq p).
+  destruct (sigma_proj1_eq q).
+  destruct (SigmaReflUnifyPred p).
+  destruct (SigmaReflUnifyPred q).
+  apply SigmaEqRefl.
+Qed.
+
+Lemma SigmaEqTransLeftRefl {A B} {P : A → Prop} {Q : B → Prop}
+  : ∀ (p : SigmaEq P Q), SigmaEqTrans (P := P) SigmaEqRefl p = p.
+Proof. intros; apply proof_irrelevance. Qed.
+
+Lemma SigmaEqTransRightRefl {A B} {P : A → Prop} {Q : B → Prop}
+  : ∀ (p : SigmaEq P Q), SigmaEqTrans (P := P) p SigmaEqRefl = p.
+Proof. intros; apply proof_irrelevance. Qed.
+
+Lemma SigmaEqTransportProj1 {A B} {P : A → Prop} {Q : B → Prop}
+  (p : SigmaEq P Q)
+  : ∀ (x : { a : A | P a }),
+  (proj1_sig (castT (SigmaEqUnpack p) x)) = ((castT (sigma_proj1_eq p) (proj1_sig x))).
+Proof.
+  intros.
+  destruct (sigma_proj1_eq p).
+  destruct (SigmaReflUnifyPred p).
+  rewrite (proof_irrelevance _ (SigmaEqUnpack p) eq_refl).
+  reflexivity.
+Qed.
+
+Record PiEq {A B} (P : A → Type) (Q : B → Type) :=
+  MkPiEq {
+      pi_dom_eq : A = B;
+      pi_range_eq : ∀ x, P x = Q (castT pi_dom_eq x)
+    }.
+Arguments MkPiEq {_ _ _ _}.
+Arguments pi_dom_eq {_ _ _ _}.
+Arguments pi_range_eq {_ _ _ _}.
+
+Program Definition PiEqRefl {A} {P : A → Type} : PiEq P P
+  := MkPiEq eq_refl _.
+Next Obligation.
+  intros; simpl.
+  reflexivity.
+Qed.
+
+Lemma PiEqUIP {A B} {P : A → Type} {Q : B → Type}
+  (p q : PiEq P Q) : p = q.
+Proof.
+  apply proof_irrelevance.
+Qed.
+
+Lemma PiReflUnifyFam {A} {P Q : A → Type} :
+  PiEq P Q → P = Q.
+Proof.
+  intros [p1 p2].
+  assert (p1 = eq_refl) as Hf.
+  { apply proof_irrelevance. }
+  rewrite Hf in p2.
+  apply functional_extensionality.
+  intros; apply p2.
+Qed.
+
+Lemma PiEqUnpack {A B} {P : A → Type} {Q : B → Type}
+  (p : PiEq P Q) : (∀ (a : A), P a) = (∀ (b : B), Q b).
+Proof.
+  destruct (pi_dom_eq p).
+  rewrite (PiReflUnifyFam p).
+  reflexivity.
+Qed.
+
+Lemma PiEqCanon {A B : Type}
+  (P : A → Type) (Q : B → Type)
+  (G : PiEq P Q)
+  (H : (∀ (a : A), P a) = (∀ (b : B), Q b)) : H = PiEqUnpack G.
+Proof.
+  apply proof_irrelevance.
+Qed.
+
+Lemma PiEqSymm {A B} {P : A → Type} {Q : B → Type}
+  : PiEq P Q → PiEq Q P.
+Proof.
+  intros p.
+  destruct (pi_dom_eq p).
+  destruct (PiReflUnifyFam p).
+  apply PiEqRefl.
+Qed.
+
+Lemma PiEqSymmRefl {A} {P : A → Type}
+  : PiEqSymm (P := P) PiEqRefl = PiEqRefl.
+Proof. apply proof_irrelevance. Qed.
+
+Lemma PiEqTrans {A B C} {P : A → Type} {Q : B → Type} {R : C → Type}
+  : PiEq P Q → PiEq Q R → PiEq P R.
+Proof.
+  intros p q.
+  destruct (pi_dom_eq p).
+  destruct (pi_dom_eq q).
+  destruct (PiReflUnifyFam p).
+  destruct (PiReflUnifyFam q).
+  apply PiEqRefl.
+Qed.
+
+Lemma PiEqTransLeftRefl {A B} {P : A → Type} {Q : B → Type}
+  : ∀ (p : PiEq P Q), PiEqTrans (P := P) PiEqRefl p = p.
+Proof. intros; apply proof_irrelevance. Qed.
+
+Lemma PiEqTransRightRefl {A B} {P : A → Type} {Q : B → Type}
+  : ∀ (p : PiEq P Q), PiEqTrans (P := P) p PiEqRefl = p.
+Proof. intros; apply proof_irrelevance. Qed.
+
+Lemma PiEqTransportApp {J} {P Q : J → Type}
+  (b : ∀ x : J, P x)
+  (K : PiEq P Q)
+  (H : ∀ a : J, (P a) = (Q a))
+  : castT (PiEqUnpack K) b = λ x, castT (H x) (b x).
+Proof.
+  destruct (PiReflUnifyFam K).
+  assert (H = λ _, eq_refl) as Hf.
+  {
+    intros; apply proof_irrelevance.
+  }
+  rewrite Hf; clear Hf.
+  simpl.
+  assert (PiEqUnpack K = eq_refl) as ->.
+  { apply proof_irrelevance. }
+  reflexivity.
+Qed.
+
+Record SetoidEq (s1 s2 : setoid) :=
+  MkSetoidEq {
+      setoid_carrier_eq : setoid_set s1 = setoid_set s2;
+      setoid_rel_equiv : ∀ x y, setoid_eq s1 x y
+                                <-> setoid_eq s2 (castT setoid_carrier_eq x)
+                                    (castT setoid_carrier_eq y);
+    }.
+Arguments MkSetoidEq {_ _}.
+Arguments setoid_carrier_eq {_ _}.
+Arguments setoid_rel_equiv {_ _}.
+
+Program Definition SetoidEqRefl {A} : SetoidEq A A
+  := MkSetoidEq eq_refl _.
+Next Obligation.
+  intros; simpl.
+  reflexivity.
+Qed.
+
+Lemma SetoidEqUIP {A B}
+  (p q : SetoidEq A B) : p = q.
+Proof.
+  apply proof_irrelevance.
+Qed.
+
+Lemma SetoidEqUnpack {A B}
+  (p : SetoidEq A B) : A = B.
+Proof.
+  destruct A as [A1 A2 A3];
+    destruct B as [B1 B2 B3].
+  destruct p as [p1 p2].
+  simpl in *; destruct p1.
+  assert (A2 = B2) as Hf.
+  {
+    apply functional_extensionality; intros x.
+    apply functional_extensionality; intros y.
+    apply propositional_extensionality.
+    apply p2.
+  }
+  destruct Hf.
+  assert (A3 = B3) as ->.
+  { apply proof_irrelevance. }
+  reflexivity.
+Qed.
+
+Lemma SetoidEqPack {A B}
+  (p : A = B) : SetoidEq A B.
+Proof.
+  rewrite p.
+  apply SetoidEqRefl.
+Qed.
+
+Lemma SetoidEqPackUnpack {A B}
+  (p : A = B) : SetoidEqUnpack (SetoidEqPack p) = p.
+Proof. apply proof_irrelevance. Qed.
+
+Lemma SetoidEqUnpackPack {A B}
+  (p : SetoidEq A B) : SetoidEqPack (SetoidEqUnpack p) = p.
+Proof. apply proof_irrelevance. Qed.
+
+Lemma SetoidEqCanon {A B}
+  (G : SetoidEq A B)
+  (H : A = B) : H = SetoidEqUnpack G.
+Proof.
+  apply proof_irrelevance.
+Qed.
+
+Lemma SetoidEqSymm {A B}
+  : SetoidEq A B → SetoidEq B A.
+Proof.
+  intros p.
+  apply SetoidEqPack.
+  apply SetoidEqUnpack in p.
+  destruct p.
+  reflexivity.
+Qed.
+
+Lemma SetoidEqSymmRefl {A}
+  : SetoidEqSymm (A := A) SetoidEqRefl = SetoidEqRefl.
+Proof. apply proof_irrelevance. Qed.
+
+Lemma SetoidEqTrans {A B C}
+  : SetoidEq A B → SetoidEq B C → SetoidEq A C.
+Proof.
+  intros p q.
+  apply SetoidEqPack.
+  apply SetoidEqUnpack in p.
+  apply SetoidEqUnpack in q.
+  destruct p.
+  apply q.
+Qed.
+
+Lemma SetoidEqTransLeftRefl {A B}
+  : ∀ (p : SetoidEq A B), SetoidEqTrans (A := A) SetoidEqRefl p = p.
+Proof. intros; apply proof_irrelevance. Qed.
+
+Lemma SetoidEqTransRightRefl {A B}
+  : ∀ (p : SetoidEq A B), SetoidEqTrans (A := A) p SetoidEqRefl = p.
+Proof. intros; apply proof_irrelevance. Qed.
+
+Lemma SetoidEqUnpackSymm {A B}
+  {p : SetoidEq A B}
+  : eq_sym (SetoidEqUnpack p) = SetoidEqUnpack (SetoidEqSymm p).
+Proof. apply proof_irrelevance. Qed.
+
+Lemma MkSetoidEqSymm {A B}
+  (f : setoid_set A = setoid_set B)
+  (g : ∀ x y, setoid_eq A x y
+              <-> setoid_eq B (castT f x) (castT f y))
+  (h : ∀ x y : B, setoid_eq B x y
+                    ↔ setoid_eq A (castT (eq_sym f) x) (castT (eq_sym f) y))
+  : SetoidEqSymm (MkSetoidEq f g) = MkSetoidEq (eq_sym f) h.
+Proof. apply proof_irrelevance. Qed.
+
+Lemma SetoidEqSetoidConv {A B}
+  (p : SetoidEq A B)
+  : setoid_conv (SetoidEqUnpack p) = castT (setoid_carrier_eq p).
+Proof.
+  apply functional_extensionality.
+  intros; simpl.
+  destruct p as [p1 p2].
+  destruct A as [A1 A2 A3];
+    destruct B as [B1 B2 B3].
+  simpl in *.
+  destruct p1.
+  simpl in *.
+  assert (A2 = B2) as Hf.
+  {
+    apply functional_extensionality; intros a.
+    apply functional_extensionality; intros b.
+    apply propositional_extensionality, p2.
+  }
+  destruct Hf.
+  assert (A3 = B3) as Hf by apply proof_irrelevance.
+  destruct Hf.
+  match goal with
+  | |- context G [SetoidEqUnpack ?a] =>
+      set (S := a)
+  end.
+  rewrite -(SetoidEqCanon S eq_refl).
+  done.
+Qed.
+
+Program Definition setoid_vert_eq_obj_packed {J : category}
+  {I_obj I'_obj : obj J → setoid}
+  {I_arr : ∀ a b : obj J, hom a b → setoid_fun (I_obj a) (I_obj b)}
+  {I'_arr : ∀ a b : obj J, hom a b → setoid_fun (I'_obj a) (I'_obj b)}
+  (equiv_obj : ∀ x, I_obj x = I'_obj x)
+  (equiv_arr : ∀ a b (f : hom a b),
+     hom_trans (equiv_obj a : @eq (obj Setoid) _ _) (equiv_obj b) (I_arr _ _ f)
+       ≡ I'_arr _ _ f)
+  : SigmaEq (λ (p : ∀ j : obj J, I_obj j),
+        ∀ (j j' : obj J) (f : hom j j'), (I_arr _ _ f) (p j) ≡ p j')
+      (λ (p : ∀ j : obj J, I'_obj j),
+        ∀ (j j' : obj J) (f : hom j j'), (I'_arr _ _ f) (p j) ≡ p j')
+  := MkSigmaEq
+       (forall_extensionality
+          (λ x, f_equal setoid_set (equiv_obj x)))
+       _.
+Next Obligation.
+  intros J I_obj I'_obj I_arr I'_arr equiv_obj equiv_arr b; simpl.
+  split; intros.
+  - assert (I_obj = I'_obj) as Hf.
+    {
+      apply functional_extensionality.
+      apply equiv_obj.
+    }
+    destruct Hf.
+    assert (equiv_obj = λ _, eq_refl) as ->.
+    { apply proof_irrelevance. }
+    simpl.
+    assert ((forall_extensionality (λ x : obj J, eq_refl))
+            = eq_refl) as ->.
+    { apply proof_irrelevance. }
+    simpl.
+    rewrite -(H j j' f).
+    symmetry.
+    by apply equiv_arr.
+  - specialize (H j j' f).
+    assert (I_obj = I'_obj) as Hf.
+    {
+      apply functional_extensionality.
+      apply equiv_obj.
+    }
+    destruct Hf.
+    assert (equiv_obj = λ _, eq_refl) as Hf.
+    { apply proof_irrelevance. }
+    rewrite Hf in H, equiv_arr; clear Hf.
+    simpl in H.
+    eassert ((forall_extensionality (C := λ j : obj J, I_obj j) (λ x : obj J, eq_refl))
+            = eq_refl) as Hf.
+    { apply proof_irrelevance. }
+    Unshelve.
+    rewrite Hf in H; clear Hf.
+    simpl in H.
+    rewrite -H.
+    apply equiv_arr.
+    reflexivity.
+Qed.
+
+Program Definition setoid_vert_eq_obj {J : category}
+  {I_obj I'_obj : obj J → setoid}
+  {I_arr : ∀ a b : obj J, hom a b → setoid_fun (I_obj a) (I_obj b)}
+  {I'_arr : ∀ a b : obj J, hom a b → setoid_fun (I'_obj a) (I'_obj b)}
+  (equiv_obj : ∀ x, I_obj x = I'_obj x)
+  (equiv_arr : ∀ a b (f : hom a b),
+     hom_trans (equiv_obj a : @eq (obj Setoid) _ _) (equiv_obj b) (I_arr _ _ f)
+       ≡ I'_arr _ _ f)
+  :
+  {p : ∀ j : obj J, I_obj j
+  | ∀ (j j' : obj J) (f : hom j j'), (I_arr _ _ f) (p j) ≡ p j'}
+  = {p : ∀ j : obj J, I'_obj j
+    | ∀ (j j' : obj J) (f : hom j j'), (I'_arr _ _ f) (p j) ≡ p j'}
+  := SigmaEqUnpack (setoid_vert_eq_obj_packed equiv_obj equiv_arr).
+
+Program Definition setoid_vert_eq_packed {J : category}
+  {I I' : functor J Setoid}
+  (equiv_obj : ∀ x, I ₒ x = I' ₒ x)
+  (equiv_arr : ∀ a b (f : hom a b),
+     hom_trans (equiv_obj a) (equiv_obj b) (I ₕ f) ≡ I' ₕ f)
+  :
+  SetoidEq (vertex (term (complete I))) (vertex (term (complete I')))
+  := MkSetoidEq (setoid_vert_eq_obj equiv_obj equiv_arr) _.
+Next Obligation.
+  intros J I I' equiv_obj equiv_arr x y; simpl.
+  rewrite /sig_eq.
+  pose proof (setoid_vert_eq_obj_packed equiv_obj equiv_arr) as K.
+  destruct I as [I_obj I_arr T1 T2 T3];
+      destruct I' as [I'_obj I'_arr R1 R2 R3];
+      simpl in *.
+  clear T1 T2 T3.
+  clear R1 R2 R3.
+  assert (I_obj = I'_obj) as Hf.
+  {
+    apply functional_extensionality.
+    apply equiv_obj.
+  }
+  destruct Hf.
+  assert (equiv_obj = λ _, eq_refl) as Hf.
+  { apply proof_irrelevance. }
+  subst equiv_obj.
+  rewrite (SigmaEqCanon _ _ K (setoid_vert_eq_obj (λ x0 : obj J, eq_refl) equiv_arr)).
+  rewrite (SigmaEqTransportProj1 K x) (SigmaEqTransportProj1 K y).
+  assert ((sigma_proj1_eq K) = eq_refl) as ->.
+  { apply proof_irrelevance. }
+  reflexivity.
+Qed.
+
+Program Definition setoid_vert_eq {J : category}
+  {I I' : functor J Setoid}
+  (equiv_obj : ∀ x, I ₒ x = I' ₒ x)
+  (equiv_arr : ∀ a b (f : hom a b),
+     hom_trans (equiv_obj a) (equiv_obj b) (I ₕ f) ≡ I' ₕ f)
+  :
+  (vertex (term (complete I))) = (vertex (term (complete I')))
+  := SetoidEqUnpack (setoid_vert_eq_packed equiv_obj equiv_arr).
+
+Lemma SetoidMapPI {A B : setoid}
+  (f g : setoid_fun A B) :
+  (setoid_fun_map A B f = setoid_fun_map A B g)
+  → f = g :> setoid_fun A B.
+Proof.
+  intros Hf.
+  destruct f as [f1 f2]; destruct g as [g1 g2]; simpl in *.
+  destruct Hf.
+  assert (f2 = g2) as -> by apply proof_irrelevance.
+  reflexivity.
+Qed.
+
+Instance SetoidStrictComplete : StrictComplete Setoid.
+Proof.
+  unshelve econstructor.
+  {
+    intros J I I' equiv.
+    destruct equiv as [oe he].
+    apply (MkConesEq' (setoid_vert_eq oe he)).
+    intros j; simpl.
+    rewrite /setoid_lim_side.
+    intros x y Hxy; simpl.
+    rewrite -Hxy; clear Hxy y.
+    destruct I as [I_obj I_arr T1 T2 T3];
+      destruct I' as [I'_obj I'_arr R1 R2 R3];
+      simpl in *.
+    assert (I_obj = I'_obj) as Hf.
+    { apply functional_extensionality, oe. }
+    destruct Hf.
+    assert (oe = λ _, eq_refl) as Hf.
+    { apply proof_irrelevance. }
+    subst oe.
+    rewrite hom_trans_setoid_conv.
+    rewrite hom_trans_refl /=.
+    unfold hom_trans in he.
+    unfold setoid_vert_eq.
+    rewrite SetoidEqUnpackSymm.
+    rewrite SetoidEqSetoidConv.
+    match goal with
+    | |- context G [castT ?a] =>
+        set (S := a)
+    end.
+    simpl in S.
+    rewrite (SigmaEqCanon _ _ (SigmaEqSymm (setoid_vert_eq_obj_packed (λ _, eq_refl) he)) S).
+    rewrite SigmaEqTransportProj1.
+    assert ((sigma_proj1_eq
+               (SigmaEqSymm
+                  (setoid_vert_eq_obj_packed (λ x0 : obj J, eq_refl) he))) = eq_refl) as Hf.
+    { apply proof_irrelevance. }
+    rewrite Hf; clear Hf.
+    reflexivity.
+  }
+  (* { *)
+  (*   intros; simpl. *)
+  (*   match goal with *)
+  (*   | |- context G [hom_trans _ ?a] *)
+  (*     => set (HEQ' := a); clearbody HEQ' *)
+  (*   end. *)
+  (*   apply SetoidMapPI. *)
+  (*   apply functional_extensionality. *)
+  (*   intros ?. *)
+  (*   rewrite /setoid_fun_to_setoid_lim_cone /=. *)
+  (*   rewrite hom_trans_setoid_conv' /=. *)
+  (*   destruct c as [c1 c2 c3]; destruct c' as [c'1 c'2 c'3]; simpl in *. *)
+  (*   destruct HEQ; simpl. *)
+  (*   destruct eq as [oe he]. *)
+  (*   destruct I as [I_obj I_arr T1 T2 T3]; *)
+  (*     destruct I' as [I'_obj I'_arr R1 R2 R3]; *)
+  (*     simpl in *. *)
+  (*   assert (I_obj = I'_obj) as Hf. *)
+  (*   { apply functional_extensionality, oe. } *)
+  (*   destruct Hf. *)
+  (*   assert (oe = λ _, eq_refl) as Hf. *)
+  (*   { apply proof_irrelevance. } *)
+  (*   subst oe. *)
+  (*   apply (eq_sig_hprop (λ t p q, proof_irrelevance _ p q)); simpl. *)
+  (*   rewrite -(SetoidEqPackUnpack HEQ'). *)
+  (*   rewrite SetoidEqSetoidConv. *)
+  (*   rewrite (SigmaEqCanon _ _ _ (setoid_carrier_eq (SetoidEqPack HEQ'))). *)
+  (*   { admit. } *)
+  (*   intros; simpl in *. *)
+  (*   rewrite SigmaEqTransportProj1. *)
+  (*   simpl. *)
+  (*   destruct Hyp0. *)
+  (*   simpl. *)
+  (* } *)
+Qed.
+
+Record FunctorEq {C D} (F G : functor C D) :=
+  MkFunctorEq {
+      func_eq_obj : ∀ x, F ₒ x = G ₒ x;
+      func_eq_arr : ∀ {x y} (f : hom x y),
+        G ₕ f = hom_trans (func_eq_obj x) (func_eq_obj y) (F ₕ f);
+    }.
+Arguments MkFunctorEq {_ _ _ _}.
+Arguments func_eq_obj {_ _ _ _}.
+Arguments func_eq_arr {_ _ _ _}.
+
+Program Definition FunctorEqRefl {C D} {F : functor C D} : FunctorEq F F
+  := MkFunctorEq (λ _, eq_refl) _.
+Next Obligation.
+  intros; simpl.
+  reflexivity.
+Qed.
+
+Lemma FunctorEqUIP {C D} {F G : functor C D}
+  (p q : FunctorEq F G) : p = q.
+Proof.
+  apply proof_irrelevance.
+Qed.
+
+Lemma FunctorEqUnpack {C D} {F G : functor C D}
+  (p : FunctorEq F G) : F = G.
+Proof.
+  destruct F as [F1 F2 F3 F4 F5];
+    destruct G as [G1 G2 G3 G4 G5].
+  destruct p as [p1 p2].
+  simpl in *.
+  assert (F1 = G1) as Hf.
+  { apply functional_extensionality, p1. }
+  destruct Hf.
+  assert (p1 = λ _, eq_refl).
+  { apply proof_irrelevance. }
+  subst p1.
+  assert (F2 = G2) as Hf.
+  {
+    apply functional_extensionality_dep; intros x.
+    apply functional_extensionality_dep; intros y.
+    apply functional_extensionality; intros f.
+    rewrite p2.
+    reflexivity.
+  }
+  destruct Hf.
+  assert (F3 = G3) as ->.
+  { apply proof_irrelevance. }
+  assert (F4 = G4) as ->.
+  { apply proof_irrelevance. }
+  assert (F5 = G5) as ->.
+  { apply proof_irrelevance. }
+  reflexivity.
+Qed.
+
+Lemma FunctorEqPack {C D} {F G : functor C D}
+  (p : F = G) : FunctorEq F G.
+Proof.
+  rewrite p.
+  apply FunctorEqRefl.
+Qed.
+
+Lemma FunctorEqPackUnpack {C D} {F G : functor C D}
+  (p : F = G) : FunctorEqUnpack (FunctorEqPack p) = p.
+Proof. apply proof_irrelevance. Qed.
+
+Lemma FunctorEqUnpackPack {C D} {F G : functor C D}
+  (p : FunctorEq F G) : FunctorEqPack (FunctorEqUnpack p) = p.
+Proof. apply proof_irrelevance. Qed.
+
+Lemma FunctorEqCanon {C D} {F G : functor C D}
+  (J : FunctorEq F G)
+  (H : F = G) : H = FunctorEqUnpack J.
+Proof.
+  apply proof_irrelevance.
+Qed.
+
+Lemma FunctorEqSymm {C D} {F G : functor C D}
+  : FunctorEq F G → FunctorEq G F.
+Proof.
+  intros p.
+  apply FunctorEqPack.
+  apply FunctorEqUnpack in p.
+  destruct p.
+  reflexivity.
+Qed.
+
+Lemma FunctorEqSymmRefl {C D} {F : functor C D}
+  : FunctorEqSymm (F := F) FunctorEqRefl = FunctorEqRefl.
+Proof. apply proof_irrelevance. Qed.
+
+Lemma FunctorEqTrans {C D} {F G H : functor C D}
+  : FunctorEq F G → FunctorEq G H → FunctorEq F H.
+Proof.
+  intros p q.
+  apply FunctorEqPack.
+  apply FunctorEqUnpack in p.
+  apply FunctorEqUnpack in q.
+  destruct p.
+  apply q.
+Qed.
+
+Lemma FunctorEqTransLeftRefl {C D} {F G : functor C D}
+  : ∀ (p : FunctorEq F G), FunctorEqTrans (F := F) FunctorEqRefl p = p.
+Proof. intros; apply proof_irrelevance. Qed.
+
+Lemma FunctorEqTransRightRefl {C D} {F G : functor C D}
+  : ∀ (p : FunctorEq F G), FunctorEqTrans (F := F) p FunctorEqRefl = p.
+Proof. intros; apply proof_irrelevance. Qed.
+
+Lemma FunctorEqUnpackSymm {C D} {F G : functor C D}
+  {p : FunctorEq F G}
+  : eq_sym (FunctorEqUnpack p) = FunctorEqUnpack (FunctorEqSymm p).
+Proof. apply proof_irrelevance. Qed.
+
+Lemma MkFunctorEqSymm {C D} {F G : functor C D}
+  (t : ∀ x, o_map F x = o_map G x)
+  (g : ∀ x y (f : hom x y),
+     h_map G f = hom_trans (t x) (t y) (h_map F f))
+  (h : ∀ x y (f : hom x y),
+     h_map F f = hom_trans (eq_sym (t x)) (eq_sym (t y)) (h_map G f))
+  : FunctorEqSymm (MkFunctorEq t g) = MkFunctorEq (λ x, eq_sym (t x)) h.
+Proof. apply proof_irrelevance. Qed.
+
+Lemma FunctorMapPI {C D} {A B : functor C D}
+  (f g : natural A B) :
+  (nat_map f = nat_map g)
+  → f = g :> natural A B.
+Proof.
+  intros Hf.
+  destruct f as [f1 f2]; destruct g as [g1 g2]; simpl in *.
+  destruct Hf.
+  assert (f2 = g2) as -> by apply proof_irrelevance.
+  reflexivity.
+Qed.
+
+Lemma pointwise_func_equiv_lift {C} `{!Complete C} `{!StrictComplete C}
+  {J : category}
+  {I I' : functor J (PSh C)}
+  (eq : functor_equiv I I')
+  x
+  : functor_equiv (pointwise_func I x) (pointwise_func I' x).
+Proof.
+  destruct eq as [oe he]; simpl.
+  destruct I as [om am H1 H2 H3];
+    destruct I' as [om' am' G1 G2 G3].
+  simpl in *.
+  assert (om = om') as Hf.
+  {
+    apply functional_extensionality.
+    intros; apply oe.
+  }
+  destruct Hf.
+  assert (oe = λ _, eq_refl) as Hf.
+  { apply proof_irrelevance. }
+  subst oe; simpl.
+  unshelve eapply MkFuncEq.
+  - intros; simpl.
+    reflexivity.
+  - intros; simpl.
+    rewrite hom_trans_refl.
+    apply he.
+Defined.
+
+Program Definition pointwise_func_equiv_cones {C} `{!Complete C} `{!StrictComplete C}
+  (J : category)
+  (I I' : functor J (PSh C))
+  (eq : functor_equiv I I')
+  : ∀ x, cones_equiv' (pointwise_func_equiv_lift eq x)
+      (term (complete (pointwise_func I x)))
+      (term (complete (pointwise_func I' x)))
+  := λ x, strict_complete _ _ _ (pointwise_func_equiv_lift eq x).
+
+Lemma pointwise_o_map {J C}
+  (I I' : J → obj (PSh C))
+  (eq : ∀ x, I x = I' x)
+  : ∀ r x, ((I r) ₒ x) = ((I' r) ₒ x).
+Proof.
+  intros r x.
+  rewrite (eq r).
+  reflexivity.
+Qed.
+
+Lemma pointwise_o_map_lift_refl {J C}
+  (I : J → obj (PSh C))
+  : pointwise_o_map I I (λ _, eq_refl) = λ r x, eq_refl.
+Proof.
+  apply proof_irrelevance.
+Qed.
+
+Lemma pointwise_h_map {J C}
+  (F G : functor J (PSh C))
+  (eq : functor_equiv F G)
+  (r : obj J)
+  {x y : obj (C ᵒᵖ)} (f : hom x y)
+  : ((G ₒ r) ₕ f)
+    = hom_trans
+        (pointwise_o_map _ _ (func_eq_o_map eq) r x)
+        (pointwise_o_map _ _ (func_eq_o_map eq) r y)
+        ((F ₒ r) ₕ f).
+Proof.
+  simpl.
+  destruct F as [F1 F2 F3 F4 F5];
+    destruct G as [G1 G2 G3 G4 G5];
+    destruct eq as [eq1 eq2];
+    simpl in *.
+  assert (F1 = G1) as Hf.
+  { apply functional_extensionality; intros ?; apply eq1. }
+  destruct Hf.
+  assert (eq1 = λ _, eq_refl) as Hf.
+  { apply proof_irrelevance. }
+  subst eq1.
+  rewrite pointwise_o_map_lift_refl.
+  reflexivity.
+Qed.
+
+Program Definition PShVertEq {C} `{!Complete C} `{!StrictComplete C}
+  (J : category)
+  (F G : functor J (PSh C))
+  (eq : functor_equiv F G)
+  : vertex (func_limit_cone F) = vertex (func_limit_cone G).
+Proof.
+  apply FunctorEqUnpack.
+  unshelve eapply MkFunctorEq.
+  - intros x; simpl.
+    apply (cones_eq_vertexes' (pointwise_func_equiv_cones _ _ _ eq x)).
+  - intros; simpl.
+    unfold func_limit_func_h_map.
+    unfold setoid_fun_to_setoid_lim_cone.
+    apply SetoidMapPI; simpl.
+    apply functional_extensionality; intros z.
+    apply (eq_sig_hprop (λ t p q, proof_irrelevance _ p q)); simpl.
+    apply functional_extensionality_dep; intros r; simpl.
+    rewrite (pointwise_h_map F G eq r f).
+    set (hom_trans (pointwise_o_map (F ₒ) (G ₒ) (func_eq_o_map eq) r x)
+           (pointwise_o_map (F ₒ) (G ₒ) (func_eq_o_map eq) r y) ((F ₒ r)ₕ f)) as h.
+    set (setoid_fun_to_setoid_lim_cone (pointwise_func F y)
+           (cone_on_pointwise_func F f)) as g.
+    set (pointwise_func_equiv_cones J F G eq) as k.
+    simpl in *.
+    set (cones_eq_vertexes' (k x)) as c1.
+    set (cones_eq_vertexes' (k y)) as c2.
+    simpl in *.
+
+    unfold func_limit_func_o_map in g.
+    simpl in g.
+    rewrite hom_trans_setoid_conv'.
+    assert (SetoidEq (setoid_lim_obj (pointwise_func G x)) (setoid_lim_obj (pointwise_func F x))).
+    {
+      apply SetoidEqPack.
+      symmetry.
+      apply c1.
+    }
+    rewrite -(SetoidEqPackUnpack (eq_sym c1)).
+    rewrite SetoidEqSetoidConv.
+    rewrite -(SetoidEqPackUnpack c2).
+    rewrite SetoidEqSetoidConv.
+    unshelve eassert ((setoid_carrier_eq (SetoidEqPack c2))
+                      = SigmaEqUnpack _) as p.
+    {
+      unshelve econstructor.
+      - apply PiEqUnpack.
+        apply (MkPiEq eq_refl).
+        intros i; simpl.
+        apply (setoid_carrier_eq (SetoidEqPack (pointwise_o_map (F ₒ) (G ₒ) (func_eq_o_map eq) i y))).
+      - intros; simpl; clear.
+        rewrite PiEqTransportApp.
+        {
+          intros i; simpl.
+          apply (setoid_carrier_eq (SetoidEqPack (pointwise_o_map (F ₒ) (G ₒ) (func_eq_o_map eq) i y))).
+        }
+        intros P.
+        destruct F as [F1 F2 F3 F4 F5];
+          destruct G as [G1 G2 G3 G4 G5];
+          destruct eq as [eq1 eq2]; simpl in *.
+        assert (F1 = G1) as Hf.
+        {
+          apply functional_extensionality; intros.
+          apply eq1.
+        }
+        destruct Hf.
+        assert (eq1 = λ _, eq_refl) as Hf.
+        { apply proof_irrelevance. }
+        subst eq1.
+        assert (P = λ _, eq_refl) as Hf.
+        { apply proof_irrelevance. }
+        subst P.
+        simpl.
+        split.
+        + intros H ???; rewrite -eq2.
+          apply H.
+        + intros H ???.
+          unfold hom_trans in eq2.
+          rewrite eq2.
+          apply H.
+    }
+    { apply proof_irrelevance. }
+    rewrite p; clear p.
+    rewrite SigmaEqTransportProj1 /=.
+    rewrite PiEqTransportApp.
+    {
+      intros i; simpl.
+      apply (setoid_carrier_eq (SetoidEqPack (pointwise_o_map (F ₒ) (G ₒ) (func_eq_o_map eq) i y))).
+    }
+    intros P; simpl.
+    unshelve eassert ((setoid_carrier_eq (SetoidEqPack (eq_sym c1)))
+                      = SigmaEqUnpack _) as p.
+    {
+      unshelve econstructor.
+      - apply PiEqUnpack.
+        apply (MkPiEq eq_refl).
+        intros i; simpl.
+        symmetry.
+        apply (setoid_carrier_eq (SetoidEqPack (pointwise_o_map (F ₒ) (G ₒ) (func_eq_o_map eq) i x))).
+      - intros; simpl; clear.
+        rewrite PiEqTransportApp.
+        {
+          intros i; simpl.
+          apply (setoid_carrier_eq (SetoidEqPack (pointwise_o_map (G ₒ) (F ₒ) (λ x, eq_sym (func_eq_o_map eq x)) i x))).
+        }
+        intros P.
+        destruct F as [F1 F2 F3 F4 F5];
+          destruct G as [G1 G2 G3 G4 G5];
+          destruct eq as [eq1 eq2]; simpl in *.
+        assert (F1 = G1) as Hf.
+        {
+          apply functional_extensionality; intros.
+          apply eq1.
+        }
+        destruct Hf.
+        assert (eq1 = λ _, eq_refl) as Hf.
+        { apply proof_irrelevance. }
+        subst eq1.
+        assert (P = λ _, eq_refl) as Hf.
+        { apply proof_irrelevance. }
+        subst P.
+        simpl.
+        split.
+        + intros H ???.
+          unfold hom_trans in eq2.
+          rewrite eq2.
+          apply H.
+        + intros H ???; rewrite -eq2.
+          apply H.
+    }
+    { apply proof_irrelevance. }
+    rewrite p; clear p.
+    rewrite SigmaEqTransportProj1 /=.
+    rewrite PiEqTransportApp.
+    {
+      intros i; simpl.
+      symmetry.
+      apply (setoid_carrier_eq (SetoidEqPack (pointwise_o_map (F ₒ) (G ₒ) (func_eq_o_map eq) i x))).
+    }
+    intros Q.
+    subst h.
+    clear H.
+    clear c1 c2 k g.
+    destruct F as [F1 F2 F3 F4 F5];
+      destruct G as [G1 G2 G3 G4 G5];
+      destruct eq as [eq1 eq2]; simpl in *.
+    assert (F1 = G1) as Hf.
+    {
+      apply functional_extensionality; intros.
+      apply eq1.
+    }
+    destruct Hf.
+    assert (eq1 = λ _, eq_refl) as Hf.
+    { apply proof_irrelevance. }
+    subst eq1.
+    rewrite pointwise_o_map_lift_refl.
+    assert (P = λ _, eq_refl) as Hf.
+    { apply proof_irrelevance. }
+    subst P.
+    assert (Q = λ _, eq_refl) as Hf.
+    { apply proof_irrelevance. }
+    subst Q.
+    reflexivity.
+Qed.
+
+Lemma hom_trans_nat {C D} {F G F' G' : functor C D}
+  (p : F = F' :> obj (FuncCat _ _)) (q : G = G') (f : natural F G)
+  : ∀ a, nat_map (hom_trans p q (f : hom (C := FuncCat _ _) F G)) a
+         = hom_trans (equal_f (f_equal o_map p) a) (equal_f (f_equal o_map q) a) (nat_map f a).
+Proof.
+  intros.
+  destruct p, q.
+  simpl.
+  reflexivity.
+Qed.
+
+Instance PShStrictComplete {C} `{!Complete C} `{!StrictComplete C}
+  : StrictComplete (PSh C).
+Proof.
+  constructor.
+  intros J F G eq; simpl.
+  unshelve econstructor.
+  - apply (PShVertEq _ _ _ eq).
+  - intros j; simpl.
+    unfold func_limit_cone_side.
+    intros a; simpl.
+    intros x y ->; simpl; clear x.
+    unfold pointwise_func, setoid_lim_side; simpl.
+    rewrite hom_trans_nat /=.
+    rewrite hom_trans_setoid_conv' /=.
+    rewrite -(SetoidEqPackUnpack (eq_sym (equal_f (f_equal o_map (PShVertEq J F G eq)) a))).
+    rewrite SetoidEqSetoidConv.
+    rewrite -(SetoidEqPackUnpack (equal_f (f_equal o_map (func_eq_o_map eq j)) a)).
+    rewrite SetoidEqSetoidConv.
+    unshelve eassert ((setoid_carrier_eq
+                         (SetoidEqPack
+                            (eq_sym (equal_f
+                                       (f_equal o_map (PShVertEq J F G eq)) a))))
+                      = SigmaEqUnpack _) as p.
+    {
+      unshelve eapply MkSigmaEq.
+      - apply PiEqUnpack.
+        apply (MkPiEq eq_refl).
+        intros i; simpl.
+        symmetry.
+        apply (setoid_carrier_eq
+                 (SetoidEqPack
+                    (pointwise_o_map (F ₒ) (G ₒ) (func_eq_o_map eq) i _))).
+      - intros; simpl.
+        rewrite PiEqTransportApp /=.
+        {
+          intros b.
+          symmetry.
+          f_equal.
+          apply (equal_f (f_equal o_map (func_eq_o_map eq b)) a).
+        }
+        intros J1.
+        destruct F as [F1 F2 F3 F4 F5];
+          destruct G as [G1 G2 G3 G4 G5];
+          destruct eq as [eq1 eq2]; simpl in *.
+        assert (F1 = G1) as Hf.
+        {
+          apply functional_extensionality; intros.
+          apply eq1.
+        }
+        destruct Hf.
+        assert (J1 = λ _, eq_refl) as Hf.
+        { apply proof_irrelevance. }
+        subst J1.
+        simpl.
+        assert (eq1 = λ _, eq_refl) as Hf.
+        { apply proof_irrelevance. }
+        subst eq1.
+        rewrite /hom_trans in eq2.
+        split; intros J2 ???.
+        + rewrite eq2 J2.
+          reflexivity.
+        + rewrite -eq2 J2.
+          reflexivity.
+    }
+    { apply proof_irrelevance. }
+    rewrite p /=; clear p.
+    rewrite SigmaEqTransportProj1 /=.
+    rewrite PiEqTransportApp /=.
+    {
+      intros b.
+      symmetry.
+      f_equal.
+      apply (equal_f (f_equal o_map (func_eq_o_map eq b)) a).
+    }
+    intros J1.
+    unshelve eassert ((setoid_carrier_eq
+                         (SetoidEqPack
+                            (equal_f (f_equal o_map (func_eq_o_map eq j)) a)))
+                      = eq_sym (J1 _)) as p.
+    { apply proof_irrelevance. }
+    rewrite p /=; clear p.
+    destruct F as [F1 F2 F3 F4 F5];
+      destruct G as [G1 G2 G3 G4 G5];
+      destruct eq as [eq1 eq2]; simpl in *.
+    assert (F1 = G1) as Hf.
+    {
+      apply functional_extensionality; intros.
+      apply eq1.
+    }
+    destruct Hf.
+    assert (J1 = λ _, eq_refl) as Hf.
+    { apply proof_irrelevance. }
+    subst J1.
+    simpl.
+    reflexivity.
+Qed.
+
 Lemma cones_equiv_f_alg_fun {J C T} {F F' : functor J (@Alg C T)}
   (cn : cone F) (cn' : cone F') (H : functor_equiv' F F') (HC : cones_equiv H cn cn') :
   cones_equiv H (alg_func_on_cone cn) (alg_func_on_cone cn').
@@ -385,7 +1436,7 @@ Program Definition alg_lim_alg_iso_cong {D} `{Complete D} {T : functor D D}
 Opaque later next.
 
 Section solution.
-  Context {SI : indexT} {C : category} `{!Complete C}
+  Context {SI : indexT} {C : category} `{!Complete C} `{!StrictComplete C}
     `{!Enriched C (PSh (OrdCat SI))} `{!LimitsEnriched C}
     (F : functor C C) `{!LocallyContractiveFunctor F}.
 
@@ -593,30 +1644,30 @@ Section solution.
   Program Definition par_sol_extensional {dsp : downset_pred SI}
     (P Q : partial_solution dsp)
     (eqs : ∀ α : downset dsp,
-       functor_equiv'
+       functor_equiv
          (cut_ord_ds_cat_func _ (le_dsp_included α) P)
          (cut_ord_ds_cat_func _ (le_dsp_included α) Q))
-    : functor_equiv' P Q
-    := MkFuncEq'
+    : functor_equiv P Q
+    := MkFuncEq
          (λ a, eq_trans
                  (eq_trans
                     (cut_ord_ds_cat_func_trivial P a)
-                    (func_eq_o_map' (eqs a) (MkDS (le_dsp a) (squash (reflexivity _)))))
+                    (func_eq_o_map (eqs a) (MkDS (le_dsp a) (squash (reflexivity _)))))
                  (eq_sym (cut_ord_ds_cat_func_trivial Q a)))
          _.
   Next Obligation.
     intros dsp P Q eqs α β f; simpl.
     rewrite !hom_trans_trans_eq.
     symmetry.
-    apply (hom_trans_sym_eq
+    apply (hom_trans_sym
                    (cut_ord_ds_cat_func_trivial Q α)
                    (cut_ord_ds_cat_func_trivial Q β)).
     unfold cut_ord_ds_cat_func_trivial.
     rewrite !h_map_eq.
-    epose proof (λ δ γ g, func_eq_h_map' (eqs α) (a := δ) (b := γ) g) as HEQ.
+    epose proof (λ δ γ g, func_eq_h_map (eqs α) (a := δ) (b := γ) g) as HEQ.
     rewrite /= /cut_ord_ds_cat_func_h_map /= in HEQ.
     match goal with
-    | |- context G [_ ₕ ?a = _] =>
+    | |- context G [_ ₕ ?a ≡ _] =>
         set (f' := a)
     end.
     simpl in f'.
@@ -631,19 +1682,19 @@ Section solution.
     apply ProofIrrelevance.proof_irrelevance.
   Qed.
 
-  Lemma par_sol_extensional' {dsp : downset_pred SI}
-    (P Q : partial_solution dsp)
-    (eqs : ∀ α : downset dsp,
-         (cut_ord_ds_cat_func _ (le_dsp_included α) P)
-         = (cut_ord_ds_cat_func _ (le_dsp_included α) Q) :> functor _ _)
-    : P = Q :> functor _ _.
-  Proof.
-    rewrite -(functor_equiv'_eq P Q).
-    apply par_sol_extensional.
-    intros.
-    rewrite functor_equiv'_eq.
-    apply eqs.
-  Qed.
+  (* Lemma par_sol_extensional' {dsp : downset_pred SI} *)
+  (*   (P Q : partial_solution dsp) *)
+  (*   (eqs : ∀ α : downset dsp, *)
+  (*        (cut_ord_ds_cat_func _ (le_dsp_included α) P) *)
+  (*        = (cut_ord_ds_cat_func _ (le_dsp_included α) Q) :> functor _ _) *)
+  (*   : P = Q :> functor _ _. *)
+  (* Proof. *)
+  (*   rewrite -(functor_equiv'_eq P Q). *)
+  (*   apply par_sol_extensional. *)
+  (*   intros. *)
+  (*   rewrite functor_equiv'_eq. *)
+  (*   apply eqs. *)
+  (* Qed. *)
 
   Program Definition partial_sol_cone_at {dsp} (ps : partial_solution dsp)
     (α : downset dsp) : cone (cut_par_sol ps (lt_dsp_included α))
@@ -673,7 +1724,7 @@ Section solution.
 
   Definition canonical_par_sol {dsp} (ps : partial_solution dsp)
     := ∀ (α : downset dsp),
-    cones_equiv (reflexivity _) (parsolext_cone
+    cones_equiv' (reflexivity _) (parsolext_cone
          (the_extension
             (cut_par_sol ps (lt_dsp_included α))))
       (partial_sol_cone_at ps α).
@@ -718,7 +1769,7 @@ Section solution.
     : vertex (the_extension (cut_par_sol P (lt_dsp_included α))) =
         vertex (partial_sol_cone_at P α).
   Proof.
-    rewrite -(cones_eq_vertexes (H α (MkDS (squash (reflexivity _))))).
+    rewrite -(cones_eq_vertexes' (H α (MkDS (squash (reflexivity _))))).
     simpl.
     do 2 f_equal.
     apply canon_ext_eq.
@@ -730,15 +1781,15 @@ Section solution.
     : canonical_par_sol P.
   Proof.
     intros α.
-    rewrite cones_equiv_eq /cones_eq /cone_trans.
+    (* rewrite cones_equiv_eq /cones_eq /cone_trans. *)
     set (α' := (MkDS (le_dsp α) (squash (reflexivity _)))).
     pose proof (H α α') as G; clear H.
-    assert (cones_equiv (reflexivity _)
+    assert (cones_equiv' (reflexivity _)
               (partial_sol_cone_at P α)
-              (the_extension (cut_par_sol P (lt_dsp_included α)))).
+              (the_extension (cut_par_sol P (lt_dsp_included α)))) as H.
     {
-      unshelve eapply MkConesEq.
-      - pose proof (cones_eq_vertexes G) as G'; clear G.
+      unshelve eapply MkConesEq'.
+      - pose proof (cones_eq_vertexes' G) as G'; clear G.
         rewrite /= /cut_ord_ds_cat_func_o_map in G'.
         rewrite /=.
         eapply (eq_trans (eq_sym G')).
@@ -747,11 +1798,11 @@ Section solution.
         symmetry.
         apply canon_ext_equiv.
       - intros; simpl.
-        apply alg_hom_map_eq_eq; simpl.
+        apply alg_hom_map_eq; simpl.
         rewrite hom_trans_alg_hom_map_eq /=.
-        pose proof (cones_eq_sides G j) as G'.
+        pose proof (cones_eq_sides' G j) as G'.
         simpl in G'.
-        apply alg_hom_map_eq_eq_inv in G'.
+        apply alg_hom_map_eq' in G'.
         simpl in G'.
         rewrite hom_trans_alg_hom_map_eq in G'.
         simpl in G'.
@@ -759,7 +1810,7 @@ Section solution.
         simpl.
         rewrite G'; clear G'.
         rewrite -hom_trans_trans_eq /=.
-        assert ((func_eq_o_map'
+        assert ((func_eq_o_map
                    (reflexivity
                       _) j)
                 = eq_refl) as -> by apply proof_irrelevance.
@@ -768,14 +1819,14 @@ Section solution.
         rewrite hom_trans_trans_eq /=.
         rewrite hom_trans_compose_eq.
         rewrite hom_trans_refl_eq.
-        assert ((func_eq_o_map'
+        assert ((func_eq_o_map
                    (reflexivity
                       _) j)
                 = eq_refl) as -> by apply proof_irrelevance.
         rewrite /=.
         rewrite hom_trans_compose_eq.
         rewrite hom_trans_refl_eq.
-        f_equal.
+        f_equiv; last reflexivity.
         assert (∀ H G, car_eq (eq_trans H G) = eq_trans (car_eq H) (car_eq G)) as ->.
         {
           intros H J; destruct H; destruct J.
@@ -815,10 +1866,9 @@ Section solution.
         }
         rewrite HEQ; clear HEQ.
         rewrite h_map_eq_l.
-        f_equal.
-        clear.
+        f_equiv.
         assert (FEQ :
-                 functor_equiv'
+                 functor_equiv
                    (functor_compose
                       (cut_ord_ds_cat_func (lt_dsp α) (lt_dsp_included α')
                          (cut_ord_ds_cat_func (le_dsp α) (le_dsp_included α) P))
@@ -834,7 +1884,7 @@ Section solution.
             rewrite hom_trans_refl_eq.
             reflexivity.
         }
-        assert (CEQ : cones_equiv
+        assert (CEQ : cones_equiv'
                         FEQ
                         (term
                            (complete
@@ -847,42 +1897,15 @@ Section solution.
                               (functor_compose
                                  (cut_ord_ds_cat_func (lt_dsp α) (lt_dsp_included α) P)
                                  (forgetful F))))).
-        {
-          apply functor_equiv_lim.
-        }
-        rewrite (cones_eq_sides CEQ j).
-        f_equal.
+        { apply strict_complete. }
+        rewrite (cones_eq_sides' CEQ j).
+        f_equiv.
         + apply proof_irrelevance.
         + apply proof_irrelevance.
     }
-    rewrite cones_equiv_eq /cones_eq /cone_trans in H.
-    rewrite -H.
-    reflexivity.
-  Qed.
-
-  (* Lemma asdasdasd {dsp : downset_pred SI} *)
-  (*   (P : partial_solution dsp) *)
-  (*   (Q : partial_solution dsp) *)
-  (*   (α β : downset dsp) *)
-  (*   Y *)
-  (*   (H : functor_equiv' P Q) *)
-  (*   (* (Y : functor_equiv' (cut_par_sol P (lt_dsp_included α)) *) *)
-  (*   (*    (cut_par_sol Q (lt_dsp_included β))) *) *)
-  (*   : *)
-  (*   cones_equiv Y (partial_sol_cone_at P α) *)
-  (*     (partial_sol_cone_at Q α). *)
-  (* Proof. *)
-  (*   unshelve econstructor. *)
-  (*   - simpl.       *)
-  (*     apply (func_eq_o_map' H). *)
-  (*   - intros; simpl. *)
-  (*     apply alg_hom_map_eq_eq; simpl. *)
-  (*     rewrite hom_trans_alg_hom_map_eq /=. *)
-  (*     rewrite -hom_trans_alg_hom_map_eq. *)
-  (*     apply alg_hom_map_eq_eq_inv. *)
-
-  (*     (* epose proof (func_eq_h_map' H). *) *)
-  (* Admitted. *)
+    (* TODO *)
+    admit.
+  Admitted.
 
   Lemma canonicity_inductive {dsp} (P : partial_solution dsp) :
     (∀ α, canonical_par_sol (cut_par_sol P (lt_dsp_included α))
@@ -925,215 +1948,173 @@ Section solution.
         rewrite hom_trans_refl_eq.
         reflexivity.
     }
-    rewrite cones_equiv_eq /cones_eq /cone_trans /=.
-    eapply (cones_over_eq_diagrams_eq H).
-    assert (cone_trans H (partial_sol_cone_at (cut_par_sol P (lt_dsp_included β)) α')
-            = partial_sol_cone_at (cut_par_sol P (le_dsp_included ζ')) γ) as HEQ.
-    {
-      symmetry.
-      assert (Y : functor_equiv'
-                    (cut_ord_ds_cat_func (lt_dsp α') (lt_dsp_included α')
-                       (cut_ord_ds_cat_func (lt_dsp α) (lt_dsp_included β) P))
-                    (cut_par_sol (cut_par_sol P (le_dsp_included ζ')) (lt_dsp_included γ))).
-      {
-        rewrite functor_equiv'_eq.
-        rewrite H.
-        reflexivity.
-      }
-      pose proof (cones_equiv_eq Y H) as J.
-      unfold cones_eq in J.
-      rewrite -J; clear J.
-      unshelve econstructor.
-      - reflexivity.
-      - intros; simpl.
-        apply alg_hom_map_eq_eq; simpl.
-        rewrite hom_trans_alg_hom_map_eq /=.
-        clear.
-        assert (eq_refl = car_eq eq_refl) as ->.
-        { reflexivity. }
-        rewrite -hom_trans_alg_hom_map_eq.
-        apply alg_hom_map_eq_eq_inv.
-        rewrite /cut_ord_ds_cat_func_h_map /=.
-        match goal with
-        | |- context G [dsp_include_le _ ?a]
-          => set (f := a)
-        end.
-        clearbody f.
-        subst ζ.
-        simpl in *.
-        match goal with
-        | |- context G [h_map _ ?a]
-          => set (T := a)
-        end.
-        simpl in T.
-        match goal with
-        | |- context G [hom_trans _ _ (h_map _ ?a)]
-          => set (T' := a)
-        end.
-        simpl in T'.
-        clearbody T T'.
-        assert (T = T') as -> by apply proof_irrelevance.
-        clear.
-        set (J := (func_eq_o_map' Y j)).
-        clearbody J.
-        clear.
-        assert (J = eq_refl) as ->.
-        { apply proof_irrelevance. }
-        rewrite hom_trans_refl_eq.
-        reflexivity.
-    }
-    rewrite HEQ.
-    assert (Y : functor_equiv'
-                  (cut_ord_ds_cat_func (lt_dsp α') (lt_dsp_included α')
-                     (cut_ord_ds_cat_func (lt_dsp α) (lt_dsp_included β) P))
-                  (cut_par_sol (cut_par_sol P (le_dsp_included ζ')) (lt_dsp_included γ))).
-    {
-      rewrite functor_equiv'_eq.
-      rewrite H.
-      reflexivity.
-    }
-    unshelve epose proof (cones_equiv_eq Y H) as J.
-    unfold cones_eq in J.
-    rewrite -J; clear J.
-    unshelve econstructor.
-    {
-      simpl.
-      pose proof (cones_eq_vertexes X) as J; simpl in J.
-      unshelve eapply (eq_trans _ J).
-      apply (o_map_eq (alg_func_func F)).
-      apply cones_equiv_f_alg_lim.
-      apply Y.
-    }
-    {
-      intros; simpl.
-      apply alg_hom_map_eq_eq.
-      rewrite hom_trans_alg_hom_map_eq /=.
-      unfold cut_ord_ds_cat_func_h_map.
-      assert (∀ H G, car_eq (eq_trans H G) = eq_trans (car_eq H) (car_eq G)) as ->.
-      {
-        intros H' J; destruct H'; destruct J.
-        reflexivity.
-      }
-      clear.
-      pose proof (cones_eq_sides X j) as J; simpl in J.
-      apply alg_hom_map_eq_eq_inv in J.
-      simpl in J.
-      unfold cut_ord_ds_cat_func_h_map in J.
-      rewrite J; clear J.
-      simpl.
-      rewrite hom_trans_alg_hom_map_eq /=.
-      rewrite hom_trans_compose_eq.
-      rewrite hom_trans_compose_eq.
-      f_equal.
-      - rewrite -{2} (eq_trans_refl_l eq_refl).
-        rewrite hom_trans_trans_eq.
-        f_equal.
-        eassert ((car_eq
-                    (o_map_eq
-                       (alg_func_func F)
-                       (cones_eq_vertexes (cones_equiv_f_alg_lim Y))))
-                 = (o_map_eq F
-                      (car_eq
-                         (cones_eq_vertexes (cones_equiv_f_alg_lim Y)))))
-          as HEQ.
-        {
-          destruct (cones_eq_vertexes (cones_equiv_f_alg_lim Y)).
-          reflexivity.
-        }
-        rewrite HEQ; clear HEQ.
-        rewrite h_map_eq_l.
-        f_equal.
-        match goal with
-        | |- context G [functor_compose ?a ?b]
-          => set (T1 := functor_compose a b)
-        end.
-        match goal with
-        | |- context G [functor_compose ?a ?b]
-          => set (T2 := functor_compose a b)
-        end.
-        assert (FEQ :
-                 functor_equiv'
-                   T1
-                   T2).
-        {
-          unshelve econstructor.
-          - intros; simpl.
-            reflexivity.
-          - intros; simpl.
-            rewrite hom_trans_refl_eq.
-            reflexivity.
-        }
-        assert (CEQ : cones_equiv
-                        FEQ
-                        (term
-                           (complete T1))
-                        (term
-                           (complete T2))).
-        {
-          apply functor_equiv_lim.
-        }
-        rewrite (cones_eq_sides CEQ j).
-        rewrite -hom_trans_trans_eq.
-        rewrite -(hom_trans_refl_eq (side (term (complete T1)) j)).
-        f_equal.
-        + apply proof_irrelevance.
-        + apply proof_irrelevance.
-      - f_equal.
-        apply proof_irrelevance.
-    }
-  Qed.
+    (* rewrite cones_equiv_eq /cones_eq /cone_trans /=. *)
+    (* TODO *)
+    admit.
 
-  (* Lemma dfsdfds {dsp dsp' : downset_pred SI} *)
-  (*   (H : dsp_included dsp' dsp) *)
-  (*   (P Q : functor ((OrdDSCat dsp) ᵒᵖ) (Alg F)) *)
-  (*   : functor_equiv' (cut_ord_ds_cat_func dsp' H P) *)
-  (*       (cut_ord_ds_cat_func dsp' H Q). *)
 
-  (* Lemma extend_functor_eq_lt_le {dsp} *)
-  (*   (P Q : functor ((OrdDSCat dsp) ᵒᵖ) (Alg F)) *)
-  (*   (α : SI) *)
-  (*   (H : dsp_included (le_dsp α) dsp) *)
-  (*   (H' : dsp_included (lt_dsp α) dsp) *)
-  (*   (EQ : functor_equiv' (cut_ord_ds_cat_func (lt_dsp α) H' P) *)
-  (*           (cut_ord_ds_cat_func (lt_dsp α) H' Q)) *)
-  (*   (ext1 : ∀ (β : downset (le_dsp α)), *)
-  (*      ds_idx β = α → *)
-  (*      P ₒ dsp_include H β *)
-  (*      = Q ₒ dsp_include H β) *)
-  (*   (* (ext2 : ∀ (a b : obj (OrdDSCat (le_dsp α))) (f : hom a b) *) *)
-  (*   (*           (K1 : ds_idx a = α) (K2 : ds_idx b = α), *) *)
-  (*   (*    hom_trans (ext1 a K1) (ext1 b K2) *) *)
-  (*   (*      (cut_ord_ds_cat_func_h_map (le_dsp α) H P f) = *) *)
-  (*   (*      cut_ord_ds_cat_func_h_map (le_dsp α) H Q f) *) *)
-  (*   : functor_equiv' (cut_ord_ds_cat_func (le_dsp α) H P) *)
-  (*       (cut_ord_ds_cat_func (le_dsp α) H Q). *)
-  (* Proof. *)
-  (*   unshelve econstructor. *)
-  (*   - intros γ; simpl. *)
-  (*     rewrite /cut_ord_ds_cat_func_o_map. *)
-  (*     destruct (index_le_eq_or_lt _ _ (unsquash (ds_in_dsp γ))) as [K | K]. *)
-  (*     + apply ext1, K. *)
-  (*     + apply (func_eq_o_map' EQ (dsp_include (λ _ x, x) (MkDS (lt_dsp α) (squash K)))). *)
-  (*   - intros a b f; simpl. *)
-  (*     destruct (index_le_eq_or_lt _ _ _) as [K1 | K1]; *)
-  (*       destruct (index_le_eq_or_lt _ _ _) as [K2 | K2]; simpl. *)
-  (*     + revert K1 K2. *)
-  (*       revert f. *)
-  (*       revert a b. *)
-  (*       admit. *)
-  (*     + admit. *)
-  (*     + admit. *)
-  (*     + pose proof (func_eq_h_map' EQ). *)
-  (*       rewrite /cut_ord_ds_cat_func_h_map /=. *)
-  (*     (*   rewrite /cut_ord_ds_cat_func_h_map /= in H2. *) *)
-  (*     (*   rewrite /cut_ord_ds_cat_func_h_map /= in H2. *) *)
-  (*     (* destruct (index_le_eq_or_lt a α (unsquash (ds_in_dsp a))) as [K1 | K1]; simpl. *) *)
 
-  (* Admitted. *)
+    (* eapply (cones_over_eq_diagrams_eq H). *)
+    (* assert (cone_trans H (partial_sol_cone_at (cut_par_sol P (lt_dsp_included β)) α') *)
+    (*         = partial_sol_cone_at (cut_par_sol P (le_dsp_included ζ')) γ) as HEQ. *)
+    (* { *)
+    (*   symmetry. *)
+    (*   assert (Y : functor_equiv' *)
+    (*                 (cut_ord_ds_cat_func (lt_dsp α') (lt_dsp_included α') *)
+    (*                    (cut_ord_ds_cat_func (lt_dsp α) (lt_dsp_included β) P)) *)
+    (*                 (cut_par_sol (cut_par_sol P (le_dsp_included ζ')) (lt_dsp_included γ))). *)
+    (*   { *)
+    (*     rewrite functor_equiv'_eq. *)
+    (*     rewrite H. *)
+    (*     reflexivity. *)
+    (*   } *)
+    (*   pose proof (cones_equiv_eq Y H) as J. *)
+    (*   unfold cones_eq in J. *)
+    (*   rewrite -J; clear J. *)
+    (*   unshelve econstructor. *)
+    (*   - reflexivity. *)
+    (*   - intros; simpl. *)
+    (*     apply alg_hom_map_eq_eq; simpl. *)
+    (*     rewrite hom_trans_alg_hom_map_eq /=. *)
+    (*     clear. *)
+    (*     assert (eq_refl = car_eq eq_refl) as ->. *)
+    (*     { reflexivity. } *)
+    (*     rewrite -hom_trans_alg_hom_map_eq. *)
+    (*     apply alg_hom_map_eq_eq_inv. *)
+    (*     rewrite /cut_ord_ds_cat_func_h_map /=. *)
+    (*     match goal with *)
+    (*     | |- context G [dsp_include_le _ ?a] *)
+    (*       => set (f := a) *)
+    (*     end. *)
+    (*     clearbody f. *)
+    (*     subst ζ. *)
+    (*     simpl in *. *)
+    (*     match goal with *)
+    (*     | |- context G [h_map _ ?a] *)
+    (*       => set (T := a) *)
+    (*     end. *)
+    (*     simpl in T. *)
+    (*     match goal with *)
+    (*     | |- context G [hom_trans _ _ (h_map _ ?a)] *)
+    (*       => set (T' := a) *)
+    (*     end. *)
+    (*     simpl in T'. *)
+    (*     clearbody T T'. *)
+    (*     assert (T = T') as -> by apply proof_irrelevance. *)
+    (*     clear. *)
+    (*     set (J := (func_eq_o_map' Y j)). *)
+    (*     clearbody J. *)
+    (*     clear. *)
+    (*     assert (J = eq_refl) as ->. *)
+    (*     { apply proof_irrelevance. } *)
+    (*     rewrite hom_trans_refl_eq. *)
+    (*     reflexivity. *)
+    (* } *)
+    (* rewrite HEQ. *)
+    (* assert (Y : functor_equiv' *)
+    (*               (cut_ord_ds_cat_func (lt_dsp α') (lt_dsp_included α') *)
+    (*                  (cut_ord_ds_cat_func (lt_dsp α) (lt_dsp_included β) P)) *)
+    (*               (cut_par_sol (cut_par_sol P (le_dsp_included ζ')) (lt_dsp_included γ))). *)
+    (* { *)
+    (*   rewrite functor_equiv'_eq. *)
+    (*   rewrite H. *)
+    (*   reflexivity. *)
+    (* } *)
+    (* unshelve epose proof (cones_equiv_eq Y H) as J. *)
+    (* unfold cones_eq in J. *)
+    (* rewrite -J; clear J. *)
+    (* unshelve econstructor. *)
+    (* { *)
+    (*   simpl. *)
+    (*   pose proof (cones_eq_vertexes X) as J; simpl in J. *)
+    (*   unshelve eapply (eq_trans _ J). *)
+    (*   apply (o_map_eq (alg_func_func F)). *)
+    (*   apply cones_equiv_f_alg_lim. *)
+    (*   apply Y. *)
+    (* } *)
+    (* { *)
+    (*   intros; simpl. *)
+    (*   apply alg_hom_map_eq_eq. *)
+    (*   rewrite hom_trans_alg_hom_map_eq /=. *)
+    (*   unfold cut_ord_ds_cat_func_h_map. *)
+    (*   assert (∀ H G, car_eq (eq_trans H G) = eq_trans (car_eq H) (car_eq G)) as ->. *)
+    (*   { *)
+    (*     intros H' J; destruct H'; destruct J. *)
+    (*     reflexivity. *)
+    (*   } *)
+    (*   clear. *)
+    (*   pose proof (cones_eq_sides X j) as J; simpl in J. *)
+    (*   apply alg_hom_map_eq_eq_inv in J. *)
+    (*   simpl in J. *)
+    (*   unfold cut_ord_ds_cat_func_h_map in J. *)
+    (*   rewrite J; clear J. *)
+    (*   simpl. *)
+    (*   rewrite hom_trans_alg_hom_map_eq /=. *)
+    (*   rewrite hom_trans_compose_eq. *)
+    (*   rewrite hom_trans_compose_eq. *)
+    (*   f_equal. *)
+    (*   - rewrite -{2} (eq_trans_refl_l eq_refl). *)
+    (*     rewrite hom_trans_trans_eq. *)
+    (*     f_equal. *)
+    (*     eassert ((car_eq *)
+    (*                 (o_map_eq *)
+    (*                    (alg_func_func F) *)
+    (*                    (cones_eq_vertexes (cones_equiv_f_alg_lim Y)))) *)
+    (*              = (o_map_eq F *)
+    (*                   (car_eq *)
+    (*                      (cones_eq_vertexes (cones_equiv_f_alg_lim Y))))) *)
+    (*       as HEQ. *)
+    (*     { *)
+    (*       destruct (cones_eq_vertexes (cones_equiv_f_alg_lim Y)). *)
+    (*       reflexivity. *)
+    (*     } *)
+    (*     rewrite HEQ; clear HEQ. *)
+    (*     rewrite h_map_eq_l. *)
+    (*     f_equal. *)
+    (*     match goal with *)
+    (*     | |- context G [functor_compose ?a ?b] *)
+    (*       => set (T1 := functor_compose a b) *)
+    (*     end. *)
+    (*     match goal with *)
+    (*     | |- context G [functor_compose ?a ?b] *)
+    (*       => set (T2 := functor_compose a b) *)
+    (*     end. *)
+    (*     assert (FEQ : *)
+    (*              functor_equiv' *)
+    (*                T1 *)
+    (*                T2). *)
+    (*     { *)
+    (*       unshelve econstructor. *)
+    (*       - intros; simpl. *)
+    (*         reflexivity. *)
+    (*       - intros; simpl. *)
+    (*         rewrite hom_trans_refl_eq. *)
+    (*         reflexivity. *)
+    (*     } *)
+    (*     assert (CEQ : cones_equiv *)
+    (*                     FEQ *)
+    (*                     (term *)
+    (*                        (complete T1)) *)
+    (*                     (term *)
+    (*                        (complete T2))). *)
+    (*     { *)
+    (*       apply functor_equiv_lim. *)
+    (*     } *)
+    (*     rewrite (cones_eq_sides CEQ j). *)
+    (*     rewrite -hom_trans_trans_eq. *)
+    (*     rewrite -(hom_trans_refl_eq (side (term (complete T1)) j)). *)
+    (*     f_equal. *)
+    (*     + apply proof_irrelevance. *)
+    (*     + apply proof_irrelevance. *)
+    (*   - f_equal. *)
+    (*     apply proof_irrelevance. *)
+    (* } *)
+    (* Qed. *)
+  Admitted.
 
   Lemma canonical_eq {dsp} (P Q : partial_solution dsp)
     (PC : canonical_par_sol P) (QC : canonical_par_sol Q) :
-    functor_equiv' P Q.
+    functor_equiv P Q.
   Proof.
     apply par_sol_extensional.
     intros α.
@@ -1146,7 +2127,7 @@ Section solution.
     set (α' := MkDS dsp G).
     assert (∀ γ : downset (lt_dsp α),
               ∀ H : dsp_included (le_dsp γ) dsp,
-              functor_equiv'
+              functor_equiv
                 (cut_ord_ds_cat_func (le_dsp γ) H P)
                 (cut_ord_ds_cat_func (le_dsp γ) H Q)) as IH.
     {
@@ -1161,20 +2142,19 @@ Section solution.
     }
     rename IHα into IHremember.
     assert (∀ a : obj ((OrdDSCat (le_dsp α)) ᵒᵖ),
-                (cut_ord_ds_cat_func (lt_dsp a)
+                functor_equiv (cut_ord_ds_cat_func (lt_dsp a)
                    (lt_dsp_included (dsp_include (le_dsp_included α') a)) P)
-                = (cut_ord_ds_cat_func (lt_dsp a)
+                  (cut_ord_ds_cat_func (lt_dsp a)
                      (lt_dsp_included (dsp_include (le_dsp_included α') a)) Q))
       as IHα.
     {
       intros a.
-      rewrite -functor_equiv'_eq.
       unshelve econstructor.
       - intros b; simpl.
         rewrite /cut_ord_ds_cat_func_o_map.
         simpl in IH.
         pose proof
-          (func_eq_o_map' (IH
+          (func_eq_o_map (IH
              (MkDS (lt_dsp α)
                 (squash (index_lt_le_trans _ _ _
                            (unsquash (ds_in_dsp b))
@@ -1190,22 +2170,22 @@ Section solution.
         apply H.
       - intros γ1 γ2 f; simpl.
         match goal with
-        | |- context G [func_eq_o_map' (IH ?a ?b) ?c]
+        | |- context G [func_eq_o_map (IH ?a ?b) ?c]
           => set (p1 := a); set (p2 := b); set (p3 := c)
         end.
         clearbody p2.
         match goal with
-        | |- context G [hom_trans _ (func_eq_o_map' (IH ?a ?b) ?c)]
+        | |- context G [hom_trans _ (func_eq_o_map (IH ?a ?b) ?c)]
           => set (t1 := a); set (t2 := b); set (t3 := c)
         end.
         clearbody t2.
-        epose proof (λ δ γ g, func_eq_h_map' (IH p1 p2) (a := δ) (b := γ) g)
+        epose proof (λ δ γ g, func_eq_h_map (IH p1 p2) (a := δ) (b := γ) g)
           as HEQ.
         rewrite /= /cut_ord_ds_cat_func_h_map /= in HEQ.
         rewrite /cut_ord_ds_cat_func_h_map.
         symmetry.
         match goal with
-        | |- context G [_ ₕ ?a = _] =>
+        | |- context G [_ ₕ ?a ≡ _] =>
             set (f' := a)
         end.
         simpl in f'.
@@ -1220,7 +2200,7 @@ Section solution.
     }
     clear IH.
     assert (∀ a : obj ((OrdDSCat (le_dsp α)) ᵒᵖ),
-              functor_equiv'
+              functor_equiv
                 (cut_ord_ds_cat_func (lt_dsp a)
                    (lt_dsp_included (dsp_include (le_dsp_included α') a)) P)
                 (cut_ord_ds_cat_func (lt_dsp a)
@@ -1231,18 +2211,52 @@ Section solution.
       reflexivity.
     }
     clear IHα.
+    assert (∀ a : obj ((OrdDSCat (le_dsp α)) ᵒᵖ),
+              functor_equiv
+                (functor_compose
+                   (cut_ord_ds_cat_func (lt_dsp a)
+                      (lt_dsp_included (dsp_include (le_dsp_included α') a)) P)
+                   (forgetful F))
+                (functor_compose
+                   (cut_ord_ds_cat_func (lt_dsp a)
+                      (lt_dsp_included (dsp_include (le_dsp_included α') a)) Q)
+                   (forgetful F)))
+      as IHγ.
+    {
+      intros.
+      f_equiv.
+      apply IHβ.
+    }
+    clear IHβ.
 
     unshelve econstructor.
     - intros; simpl.
       rewrite /cut_ord_ds_cat_func_o_map /=.
-      pose proof (eq_sym (cones_eq_vertexes (PC (dsp_include (le_dsp_included α') a))))
+      pose proof (eq_sym (cones_eq_vertexes' (PC (dsp_include (le_dsp_included α') a))))
         as K1.
-      pose proof (cones_eq_vertexes (QC (dsp_include (le_dsp_included α') a)))
+      pose proof (cones_eq_vertexes' (QC (dsp_include (le_dsp_included α') a)))
         as K2.
       simpl in *.
       eapply (eq_trans K1).
       unshelve eapply (eq_trans _ K2).
+      (* unfold alg_func_on_alg; simpl. *)
       apply (o_map_eq (alg_func_func F)).
+
+      epose proof (strict_complete _ _ _ (IHγ a)).
+      (* TODO *)
+      unfold alg_lim_alg.
+      unfold alg_lim_obj.
+      epose proof naturality.
+
+      set (t1 := (complete
+                    (functor_compose
+                       (cut_ord_ds_cat_func (lt_dsp a)
+                          (lt_dsp_included (dsp_include (le_dsp_included α') a)) P)
+                       (forgetful F)))).
+
+      epose proof (cones_eq_vertexes' (strict_complete _ _ _ (IHβ a))).
+      simpl in H.
+
       apply cones_equiv_f_alg_lim.
       apply IHβ.
     - intros; simpl.
