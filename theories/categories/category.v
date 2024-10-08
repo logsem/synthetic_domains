@@ -104,10 +104,22 @@ Definition hom_trans {C} {a b c d: obj C} (heq : a = c) (heq' : b = d) (f : hom 
         end
     end.
 
-Lemma hom_trans_id {C a b} (Heq : a = b) : hom_trans Heq Heq (@id C a) ≡ id b.
+Definition castT {A B : Type} (Heq : A = B) (a : A) : B :=
+  match Heq in _ = u return u with eq_refl => a end.
+
+Definition castP {A B : Prop} (Heq : A = B) (a : A) : B :=
+  match Heq in _ = u return u with eq_refl => a end.
+
+Definition equal_f : ∀ {A : Type} {B : A → Type} {f g : ∀ x : A, B x} (x : A),
+  f = g → f x = g x :=
+  λ (A : Type) (B : A → Type)
+    (f g : ∀ x : A, B x) (x : A) (H : f = g),
+  eq_ind_r (λ f0 : ∀ x0 : A, B x0, f0 x = g x) eq_refl H.
+
+Lemma hom_trans_id {C a b} (Heq : a = b) : hom_trans Heq Heq (@id C a) = id b.
 Proof. destruct Heq; done. Qed.
 
-Lemma hom_trans_refl {C a b} (f : hom C a b) : hom_trans eq_refl eq_refl f ≡ f.
+Lemma hom_trans_refl {C a b} (f : hom C a b) : hom_trans eq_refl eq_refl f = f.
 Proof. done. Qed.
 
 Lemma hom_trans_sym {C a b c d} heq heq' (f : hom C a b) (g : hom C c d) :
@@ -118,41 +130,53 @@ Lemma hom_trans_sym' {C a b c d} heq heq' (f : hom C a b) (g : hom C c d) :
   hom_trans (eq_sym heq) (eq_sym heq') f ≡ g → f ≡ hom_trans heq heq' g.
 Proof. destruct heq; destruct heq'; done. Qed.
 
+Lemma hom_trans_sym_eq {C a b c d} heq heq' (f : hom C a b) (g : hom C c d) :
+  hom_trans heq heq' f = g → f = hom_trans (eq_sym heq) (eq_sym heq') g.
+Proof. destruct heq; destruct heq'; done. Qed.
+
+Lemma hom_trans_sym_eq' {C a b c d} heq heq' (f : hom C a b) (g : hom C c d) :
+  hom_trans (eq_sym heq) (eq_sym heq') f = g → f = hom_trans heq heq' g.
+Proof. destruct heq; destruct heq'; done. Qed.
+
 Lemma hom_trans_trans {C a b c d c' d'}
   (heq1 : a = c) (heq1' : b = d) (heq2 : c = c') (heq2' : d = d') (f : hom C a b) :
-  hom_trans (eq_trans heq1 heq2) (eq_trans heq1' heq2') f ≡
+  hom_trans (eq_trans heq1 heq2) (eq_trans heq1' heq2') f =
   hom_trans heq2 heq2' (hom_trans heq1 heq1' f).
 Proof. destruct heq1; destruct heq1'; destruct heq2; destruct heq2'; done. Qed.
 
 Lemma hom_trans_compose {C} {a b c d e : obj C} (heq : a = d) (heq' : c = e)
   (f : hom a b) (g : hom b c) :
-  hom_trans heq heq' (g ∘ f) ≡ hom_trans eq_refl heq' g ∘ hom_trans heq eq_refl f.
+  hom_trans heq heq' (g ∘ f) = hom_trans eq_refl heq' g ∘ hom_trans heq eq_refl f.
 Proof. destruct heq; destruct heq'; done. Qed.
 
 Lemma hom_trans_compose_l {C} {a b c d e : obj C} (heq : a = c) (heq' : b = d)
   (f : hom a b) (g : hom d e) :
-  g ∘ hom_trans heq heq' f ≡ hom_trans (eq_sym heq') eq_refl g ∘ hom_trans heq eq_refl f.
+  g ∘ hom_trans heq heq' f = hom_trans (eq_sym heq') eq_refl g ∘ hom_trans heq eq_refl f.
 Proof. destruct heq; destruct heq'; done. Qed.
 
 Lemma hom_trans_compose_r {C} {e a b c d : obj C} (heq : a = c) (heq' : b = d)
   (f : hom a b) (g : hom e c) :
-  hom_trans heq heq' f ∘ g ≡ hom_trans eq_refl heq' f ∘ hom_trans eq_refl (eq_sym heq) g.
+  hom_trans heq heq' f ∘ g = hom_trans eq_refl heq' f ∘ hom_trans eq_refl (eq_sym heq) g.
 Proof. destruct heq; destruct heq'; done. Qed.
 
 Lemma hom_trans_compose_take_in_l {C} {a b c d e : obj C} (heq : a = c) (heq' : b = d)
   (f : hom a b) (g : hom d e) :
-  g ∘ hom_trans heq heq' f ≡ hom_trans heq eq_refl (hom_trans (eq_sym heq') eq_refl g ∘ f).
+  g ∘ hom_trans heq heq' f = hom_trans heq eq_refl (hom_trans (eq_sym heq') eq_refl g ∘ f).
 Proof. destruct heq; destruct heq'; done. Qed.
 
 Lemma hom_trans_compose_take_in_r {C} {e a b c d : obj C} (heq : a = c) (heq' : b = d)
   (f : hom a b) (g : hom e c) :
-  hom_trans heq heq' f ∘ g ≡ hom_trans eq_refl heq' (f ∘ hom_trans eq_refl (eq_sym heq) g).
+  hom_trans heq heq' f ∘ g = hom_trans eq_refl heq' (f ∘ hom_trans eq_refl (eq_sym heq) g).
 Proof. destruct heq; destruct heq'; done. Qed.
 
 Global Arguments hom_trans : simpl never.
 
 Global Instance hom_trans_proper {C} {a b c d : obj C} (heq : a = c) (heq' : b = d) :
   Proper ((≡) ==> (≡)) (hom_trans heq heq').
+Proof. intros ???; destruct heq; destruct heq'; done. Qed.
+
+Global Instance hom_trans_proper' {C} {a b c d : obj C} (heq : a = c) (heq' : b = d) :
+  Proper ((=) ==> (=)) (hom_trans heq heq').
 Proof. intros ???; destruct heq; destruct heq'; done. Qed.
 
 Record functor_equiv {C D} (F G : functor C D) := MkFuncEq {
@@ -322,6 +346,20 @@ Program Definition FuncCat C D :=
 Solve All Obligations with
   by auto using natural_comp_assoc, natural_comp_left_id, natural_comp_right_id.
 Fail Next Obligation.
+
+Lemma hom_trans_nat {C D} {F G F' G' : functor C D}
+  (p : F = F' :> obj (FuncCat _ _)) (q : G = G') (f : natural F G)
+  : ∀ a, nat_map (hom_trans p q (f : hom (C := FuncCat _ _) F G)) a
+         = hom_trans (equal_f a (f_equal o_map p))
+             (equal_f a (f_equal o_map q)) (nat_map f a).
+Proof.
+  intros.
+  destruct p, q.
+  simpl.
+  rewrite hom_trans_refl.
+  rewrite /equal_f /eq_ind_r /= hom_trans_refl.
+  reflexivity.
+Qed.
 
 Program Definition functor_fix_left_o_map
   {C D E : category} (F : functor (cat_prod C D) E) (c : obj C) : functor D E :=
@@ -3560,6 +3598,10 @@ Proof. done. Qed.
 Lemma alg_hom_map_eq' {C : category} {T : functor C C} {A B : algebra T} (f g : alg_hom A B) :
   f ≡ g → alg_hom_map f ≡ alg_hom_map g.
 Proof. done. Qed.
+Lemma alg_hom_map_eq_eq {C : category} {T : functor C C} {A B : algebra T}
+  (f g : alg_hom A B) :
+  f = g → alg_hom_map f = alg_hom_map g.
+Proof. intros ->. reflexivity. Qed.
 
 Global Instance alg_hom_map_proper {C : category} {T : functor C C}
   (A B : algebra T) : Proper ((≡) ==> (≡)) (@alg_hom_map C T A B).
@@ -3640,7 +3682,7 @@ Definition car_eq {C : category} {T : functor C C} {A B : algebra T} (Heq : A = 
 
 Lemma hom_trans_alg_hom_map {C : category} {T : functor C C}
   {A A' B B' : algebra T} (Heq : A = A') (Heq' : B = B') (h : alg_hom A B) :
-  alg_hom_map (hom_trans (C := Alg T) Heq Heq' h) ≡
+  alg_hom_map (hom_trans (C := Alg T) Heq Heq' h) =
     hom_trans (car_eq Heq) (car_eq Heq') (alg_hom_map h).
 Proof. destruct Heq; destruct Heq'; rewrite /= !hom_trans_refl //. Qed.
 
