@@ -1,4 +1,3 @@
-Require Import Coq.Logic.ProofIrrelevance.
 From SynthDom Require Import prelude.
 From SynthDom.categories Require Import category ord_cat.
 From SynthDom Require Import stepindex.
@@ -1019,7 +1018,10 @@ Program Definition OrdDSUpCat {SI} (dsp : downset_pred SI) α : category :=
   MkCat (downset_up dsp α) (λ β γ, β ⪯ γ)
     (λ α, reflexivity (α : SI))
     (λ α β γ (f : α ⪯ β) (g : β ⪯ γ), transitivity f g)
-    (λ _ _ _ _, True) _ _ _ _ _.
+    (λ _ _ _ _, True) _ _ _ _ _ _.
+Next Obligation.
+  intros; apply proof_irrelevance.
+Qed.
 Solve All Obligations with done.
 Fail Next Obligation.
 

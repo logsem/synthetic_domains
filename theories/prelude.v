@@ -28,3 +28,12 @@ Set Default Proof Using "Type".
 Global Open Scope general_if_scope.
 Global Set SsrOldRewriteGoalsOrder. (* See Coq issue #5706 *)
 Ltac done := stdpp.tactics.done.
+
+Definition castT {A B : Type} (Heq : A = B) (a : A) : B :=
+  match Heq in _ = u return u with eq_refl => a end.
+
+Definition castS {A B : Set} (Heq : A = B) (a : A) : B :=
+  match Heq in _ = u return u with eq_refl => a end.
+
+Definition castP {A B : Prop} (Heq : A = B) (a : A) : B :=
+  match Heq in _ = u return u with eq_refl => a end.

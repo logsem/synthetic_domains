@@ -2,6 +2,7 @@
 
 
 theories/prelude.v
+theories/quotient.v
 theories/stepindex.v
 
 theories/ordinals/set_model.v

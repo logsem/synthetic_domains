@@ -1,8 +1,6 @@
-Require Import Coq.Logic.ProofIrrelevance.
 From SynthDom Require Import prelude.
 From SynthDom.categories Require Import category.
 From SynthDom Require Import stepindex.
-From Coq.Logic Require Import FunctionalExtensionality.
 
 Local Set Universe Polymorphism.
 Local Unset Universe Minimization ToSet.
@@ -55,7 +53,11 @@ Program Definition OrdCat (SI : indexT) : category :=
   MkCat SI (λ α β, α ⪯ β)
     (λ _, reflexivity _)
     (λ _ _ _ f g, transitivity f g)
-    (λ _ _, (≡)) _ _ _ _ _.
+    (λ _ _, (≡)) _ _ _ _ _ _.
+Next Obligation.
+  intros; simpl.
+  apply proof_irrelevance.
+Qed.
 Solve All Obligations with done.
 Fail Next Obligation.
 
@@ -168,7 +170,10 @@ Program Definition OrdDSCat {SI} (dsp : downset_pred SI) : category :=
   MkCat (downset dsp) (λ α β, α ⪯ β)
     (λ α, reflexivity (α : SI))
     (λ α β γ (f : α ⪯ β) (g : β ⪯ γ), transitivity f g)
-    (λ _ _ _ _, True) _ _ _ _ _.
+    (λ _ _ _ _, True) _ _ _ _ _ _.
+Next Obligation.
+  intros; apply proof_irrelevance.
+Qed.
 Solve All Obligations with done.
 Fail Next Obligation.
 
@@ -851,7 +856,7 @@ Section earlier.
   Program Definition earlier : functor (FuncCat ((OrdCat SI)ᵒᵖ) C) (FuncCat ((OrdCat SI)ᵒᵖ) C) :=
     MkFunc (λ F, functor_compose (opposite_func (Succ _)) F)
       (λ _ _ η, hor_comp (natural_id (opposite_func (Succ _))) η) _ _ _.
-  Next Obligation. repeat intros ?; rewrite /=; solve_by_equiv_rewrite. Qed.
+  Next Obligation. repeat intros ?; rewrite /=; solve_by_eq_rewrite. Qed.
   Next Obligation. repeat intros ?; rewrite /= !h_map_id !right_id //. Qed.
   Next Obligation. repeat intros ?; rewrite //= !h_map_id !right_id //. Qed.
   Fail Next Obligation.
@@ -1420,7 +1425,7 @@ Section Adjunction.
         natural_comp
           (hor_comp (natural_id (opposite_func (Succ _))) η)
           ((forward earlier_later_nat_iso)ₙ FG.2)) _.
-  Next Obligation. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
+  Next Obligation. repeat intros ?; simpl; solve_by_eq_rewrite. Qed.
   Next Obligation.
     repeat intros [F1 G1] [F2 G2] [η1 η2] δ1 δ2 -> α; rewrite /=.
     rewrite !h_map_id !right_id.
@@ -1512,7 +1517,7 @@ Section earlier_preserves.
       (functor_compose (opposite_func (Succ SI)) α1
          ×ₒ functor_compose (opposite_func (Succ SI)) α2) :=
     (MkNat (λ α, setoid_id _) _).
-  Next Obligation. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
+  Next Obligation. repeat intros ?; simpl; solve_by_eq_rewrite. Qed.
 
   Program Definition earlier_prod_backward
     (α1 : obj (PSh (OrdCat SI))) (α2 : obj (PSh (OrdCat SI))) :
@@ -1521,7 +1526,7 @@ Section earlier_preserves.
       (functor_compose (opposite_func (Succ SI)) (α1 ×ₒ α2))
     :=
     (MkNat (λ α, setoid_id _) _).
-  Next Obligation. repeat intros ?; simpl; solve_by_equiv_rewrite. Qed.
+  Next Obligation. repeat intros ?; simpl; solve_by_eq_rewrite. Qed.
 
   Program Definition earlier_prod_nat :
     (functor_compose (prod_func _) (earlier (SI := SI)))
