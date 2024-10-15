@@ -5,6 +5,63 @@ From SynthDom.categories Require Import category ord_cat enriched domain.
 Set Universe Polymorphism.
 Unset Universe Minimization ToSet.
 
+Lemma func_eq_o_map_refl {E D : category} {G : functor E D}
+  {Equiv : functor_equiv G G} : ∀ a, func_eq_o_map Equiv a = eq_refl.
+Proof.
+  intros.
+  apply UIP_refl.
+Qed.
+
+Lemma func_eq_o_map_sym {E D : category} {G G' : functor E D}
+  {Equiv : functor_equiv G G'}
+  : ∀ a, eq_sym (func_eq_o_map Equiv a) = func_eq_o_map (symmetry Equiv) a.
+Proof.
+  intros.
+  destruct (functor_equiv_unpack Equiv).
+  rewrite func_eq_o_map_refl.
+  assert ((symmetry Equiv) = Equiv) as ->.
+  { apply proof_irrelevance. }
+  rewrite func_eq_o_map_refl.
+  apply UIP_refl.
+Qed.
+
+Lemma func_eq_o_map_trans {E D : category} {G G' G'' : functor E D}
+  {Equiv : functor_equiv G G'} {Equiv' : functor_equiv G' G''}
+  : ∀ a, eq_trans (func_eq_o_map Equiv a) (func_eq_o_map Equiv' a)
+         = func_eq_o_map (transitivity Equiv Equiv') a.
+Proof.
+  intros.
+  destruct (functor_equiv_unpack Equiv).
+  destruct (functor_equiv_unpack Equiv').
+  assert (Equiv = Equiv') as ->.
+  { apply proof_irrelevance. }
+  rewrite func_eq_o_map_refl.
+  assert ((transitivity Equiv' Equiv') = Equiv') as ->.
+  { apply proof_irrelevance. }
+  rewrite func_eq_o_map_refl.
+  apply UIP_refl.
+Qed.
+
+Lemma car_eq_eq_trans {E : category} {G : functor E E} {a b c : algebra G}
+  : ∀ (H : a = b) (G : b = c), car_eq (eq_trans H G) = eq_trans (car_eq H) (car_eq G).
+Proof. by intros [] []. Qed.
+
+Lemma car_eq_eq_symm {E : category} {G : functor E E} {a b : algebra G}
+  : ∀ (H : a = b), car_eq (eq_sym H) = eq_sym (car_eq H).
+Proof. by intros []. Qed.
+
+Lemma func_equiv_compose {E D H : category}
+  {G1 G2 : functor E D}
+  {J1 J2 : functor D H}
+  (Equiv1 : functor_equiv G1 G2)
+  (Equiv2 : functor_equiv J1 J2)
+  : functor_equiv (functor_compose G1 J1) (functor_compose G2 J2).
+Proof.
+  destruct (functor_equiv_unpack Equiv1).
+  destruct (functor_equiv_unpack Equiv2).
+  reflexivity.
+Qed.
+
 Record cones_equiv {J C} {F F' : functor J C}
   (Fequiv : functor_equiv F F') (cn : cone F) (cn' : cone F') :=
   MkConesEq {
@@ -61,6 +118,108 @@ Proof.
     intros j; simpl.
     assert ((func_eq_o_map Fequiv j) = eq_refl) as -> by apply proof_irrelevance.
     by rewrite hom_trans_refl.
+Qed.
+
+Record packed_cones_equiv {J C} {F F' : functor J C} (cn : cone F) (cn' : cone F') :=
+  MkPackedConesEquiv {
+      packed_cones_equiv_f : functor_equiv F F';
+      packed_cones_equiv_c : cones_equiv packed_cones_equiv_f cn cn';
+    }.
+Arguments MkPackedConesEquiv {_ _ _ _ _ _}.
+Arguments packed_cones_equiv_f {_ _ _ _ _ _}.
+Arguments packed_cones_equiv_c {_ _ _ _ _ _}.
+
+Lemma cones_equiv_unpack {J C} {F F' : functor J C}
+  (Fequiv : functor_equiv F F')
+  (cn : cone F) (cn' : cone F') : packed_cones_equiv cn cn' → cones_equiv Fequiv cn cn'.
+Proof.
+  intros H.
+  destruct (functor_equiv_unpack Fequiv).
+  rewrite (proof_irrelevance _
+             Fequiv (packed_cones_equiv_f H)).
+  apply (packed_cones_equiv_c H).
+Qed.
+
+Lemma cones_equiv_pack {J C} {F F' : functor J C}
+  (Fequiv : functor_equiv F F')
+  (cn : cone F) (cn' : cone F') : cones_equiv Fequiv cn cn' → packed_cones_equiv cn cn'.
+Proof.
+  intros H.
+  apply (MkPackedConesEquiv Fequiv).
+  apply H.
+Qed.
+
+Program Definition packed_cones_equiv_refl {J C} {F : functor J C} (cn : cone F) :
+  packed_cones_equiv cn cn :=
+  MkPackedConesEquiv (reflexivity _) _.
+Next Obligation.
+  intros.
+  apply (MkConesEq eq_refl).
+  intros; by rewrite func_eq_o_map_refl hom_trans_refl.
+Qed.
+
+Program Definition packed_cones_equiv_sym {J C} {F F' : functor J C}
+  (cn : cone F) (cn' : cone F') (H : packed_cones_equiv cn cn')
+  : packed_cones_equiv cn' cn :=
+  MkPackedConesEquiv (symmetry (packed_cones_equiv_f H)) _.
+Next Obligation.
+  intros.
+  set (H2 := packed_cones_equiv_f H).
+  pose proof (packed_cones_equiv_c H) as H1.
+  clearbody H2.
+  assert (H2 = packed_cones_equiv_f H) as Hf.
+  { apply proof_irrelevance. }
+  destruct Hf.
+  clear H.
+  destruct (functor_equiv_unpack H2).
+  rewrite (proof_irrelevance _
+             (symmetry H2) H2).
+  apply (MkConesEq (eq_sym (cones_eq_vertexes H1))).
+  intros j.
+  rewrite (cones_eq_sides H1 j).
+  rewrite -hom_trans_trans.
+  rewrite eq_trans_sym_inv_r.
+  rewrite func_eq_o_map_trans.
+  rewrite func_eq_o_map_refl.
+  rewrite hom_trans_refl.
+  reflexivity.
+Qed.
+
+Program Definition packed_cones_equiv_trans {J C} {F F' F'' : functor J C}
+  (cn : cone F) (cn' : cone F') (cn'' : cone F'')
+  (H : packed_cones_equiv cn cn')
+  (H' : packed_cones_equiv cn' cn'')
+  : packed_cones_equiv cn cn'' :=
+  MkPackedConesEquiv
+    (transitivity (packed_cones_equiv_f H) (packed_cones_equiv_f H')) _.
+Next Obligation.
+  intros.
+  set (H2 := packed_cones_equiv_f H).
+  pose proof (packed_cones_equiv_c H) as H1.
+  clearbody H2.
+  assert (H2 = packed_cones_equiv_f H) as Hf.
+  { apply proof_irrelevance. }
+  destruct Hf.
+  clear H.
+  set (H4 := packed_cones_equiv_f H').
+  pose proof (packed_cones_equiv_c H') as H3.
+  clearbody H4.
+  assert (H4 = packed_cones_equiv_f H') as Hf.
+  { apply proof_irrelevance. }
+  destruct Hf.
+  clear H'.
+  destruct (functor_equiv_unpack H2).
+  destruct (functor_equiv_unpack H4).
+  rewrite (proof_irrelevance _
+             (transitivity _ _) (reflexivity _)).
+  apply (MkConesEq (eq_trans (cones_eq_vertexes H1) (cones_eq_vertexes H3))).
+  intros j.
+  rewrite (cones_eq_sides H3 j).
+  rewrite !func_eq_o_map_refl.
+  rewrite (cones_eq_sides H1 j).
+  rewrite !func_eq_o_map_refl.
+  rewrite -hom_trans_trans.
+  f_equal.
 Qed.
 
 Lemma alg_hom_map_prop_eq {C : category} {T : functor C C} {A B : algebra T} (f g : alg_hom A B) :
@@ -875,7 +1034,7 @@ Section solution.
     reflexivity.
   Qed.
 
-  Definition canonical_par_sol {dsp} (ps : partial_solution dsp)
+  Definition is_canonical_par_sol {dsp} (ps : partial_solution dsp)
     := ∀ (α : downset dsp),
     cones_equiv (reflexivity _) (parsolext_cone
                                    (the_extension
@@ -883,7 +1042,7 @@ Section solution.
       (partial_sol_cone_at ps α).
 
   Lemma canonicity_extend_v {dsp} (P : partial_solution dsp)
-    (H : ∀ α, canonical_par_sol (cut_par_sol P (le_dsp_included α)))
+    (H : ∀ α, is_canonical_par_sol (cut_par_sol P (le_dsp_included α)))
     (α : downset dsp)
     : vertex (the_extension (cut_par_sol P (lt_dsp_included α))) =
         vertex (partial_sol_cone_at P α).
@@ -894,67 +1053,10 @@ Section solution.
     apply functor_equiv_unpack, canon_ext_equiv.
   Qed.
 
-  Lemma func_eq_o_map_refl {E D : category} {G : functor E D}
-    {Equiv : functor_equiv G G} : ∀ a, func_eq_o_map Equiv a = eq_refl.
-  Proof.
-    intros.
-    apply UIP_refl.
-  Qed.
-
-  Lemma func_eq_o_map_sym {E D : category} {G G' : functor E D}
-    {Equiv : functor_equiv G G'}
-    : ∀ a, eq_sym (func_eq_o_map Equiv a) = func_eq_o_map (symmetry Equiv) a.
-  Proof.
-    intros.
-    destruct (functor_equiv_unpack Equiv).
-    rewrite func_eq_o_map_refl.
-    assert ((symmetry Equiv) = Equiv) as ->.
-    { apply proof_irrelevance. }
-    rewrite func_eq_o_map_refl.
-    apply UIP_refl.
-  Qed.
-
-  Lemma func_eq_o_map_trans {E D : category} {G G' G'' : functor E D}
-    {Equiv : functor_equiv G G'} {Equiv' : functor_equiv G' G''}
-    : ∀ a, eq_trans (func_eq_o_map Equiv a) (func_eq_o_map Equiv' a)
-           = func_eq_o_map (transitivity Equiv Equiv') a.
-  Proof.
-    intros.
-    destruct (functor_equiv_unpack Equiv).
-    destruct (functor_equiv_unpack Equiv').
-    assert (Equiv = Equiv') as ->.
-    { apply proof_irrelevance. }
-    rewrite func_eq_o_map_refl.
-    assert ((transitivity Equiv' Equiv') = Equiv') as ->.
-    { apply proof_irrelevance. }
-    rewrite func_eq_o_map_refl.
-    apply UIP_refl.
-  Qed.
-
-  Lemma car_eq_eq_trans {E : category} {G : functor E E} {a b c : algebra G}
-    : ∀ (H : a = b) (G : b = c), car_eq (eq_trans H G) = eq_trans (car_eq H) (car_eq G).
-  Proof. by intros [] []. Qed.
-
-  Lemma car_eq_eq_symm {E : category} {G : functor E E} {a b : algebra G}
-    : ∀ (H : a = b), car_eq (eq_sym H) = eq_sym (car_eq H).
-  Proof. by intros []. Qed.
-
-  Lemma func_equiv_compose {E D H : category}
-    {G1 G2 : functor E D}
-    {J1 J2 : functor D H}
-    (Equiv1 : functor_equiv G1 G2)
-    (Equiv2 : functor_equiv J1 J2)
-    : functor_equiv (functor_compose G1 J1) (functor_compose G2 J2).
-  Proof.
-    destruct (functor_equiv_unpack Equiv1).
-    destruct (functor_equiv_unpack Equiv2).
-    reflexivity.
-  Qed.
-
   Lemma canonicity_extend
     {dsp} (P : partial_solution dsp)
-    (H : ∀ α, canonical_par_sol (cut_par_sol P (le_dsp_included α)))
-    : canonical_par_sol P.
+    (H : ∀ α, is_canonical_par_sol (cut_par_sol P (le_dsp_included α)))
+    : is_canonical_par_sol P.
   Proof.
     intros α.
     set (α' := (MkDS (le_dsp α) (squash (reflexivity _)))).
@@ -1054,9 +1156,9 @@ Section solution.
   Qed.
 
   Lemma canonicity_inductive {dsp} (P : partial_solution dsp) :
-    (∀ α, canonical_par_sol (cut_par_sol P (lt_dsp_included α))
-          → canonical_par_sol (cut_par_sol P (le_dsp_included α)))
-    → canonical_par_sol P.
+    (∀ α, is_canonical_par_sol (cut_par_sol P (lt_dsp_included α))
+          → is_canonical_par_sol (cut_par_sol P (le_dsp_included α)))
+    → is_canonical_par_sol P.
   Proof.
     intros H.
     apply canonicity_extend.
@@ -1244,7 +1346,7 @@ Section solution.
   Qed.
 
   Lemma canonical_eq {dsp} (P Q : partial_solution dsp)
-    (PC : canonical_par_sol P) (QC : canonical_par_sol Q) :
+    (PC : is_canonical_par_sol P) (QC : is_canonical_par_sol Q) :
     functor_equiv P Q.
   Proof.
     apply par_sol_extensional.
@@ -1509,8 +1611,8 @@ Section solution.
   Lemma cut_par_sol_canon {dsp} (ps : partial_solution dsp)
     {dsp' : downset_pred SI}
     (Hdsps : dsp_included dsp' dsp)
-    (HC : canonical_par_sol ps)
-    : canonical_par_sol (cut_par_sol ps Hdsps).
+    (HC : is_canonical_par_sol ps)
+    : is_canonical_par_sol (cut_par_sol ps Hdsps).
   Proof.
     intros α.
     unshelve econstructor.
@@ -1596,9 +1698,10 @@ Section solution.
         * apply proof_irrelevance.
   Qed.
 
+  Opaque id comp.
   Program Definition tower {dsp}
     (collection : ∀ α : downset dsp, partial_solution (le_dsp α))
-    (canon_fam : ∀ α : downset dsp, canonical_par_sol (collection α))
+    (canon_fam : ∀ α : downset dsp, is_canonical_par_sol (collection α))
     : functor (OrdDSCat dsp)ᵒᵖ (Alg F)
     := MkFunc (λ x, (collection x ₒ (dsp_le_top x)))
          (λ a b f,
@@ -1622,13 +1725,96 @@ Section solution.
     f_equal.
   Qed.
   Next Obligation.
-    (* Opaque hom comp id. *)
     intros; simpl.
+    match goal with
+    | |- context G [_ ∘ ?a]
+      => assert (a = hom_trans eq_refl eq_refl a) as ->
+    end; first by rewrite hom_trans_refl.
+    rewrite -hom_trans_compose.
+    rewrite left_id.
+    match goal with
+    | |- context G [hom_trans _ _ _ ∘ ?a]
+      => assert (a = hom_trans eq_refl eq_refl a) as ->
+    end; first by rewrite hom_trans_refl.
+    rewrite -hom_trans_compose.
+    rewrite left_id.
+    match goal with
+    | |- context G [hom_trans _ _ _ ∘ ?a]
+      => assert (a = hom_trans eq_refl eq_refl a) as ->
+    end; first by rewrite hom_trans_refl.
+    rewrite -hom_trans_compose.
+    rewrite left_id.
+    match goal with
+    | |- context G [hom_trans _ _ _ ∘ hom_trans _ ?a _]
+      => assert (a = eq_sym (eq_sym a)) as ->
+    end.
+    { by rewrite eq_sym_involutive. }
+    rewrite -hom_trans_compose_r.
+    match goal with
+    | |- context G [_ ≡ hom_trans _ _ _ ∘ ?a]
+      => assert (a = hom_trans eq_refl eq_refl a) as ->
+    end; first by rewrite hom_trans_refl.
+    rewrite hom_trans_compose_take_in_r.
+    rewrite eq_sym_involutive.
+    rewrite hom_trans_refl.
+    match goal with
+    | |- context G [hom_trans ?a]
+      => set (P1 := a)
+    end; clearbody P1.
+    match goal with
+    | |- context G [hom_trans _ (func_eq_o_map ?a _)]
+      => set (P2 := a)
+    end.
+    match goal with
+    | |- context G [_ ≡ hom_trans ?a _ _]
+      => set (P3 := a)
+    end; clearbody P3.
+    match goal with
+    | |- context G [_ ≡ hom_trans _ (func_eq_o_map ?a _) _]
+      => set (P4 := a)
+    end.
+    match goal with
+    | |- context G [_ ∘ hom_trans _ (func_eq_o_map ?a _) _]
+      => set (P5 := a)
+    end.
+    assert (P1 = eq_refl) as ->.
+    { apply proof_irrelevance. }
+    assert (P3 = eq_refl) as ->.
+    { apply proof_irrelevance. }
+    set (a' := (dsp_le_top a)).
     simpl in *.
-
-
-    admit.
-  Admitted.
+    set (b' := MkDS (le_dsp a) (squash f)).
+    set (c' := MkDS (le_dsp a) _).
+    set (f' := _ : hom (C := OrdDSCat (le_dsp a)) b' a').
+    set (g' := _ : hom (C := OrdDSCat (le_dsp a)) c' b').
+    rewrite (h_map_comp _ _ (collection a) a' b' c' f' g').
+    rewrite !hom_trans_compose.
+    clearbody P2 P4 P5.
+    destruct (functor_equiv_unpack P2).
+    destruct (functor_equiv_unpack P5).
+    simpl.
+    match goal with
+    | |- context G [hom_trans _ ?a]
+      => assert (a = eq_refl) as ->
+    end.
+    { apply proof_irrelevance. }
+    rewrite !hom_trans_refl.
+    match goal with
+    | |- context G [_ ∘ hom_trans _ ?a _]
+      => assert (a = eq_refl) as ->
+    end.
+    { apply proof_irrelevance. }
+    rewrite hom_trans_refl.
+    f_equiv.
+    clear P2 P5.
+    match goal with
+    | |- context G [hom_trans _ ?a _]
+      => assert (a = eq_refl) as ->
+    end.
+    { apply proof_irrelevance. }
+    rewrite hom_trans_refl.
+    reflexivity.
+  Qed.
   Next Obligation.
     intros; simpl.
     set (T := collection a).
@@ -1640,138 +1826,351 @@ Section solution.
     clearbody R.
     clearbody T.
     rewrite h_map_id.
-    rewrite alg_hom_right_id.
+    rewrite right_id.
     assert (eq_refl = func_eq_o_map R (dsp_le_top a)) as HEQ.
     { apply proof_irrelevance. }
     rewrite HEQ.
     rewrite hom_trans_id.
     reflexivity.
   Qed.
+  Transparent id comp.
 
+  Opaque id comp.
   Program Definition tower_par_sol {dsp}
     (collection : ∀ α : downset dsp, partial_solution (le_dsp α))
-    (canon_fam : ∀ α : downset dsp, canonical_par_sol (collection α))
+    (canon_fam : ∀ α : downset dsp, is_canonical_par_sol (collection α))
     : partial_solution dsp
     := MkParSol (tower collection canon_fam) _ _.
   Next Obligation.
     intros; simpl.
-    unshelve econstructor.
-    - pose proof (inv_at (@parsol_edge_iso _ (collection α)
-                            (dsp_le_top α)
-                            (MkDS (le_dsp α) (squash Hle))
-                            Hle)) as H.
-      simpl in H.
-      unshelve eapply (enr_hom_trans _ eq_refl H).
-      symmetry.
-      unshelve epose proof (car_eq
-                              (func_eq_o_map
-                                 (canonical_eq
-                                    (collection β)
-                                    (cut_par_sol (collection α)
-                                       _)
-                                    (canon_fam β)
-                                    (cut_par_sol_canon _ _ (canon_fam _)))
-                                 (dsp_le_top β))) as G.
-      { intros ? P. simpl in *. etransitivity; [apply P | apply Hle]. }
-      simpl in G.
-      unfold cut_ord_ds_cat_func_o_map in G.
-      apply G.
-    - intros; simpl.
-      epose proof (iso_at
-                     (@parsol_edge_iso _ (collection α)
-                        (dsp_le_top α)
-                        (MkDS (le_dsp α) (squash Hle))
-                        Hle)).
-      simpl in H.
-  Admitted.
+    rewrite (hom_eq_reflect (alg_hom_map_comp _ _)).
+    apply is_iso_at_compose.
+    - apply (parsol_edge_iso (collection α)).
+    - rewrite hom_trans_alg_hom_map.
+      apply iso_at_hom_trans.
+      apply is_iso_at_id.
+  Qed.
   Next Obligation.
     intros; simpl.
     apply (parsol_cons_iso (collection α) (dsp_le_top α)).
   Qed.
+  Transparent id comp.
 
-  Definition functor_collection_extend
-    : ∀ (β : SI) (H : ∀ y : SI, y ≺ β →
-                                { sol : partial_solution (le_dsp y)
-                                        & canonical_par_sol sol}),
-    { sol : partial_solution (lt_dsp β)
-            & canonical_par_sol sol}.
-  Proof.
-  Admitted.
+  Record canonical_par_sol dsp
+    := MkCanonSol {
+           sol : partial_solution dsp;
+           is_canon : is_canonical_par_sol sol;
+         }.
+  Arguments MkCanonSol {_}.
+  Arguments sol {_}.
+  Arguments is_canon {_}.
 
-  Lemma downset_pred_eq {dsp dsp' : downset_pred SI}
-    : dsp_pred dsp = dsp_pred dsp' → dsp = dsp'.
+  Lemma is_canon_eq {dsp} (p p' : partial_solution dsp)
+    (H : p = p' :> functor _ _) : is_canonical_par_sol p → is_canonical_par_sol p'.
   Proof.
-    destruct dsp as [d1 d2 d3], dsp' as [c1 c2 c3].
-    intros H; simpl in H.
+    destruct p as [p1 p2 p3], p' as [p1' p2' p3']; simpl in *.
     destruct H.
-    assert (d2 = c2) as Hf.
+    intros H α.
+    apply cones_equiv_unpack.
+    eapply packed_cones_equiv_trans.
+    - apply (cones_equiv_pack _ _ _ (H α)).
+    - eapply (cones_equiv_pack (reflexivity _)).
+      unshelve econstructor.
+      + reflexivity.
+      + intros; apply hom_eq_reflect, alg_hom_map_eq; simpl.
+        rewrite func_eq_o_map_refl hom_trans_refl; simpl.
+        reflexivity.
+  Qed.
+
+  Lemma partial_cone_eq {dsp} (p p' : partial_solution dsp)
+    (H : p = p' :> functor _ _) : ∀ α,
+    packed_cones_equiv (partial_sol_cone_at p α) (partial_sol_cone_at p' α).
+  Proof.
+    destruct p as [p1 p2 p3], p' as [p1' p2' p3']; simpl in *.
+    destruct H.
+    intros α.
+    eapply cones_equiv_pack with (reflexivity _).
+    unshelve econstructor.
+    - simpl.
+      reflexivity.
+    - intros; apply hom_eq_reflect, alg_hom_map_eq; simpl.
+      rewrite func_eq_o_map_refl hom_trans_refl; simpl.
+      reflexivity.
+  Qed.
+
+  Lemma the_extension_eq {dsp} (p p' : partial_solution dsp)
+    (H : p = p' :> functor _ _) :
+    packed_cones_equiv (the_extension p) (the_extension p').
+  Proof.
+    destruct p as [p1 p2 p3], p' as [p1' p2' p3']; simpl in *.
+    destruct H.
+    eapply cones_equiv_pack with (reflexivity _).
+    unshelve econstructor.
+    - simpl.
+      reflexivity.
+    - intros; apply hom_eq_reflect, alg_hom_map_eq; simpl.
+      rewrite func_eq_o_map_refl hom_trans_refl; simpl.
+      reflexivity.
+  Qed.
+
+  Lemma canonicity_extend_lt {α : SI}
+    (P : partial_solution (lt_dsp α))
+    (H : is_canonical_par_sol P)
+    (β : downset (le_dsp α))
+    (Hlt : β ≺ α)
+    : cones_equiv (reflexivity _)
+        (the_extension (cut_par_sol (extend_par_sol_lt_le P) (lt_dsp_included β)))
+        (partial_sol_cone_at (extend_par_sol_lt_le P) β).
+  Proof.
+    set (β' := (MkDS (lt_dsp α) (squash Hlt))).
+    assert (FEQ : functor_equiv
+                    (cut_par_sol
+                       (extend_par_sol_lt_le P)
+                       (lt_dsp_included β))
+                    (cut_par_sol P (lt_dsp_included β'))).
     {
-      extensionality x.
-      unfold Decision in d2, c2.
-      destruct (d2 x), (c2 x).
-      - simpl. f_equal. apply proof_irrelevance.
-      - by exfalso.
-      - by exfalso.
-      - simpl. f_equal. apply proof_irrelevance.
+      unshelve econstructor.
+      - intros; simpl.
+        apply (eq_trans
+                 (extend_ord_ds_cat_func_o_map_lt
+                    (β := dsp_include (lt_dsp_included _) a)
+                    (alg_func_on_cone (alg_lim_cone P))
+                    (transitivity (unsquash (ds_in_dsp a)) Hlt))).
+        unfold cut_ord_ds_cat_func_o_map; simpl.
+        reflexivity.
+      - intros; simpl.
+        rewrite extend_ord_ds_cat_func_h_map_lt_lt.
+        { apply (transitivity (unsquash (ds_in_dsp a)) Hlt). }
+        { apply (transitivity (unsquash (ds_in_dsp b)) Hlt). }
+        intros Hyp1 Hyp2; simpl.
+        rewrite -hom_trans_trans.
+        simpl in *.
+        assert (Hyp1 = (transitivity (unsquash (ds_in_dsp a)) Hlt)) as ->.
+        { apply proof_irrelevance. }
+        assert (Hyp2 = (transitivity (unsquash (ds_in_dsp b)) Hlt)) as ->.
+        { apply proof_irrelevance. }
+        rewrite !eq_trans_sym_inv_l.
+        rewrite hom_trans_refl.
+        reflexivity.
     }
-    destruct Hf.
-    assert (d3 = c3) as Hf.
-    { apply proof_irrelevance. }
-    destruct Hf.
+    apply cones_equiv_unpack.
+    eapply packed_cones_equiv_trans;
+      first apply the_extension_eq, functor_equiv_unpack, FEQ.
+    apply packed_cones_equiv_sym.
+    eapply packed_cones_equiv_trans;
+      last apply (packed_cones_equiv_sym _ _ (cones_equiv_pack _ _ _ (H β'))).
+    eapply cones_equiv_pack with FEQ.
+    unshelve econstructor.
+    - simpl.
+      eapply (eq_trans (extend_ord_ds_cat_func_o_map_lt
+                          (alg_func_on_cone (alg_lim_cone P)) Hlt)).
+      reflexivity.
+    - intros; apply hom_eq_reflect, alg_hom_map_eq.
+      rewrite !hom_trans_alg_hom_map /=.
+      rewrite extend_ord_ds_cat_func_h_map_lt_lt; first last.
+      + intros Hyp.
+        rewrite !hom_trans_alg_hom_map /=.
+        rewrite car_eq_eq_symm.
+        rewrite -!hom_trans_trans.
+        rewrite !eq_trans_sym_inv_l.
+        match goal with
+        | |- context G [hom_trans _ ?a]
+          => assert (a = eq_refl) as ->
+        end.
+        { apply proof_irrelevance. }
+        rewrite hom_trans_refl.
+        reflexivity.
+      + simpl.
+        etransitivity; last apply Hlt.
+        apply (unsquash (ds_in_dsp j)).
+  Qed.
+
+  Lemma canonicity_extend_at {α : SI}
+    (P : partial_solution (lt_dsp α))
+    : packed_cones_equiv
+        (the_extension (cut_par_sol (extend_par_sol_lt_le P) (dsp_included_lt_le)))
+        (parsolext_cone (the_extension P)).
+  Proof.
+    set (Q := (extend_par_sol_lt_le_equiv_lt P dsp_included_lt_le)).
+    clearbody Q.
+    apply the_extension_eq.
+    symmetry.
+    rewrite (functor_equiv_unpack Q).
     reflexivity.
   Qed.
 
+  Lemma canonicity_extend_at' {α : SI}
+    (P : partial_solution (lt_dsp α))
+    (H : is_canonical_par_sol P)
+    (β : downset (le_dsp α))
+    (Heq : ds_idx β = α)
+    : cones_equiv (reflexivity _)
+        (the_extension (cut_par_sol (extend_par_sol_lt_le P) (lt_dsp_included β)))
+        (partial_sol_cone_at (extend_par_sol_lt_le P) β).
+  Proof.
+    set (β' := dsp_le_top α).
+    assert (β = β') as ->.
+    { destruct β as [β1 β2]; simpl in *; subst. done. }
+    clear Heq.
+    assert ((lt_dsp_included β') = dsp_included_lt_le) as Heq.
+    { apply proof_irrelevance. }
+
+    assert (FEQ : functor_equiv P
+                    (cut_par_sol (extend_par_sol_lt_le P) (lt_dsp_included β'))).
+    {
+      unshelve econstructor.
+      - intros; simpl.
+        apply (eq_trans (eq_sym (extend_ord_ds_cat_func_o_map_lt
+                                   (β := dsp_include (dsp_included_lt_le) a)
+                                   (alg_func_on_cone (alg_lim_cone P))
+                                   (unsquash (ds_in_dsp a))))).
+        reflexivity.
+      - intros; simpl.
+        rewrite extend_ord_ds_cat_func_h_map_lt_lt.
+        { simpl. apply (unsquash (ds_in_dsp a)). }
+        { simpl. apply (unsquash (ds_in_dsp b)). }
+        intros; simpl.
+        f_equiv.
+        + apply proof_irrelevance.
+        + apply proof_irrelevance.
+        + f_equal.
+    }
+    apply cones_equiv_unpack.
+    eapply packed_cones_equiv_trans.
+    - rewrite Heq.
+      apply canonicity_extend_at.
+    - assert (FEQ' : functor_equiv P
+                       (cut_par_sol (extend_par_sol_lt_le P) (lt_dsp_included β'))).
+      {
+        apply functor_equiv_pack.
+        symmetry.
+        apply functor_equiv_unpack.
+        apply extend_par_sol_lt_le_equiv_lt.
+      }
+      apply (MkPackedConesEquiv FEQ').
+      unshelve econstructor.
+      * simpl.
+        eapply (eq_trans
+                  (eq_sym (extend_ord_ds_cat_func_o_map_at
+                             (α := β') (β := β')
+                             (alg_func_on_cone (alg_lim_cone P)) eq_refl))).
+        simpl. reflexivity.
+      * intros j; apply hom_eq_reflect, alg_hom_map_eq.
+        rewrite !hom_trans_alg_hom_map /=.
+        rewrite extend_ord_ds_cat_func_h_map_lt_eq.
+        { simpl. apply (unsquash (ds_in_dsp j)). }
+        intros Hyp.
+        rewrite !hom_trans_alg_hom_map.
+        rewrite !car_eq_eq_symm.
+        symmetry.
+        apply hom_trans_sym.
+        simpl.
+        rewrite -hom_trans_trans.
+        rewrite hom_trans_compose.
+        f_equiv.
+        -- match goal with
+           | |- context G [hom_trans ?a]
+             => set (T := a)
+           end.
+           simpl in T.
+           clearbody T.
+           assert (T = eq_refl) as ->; first by apply proof_irrelevance.
+           rewrite hom_trans_refl.
+           reflexivity.
+        -- match goal with
+           | |- context G [hom_trans _ ?a]
+             => assert (a = eq_refl) as ->
+           end.
+           { apply proof_irrelevance. }
+           rewrite hom_trans_refl.
+           reflexivity.
+  Qed.
+
+  Lemma canonicity_ext
+    {α} (P : partial_solution (lt_dsp α))
+    (H : is_canonical_par_sol P)
+    : is_canonical_par_sol (extend_par_sol_lt_le P).
+  Proof.
+    intros β.
+    destruct (index_le_lt_eq_dec β α (unsquash (ds_in_dsp β))) as [Hlt|Heq].
+    { by apply canonicity_extend_lt. }
+    { by apply canonicity_extend_at'. }
+  Qed.
+
+  Program Definition tower_package {dsp}
+    (canon_collection : ∀ α : downset dsp, canonical_par_sol (le_dsp α))
+    : canonical_par_sol dsp
+    := MkCanonSol (tower_par_sol
+                     (λ α, sol (canon_collection α))
+                     (λ α, is_canon (canon_collection α)))
+         _.
+  Next Obligation.
+    intros dsp coll.
+    apply canonicity_inductive.
+    intros β H γ.
+    apply cones_equiv_unpack.
+
+    (* eapply packed_cones_equiv_trans. *)
+    (* - apply the_extension_eq. *)
+    (*   apply functor_equiv_unpack. *)
+    (*   apply canonical_eq. *)
+    (*   + eapply is_canon_eq. *)
+    (*     * apply functor_equiv_unpack. *)
+    (*       unshelve eapply canon_ext_equiv. *)
+    (*       { *)
+    (*         eapply dsp_included_trans; first apply dsp_included_lt_le. *)
+    (*         eapply dsp_included_trans; first apply le_dsp_included. *)
+    (*         apply le_dsp_included. *)
+    (*       } *)
+    (*     * set (TTT := (dsp_included_trans dsp_included_lt_le *)
+    (*                      (dsp_included_trans (le_dsp_included γ) (le_dsp_included β)))). *)
+    (*       set (TTT' := (lt_dsp_included β)). *)
+
+    (* eapply packed_cones_equiv_trans. *)
+    (* - apply the_extension_eq. *)
+    (*   apply functor_equiv_unpack. *)
+    (*   symmetry. *)
+    (*   unshelve eapply canon_ext_equiv. *)
+    (*   { *)
+    (*     eapply dsp_included_trans; first apply dsp_included_lt_le. *)
+    (*     eapply dsp_included_trans; first apply le_dsp_included. *)
+    (*     apply le_dsp_included. *)
+    (*   } *)
+    (* - eapply packed_cones_equiv_trans. *)
+    (*   + apply the_extension_eq. *)
+    (*     apply functor_equiv_unpack. *)
+    (*     apply canonical_eq. *)
+    (*     * set (TTT := (dsp_included_trans dsp_included_lt_le *)
+    (*                      (dsp_included_trans (le_dsp_included γ) (le_dsp_included β)))). *)
+    (*       set (TTT' := (lt_dsp_included β)). *)
+  Admitted.
+
   Lemma functor_collection
-    : ∀ α, { sol : partial_solution (le_dsp α) & canonical_par_sol sol }.
+    : ∀ α, canonical_par_sol (le_dsp α).
   Proof.
     intros β.
     induction (index_lt_wf _ β) as [β _ IHβ].
-    apply functor_collection_extend in IHβ.
-    unshelve econstructor.
-    - intros.
-      apply extend_par_sol_lt_le.
-      unshelve eapply tower_par_sol.
-      + intros; simpl.
-        destruct IHβ.
-        apply (cut_par_sol x).
-        intros ??; simpl in *.
-        pose proof (unsquash (ds_in_dsp α)) as G.
-        simpl in G.
-        apply (index_le_lt_trans _ _ _ H G).
-      + intros; simpl.
-        destruct IHβ.
-        apply canonicity_inductive.
-        intros; simpl.
-        admit.
-    - intros; simpl.
-      destruct IHβ.
-
-      admit.
-  Abort.
-
-  Lemma functor_collection
-    : ∀ α, { sol : partial_solution (le_dsp α) & canonical_par_sol sol }.
-  Proof.
-    intros α.
-    induction (index_lt_wf _ α) as [α _ IHα].
-    unshelve econstructor.
-    - unshelve epose proof (parsolext_cone (the_extension _)).
-      + apply (lt_dsp α).
-      + unshelve econstructor.
-        * unshelve econstructor.
-          -- intros; simpl in *.
-             eapply (projT1 (IHα X (unsquash (ds_in_dsp X))) ₒ (MkDS (le_dsp X) (squash _))).
-          -- intros; simpl.
-  Admitted.
-
-  Theorem solver : solution F.
-  Proof using Complete0 Enriched0 LimitsEnriched0 LocallyContractiveFunctor0.
-    apply total_partial_sol_sol.
-    unshelve eapply tower_par_sol.
-    - intros α; simpl.
-      apply (projT1 (functor_collection α)).
-    - intros α ?; simpl.
-      apply (projT2 (functor_collection α)).
+    apply (MkCanonSol
+             (extend_par_sol_lt_le
+                (sol
+                   (tower_package
+                      (λ α : downset (lt_dsp β),
+                          IHβ α (unsquash (ds_in_dsp α))))))).
+    apply canonicity_ext.
+    apply (is_canon
+             (tower_package (λ α : downset (lt_dsp β),
+                    IHβ α (unsquash (ds_in_dsp α))))).
   Qed.
 
 End solution.
+
+Theorem solver {SI : indexT} {C : category} `{!Complete C}
+  `{!Enriched C (PSh (OrdCat SI))} `{!LimitsEnriched C}
+  (F : functor C C) `{!LocallyContractiveFunctor F}
+  : solution F.
+Proof.
+  apply total_partial_sol_sol; first done.
+  eapply tower_package.
+  intros α.
+  apply functor_collection.
+Qed.
