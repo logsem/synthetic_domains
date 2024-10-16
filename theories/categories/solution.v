@@ -2109,41 +2109,125 @@ Section solution.
     apply canonicity_inductive.
     intros β H γ.
     apply cones_equiv_unpack.
-
-    (* eapply packed_cones_equiv_trans. *)
-    (* - apply the_extension_eq. *)
-    (*   apply functor_equiv_unpack. *)
-    (*   apply canonical_eq. *)
-    (*   + eapply is_canon_eq. *)
-    (*     * apply functor_equiv_unpack. *)
-    (*       unshelve eapply canon_ext_equiv. *)
-    (*       { *)
-    (*         eapply dsp_included_trans; first apply dsp_included_lt_le. *)
-    (*         eapply dsp_included_trans; first apply le_dsp_included. *)
-    (*         apply le_dsp_included. *)
-    (*       } *)
-    (*     * set (TTT := (dsp_included_trans dsp_included_lt_le *)
-    (*                      (dsp_included_trans (le_dsp_included γ) (le_dsp_included β)))). *)
-    (*       set (TTT' := (lt_dsp_included β)). *)
-
-    (* eapply packed_cones_equiv_trans. *)
-    (* - apply the_extension_eq. *)
-    (*   apply functor_equiv_unpack. *)
-    (*   symmetry. *)
-    (*   unshelve eapply canon_ext_equiv. *)
-    (*   { *)
-    (*     eapply dsp_included_trans; first apply dsp_included_lt_le. *)
-    (*     eapply dsp_included_trans; first apply le_dsp_included. *)
-    (*     apply le_dsp_included. *)
-    (*   } *)
-    (* - eapply packed_cones_equiv_trans. *)
-    (*   + apply the_extension_eq. *)
-    (*     apply functor_equiv_unpack. *)
-    (*     apply canonical_eq. *)
-    (*     * set (TTT := (dsp_included_trans dsp_included_lt_le *)
-    (*                      (dsp_included_trans (le_dsp_included γ) (le_dsp_included β)))). *)
-    (*       set (TTT' := (lt_dsp_included β)). *)
-  Admitted.
+    eapply packed_cones_equiv_trans.
+    {
+      apply the_extension_eq.
+      apply functor_equiv_unpack.
+      symmetry.
+      unshelve eapply canon_ext_equiv.
+      {
+        eapply dsp_included_trans; first apply dsp_included_lt_le.
+        eapply dsp_included_trans; first apply le_dsp_included.
+        apply le_dsp_included.
+      }
+    }
+    assert (HHH' : dsp_included (lt_dsp γ) (lt_dsp β)).
+    {
+      intros x P; simpl in *.
+      destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp γ))).
+      - etransitivity.
+        + apply P.
+        + done.
+      - destruct γ; subst; simpl in *.
+        subst.
+        apply P.
+    }
+    eapply packed_cones_equiv_trans.
+    {
+      apply the_extension_eq.
+      apply functor_equiv_unpack.
+      apply canonical_eq; first last.
+      - unshelve eapply (cut_par_sol_canon (sol (coll β))).
+        + apply(lt_dsp_included γ).
+        + apply (is_canon (coll β)).
+      - eapply is_canon_eq; first last.
+        + eapply cut_par_sol_canon.
+          apply H.
+        + apply functor_equiv_unpack.
+          symmetry.
+          apply canon_ext_equiv.
+    }
+    Unshelve.
+    2: apply HHH'.
+    eapply packed_cones_equiv_trans;
+      first apply (cones_equiv_pack _ _ _ (is_canon (coll β) γ)).
+    apply partial_cone_eq.
+    apply functor_equiv_unpack.
+    unshelve econstructor.
+    - intros; simpl.
+      pose (T1 := (coll β)).
+      pose (T2 := (coll (dsp_include (le_dsp_included β) a))).
+      simpl in *.
+      assert (G : dsp_included (le_dsp a) (le_dsp β)).
+      { intros x P; simpl in *.
+        etransitivity; first apply P.
+        apply (unsquash (ds_in_dsp a)).
+      }
+      pose proof (canonical_eq (cut_par_sol (sol T1) G)
+                    (sol T2) (cut_par_sol_canon _ _ (is_canon T1)) (is_canon T2)) as J.
+      eapply (eq_trans eq_refl (func_eq_o_map J (dsp_le_top a))).
+    - intros a b f; simpl.
+      rewrite !eq_trans_refl_l.
+      apply alg_hom_map_eq.
+      rewrite !hom_trans_alg_hom_map /=.
+      rewrite !hom_trans_alg_hom_map /=.
+      match goal with
+      | |- context G [hom_trans ?a]
+        => set (T1 := a)
+      end; clearbody T1.
+      match goal with
+      | |- context G [hom_trans _ ?a]
+        => set (T2 := a)
+      end; clearbody T2.
+      match goal with
+      | |- context G [_ ≡ hom_trans _ ?a _ ∘ _]
+        => set (T3 := a)
+      end; clearbody T3.
+      simpl in *.
+      destruct T2.
+      assert (G : dsp_included (le_dsp a) (le_dsp β)).
+      { intros x P; simpl in *.
+        etransitivity; first apply P.
+        apply (unsquash (ds_in_dsp a)).
+      }
+      pose proof (canonical_eq (cut_par_sol (sol (coll β)) G)
+                    (sol (coll (dsp_include (le_dsp_included β) a)))
+                    (cut_par_sol_canon _ _ (is_canon _)) (is_canon _)) as J.
+      assert (G' : dsp_included (le_dsp b) (le_dsp β)).
+      { intros x P; simpl in *.
+        etransitivity; first apply P.
+        apply (unsquash (ds_in_dsp b)).
+      }
+      pose proof (canonical_eq (cut_par_sol (sol (coll β)) G)
+                    (sol (coll (dsp_include (le_dsp_included β) a)))
+                    (cut_par_sol_canon _ _ (is_canon _)) (is_canon _)) as J'.
+      rewrite hom_trans_compose_r.
+      rewrite -hom_trans_compose.
+      rewrite left_id.
+      assert (T1 = car_eq (func_eq_o_map J (dsp_le_top a))) as ->.
+      { apply proof_irrelevance. }
+      assert ((car_eq (func_eq_o_map J (dsp_le_top a)))
+              = car_eq (eq_trans (func_eq_o_map J (dsp_le_top a)) eq_refl)) as ->.
+      { apply proof_irrelevance. }
+      assert (eq_refl = car_eq eq_refl) as ->.
+      { apply proof_irrelevance. }
+      rewrite -hom_trans_alg_hom_map.
+      assert (eq_refl = car_eq (eq_sym eq_refl)) as ->.
+      { apply proof_irrelevance. }
+      match goal with
+      | |- context G [hom_trans _ ?a]
+        => set (T := a)
+      end.
+      set (b' := MkDS (le_dsp a) (squash f)).
+      assert (T = (eq_trans (func_eq_o_map J b') (eq_sym (func_eq_o_map J b')))) as ->.
+      { apply proof_irrelevance. }
+      rewrite hom_trans_trans.
+      rewrite (@func_eq_h_map _ _ _ _ J (dsp_le_top a) b' f).
+      rewrite hom_trans_alg_hom_map.
+      f_equiv.
+      + apply proof_irrelevance.
+      + reflexivity.
+  Qed.
 
   Lemma functor_collection
     : ∀ α, canonical_par_sol (le_dsp α).
