@@ -341,6 +341,13 @@ Solve All Obligations with
   repeat intros ?; rewrite /=; f_equiv; rewrite ?h_map_comp ?h_map_id; solve_by_eq_rewrite.
 Fail Next Obligation.
 
+Program Definition functor_diag {C} :
+  functor C (cat_prod C C) :=
+  MkFunc (λ x, (x, x)) (λ _ _ f, (f, f)) _ _ _.
+Solve All Obligations with
+  repeat intros ?; rewrite /=; f_equiv; rewrite ?h_map_comp ?h_map_id; solve_by_eq_rewrite.
+Fail Next Obligation.
+
 Program Definition functor_to_prod {C D E} (F : functor C D) (G : functor C E) :
   functor C (cat_prod D E) :=
   MkFunc (λ a, (F ₒ a, G ₒ a)) (λ _ _ f, (F ₕ f, G ₕ f)) _ _ _.
@@ -846,6 +853,14 @@ Lemma setoid_conv_sym {A B : setoid} (Heq : A = B) (a : A) (b : B) :
   setoid_conv Heq a ≡ b ↔ a ≡ setoid_conv (eq_sym Heq) b.
 Proof. destruct Heq; done. Qed.
 
+Program Definition ty_inj_setoid (A : Type) : setoid := MkSetoid A eq _ _.
+Solve All Obligations with done.
+Fail Next Obligation.
+
+Program Definition prop_setoid : setoid := MkSetoid Prop iff _ _.
+Next Obligation. intros; by apply propositional_extensionality. Qed.
+Fail Next Obligation.
+
 Program Definition empty_setoid : setoid := MkSetoid False (λ _ _, False) _ _.
 Next Obligation. intros []. Qed.
 Next Obligation. split; repeat intros ?; done. Qed.
@@ -1005,6 +1020,15 @@ Proof.
   specialize (Heq (F ₒ c, c) (id _) (id _) (reflexivity _)).
   rewrite /= !right_id in Heq; done.
 Qed.
+
+Program Definition discr_psh {C} (A : Type) : obj (PSh C) :=
+  MkFunc (λ x, ty_inj_setoid A) (λ a b f, setoid_id _) _ _ _.
+Next Obligation. repeat intros ?; done. Qed.
+Next Obligation. repeat intros ?; done. Qed.
+Fail Next Obligation.
+
+Notation "Δ{ A }" := (discr_psh A)
+                       (at level 20, no associativity) : category_scope.
 
 Global Instance in_right_of_hom_fully_faithful C D :
   FullyFaithfulFunctor (in_right_of_hom C D) :=
