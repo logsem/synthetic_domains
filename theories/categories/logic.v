@@ -7,6 +7,11 @@ Unset Universe Minimization ToSet.
 
 Open Scope category.
 
+Declare Scope logic_scope.
+Delimit Scope logic_scope with logic.
+
+Local Open Scope logic_scope.
+
 Record Sieve {C : category} (c : obj C) := MkSieve {
     sieve_arrows :> ∀ {d : obj C},
       hom (C := Setoid) (hom_setoid d c) prop_setoid;
@@ -105,7 +110,7 @@ Section logic.
     (P Q : hom Γ (Ωₒ)) : Prop :=
     ∀ n γ m f, (P ₙ n) γ m f → (Q ₙ n) γ m f.
 
-  Infix "⊢ᵢ" := entails (at level 99, no associativity) : category_scope.
+  Infix "⊢ᵢ" := entails (at level 99, no associativity) : logic_scope.
 
   Lemma entails_refl {Γ : obj (PSh C)} (P : hom Γ (Ωₒ)) :
     P ⊢ᵢ P.
@@ -151,7 +156,7 @@ Section logic.
     {Γ A : obj (PSh C)} (t u : hom Γ A) : hom Γ (Ωₒ)
     := eqI ∘ << t , u >>.
 
-  Infix "≡ᵢ" := eq (at level 70, no associativity) : category_scope.
+  Infix "≡ᵢ" := eq (at level 70, no associativity) : logic_scope.
 
   Program Definition true_arr
     : hom (C := PSh C) (1ₒ) (Ωₒ)
@@ -164,7 +169,7 @@ Section logic.
   Program Definition true {Γ : obj (PSh C)} : hom Γ (Ωₒ)
     := true_arr ∘ (!ₕ _).
 
-  Notation "'⊤ᵢ'" := true : category_scope.
+  Notation "'⊤ᵢ'" := true : logic_scope.
 
   Program Definition falseI
     : hom (C := PSh C) (1ₒ) (Ωₒ)
@@ -186,7 +191,7 @@ Section logic.
   Definition false {Γ : obj (PSh C)} : hom Γ (Ωₒ)
     := falseI ∘ (!ₕ _).
 
-  Notation "'⊥ᵢ'" := false : category_scope.
+  Notation "'⊥ᵢ'" := false : logic_scope.
 
   Program Definition conj_arr : hom ((Ωₒ) ×ₒ@{PSh C} (Ωₒ)) (Ωₒ)
     := MkNat (λ x, λset y, λsieve p, λset t, (fst y p t) ∧ (snd y p t)) _.
@@ -210,7 +215,7 @@ Section logic.
   Definition conj {Γ : obj (PSh C)} (P Q : hom Γ (Ωₒ)) : hom Γ (Ωₒ)
     := conj_arr ∘ << P , Q >>.
 
-  Infix "∧ᵢ" := conj (at level 80, right associativity) : category_scope.
+  Infix "∧ᵢ" := conj (at level 80, right associativity) : logic_scope.
 
   Program Definition disjI : hom ((Ωₒ) ×ₒ@{PSh C} (Ωₒ)) (Ωₒ)
     := MkNat (λ x, λset y, λsieve p, λset t, (fst y p t) ∨ (snd y p t)) _.
@@ -235,7 +240,7 @@ Section logic.
   Definition disj {Γ : obj (PSh C)} (P Q : hom Γ (Ωₒ)) : hom Γ (Ωₒ)
     := disjI ∘ << P , Q >>.
 
-  Infix "∨ᵢ" := disj (at level 85, right associativity) : category_scope.
+  Infix "∨ᵢ" := disj (at level 85, right associativity) : logic_scope.
 
   Program Definition implI : hom ((Ωₒ) ×ₒ@{PSh C} (Ωₒ)) (Ωₒ)
     := MkNat (λ x, λset y, λsieve p, λset t,
@@ -289,7 +294,7 @@ Section logic.
   Definition impl {Γ : obj (PSh C)} (P Q : hom Γ (Ωₒ)) : hom Γ (Ωₒ)
     := implI ∘ << P , Q >>.
 
-  Infix "→ᵢ" := impl (at level 90, right associativity) : category_scope.
+  Infix "→ᵢ" := impl (at level 90, right associativity) : logic_scope.
 
   Program Definition all_arr {X : obj (PSh C)}
     : hom ((Ωₒ) ↑ₒ X) (Ωₒ)
@@ -325,7 +330,7 @@ Section logic.
   Notation "∀ᵢ[ A ] P" :=
     (all A P)
       (at level 95, P at level 95, format "∀ᵢ[ A ]  P")
-      : category_scope.
+      : logic_scope.
 
   Program Definition discr_all :
     ∀ A, (A → (global_sections ₒ (Ωₒ@{C})))
@@ -358,7 +363,7 @@ Section logic.
   Qed.
 
   Notation "∀ᵢ x , P" :=
-    (discr_all _ (λ x, P)) (at level 95) : category_scope.
+    (discr_all _ (λ x, P)) (at level 95) : logic_scope.
 
   Program Definition existI {X : obj (PSh C)} : hom ((Ωₒ) ↑ₒ X) (Ωₒ) :=
     MkNat (λ x, λset y, λsieve p, λset t,
@@ -405,7 +410,7 @@ Section logic.
 
   Notation "∃ᵢ[ A ] P" := (exist A P)
                             (at level 95, P at level 95, format "∃ᵢ[ A ]  P")
-      : category_scope.
+      : logic_scope.
 
   Program Definition discr_exist :
     ∀ A, (A → (global_sections ₒ (Ωₒ@{C})))
@@ -438,7 +443,7 @@ Section logic.
   Fail Next Obligation.
 
   Notation "∃ᵢ x , P" :=
-    (discr_exist _ (λ x, P)) (at level 95) : category_scope.
+    (discr_exist _ (λ x, P)) (at level 95) : logic_scope.
 
   Program Definition pureI (P : Prop) : hom (1ₒ) (Ωₒ@{C}) :=
     MkNat (λ x, λset y, λsieve p, λset t, P) _.
@@ -447,7 +452,7 @@ Section logic.
   Definition pure {Γ : obj (PSh C)} (P : Prop) : hom Γ (Ωₒ@{C})
     := pureI P ∘ (!ₕ _).
 
-  Notation "'⌜' P '⌝ᵢ'" := (pure P) : category_scope.
+  Notation "'⌜' P '⌝ᵢ'" := (pure P) : logic_scope.
 
   Lemma eq_refl {Γ A} (t : hom Γ A) :
     ⊤ᵢ ⊢ᵢ t ≡ᵢ t.
@@ -895,26 +900,26 @@ Section logic.
 
 End logic.
 
-Notation "'⊤ᵢ'" := true : category_scope.
-Notation "'⊥ᵢ'" := false : category_scope.
-Infix "≡ᵢ" := eq (at level 70, no associativity) : category_scope.
-Infix "∧ᵢ" := conj (at level 80, right associativity) : category_scope.
-Infix "∨ᵢ" := disj (at level 85, right associativity) : category_scope.
-Infix "→ᵢ" := impl (at level 90, right associativity) : category_scope.
+Notation "'⊤ᵢ'" := true : logic_scope.
+Notation "'⊥ᵢ'" := false : logic_scope.
+Infix "≡ᵢ" := eq (at level 70, no associativity) : logic_scope.
+Infix "∧ᵢ" := conj (at level 80, right associativity) : logic_scope.
+Infix "∨ᵢ" := disj (at level 85, right associativity) : logic_scope.
+Infix "→ᵢ" := impl (at level 90, right associativity) : logic_scope.
 Notation "∀ᵢ[ A ] P" :=
   (all A P)
     (at level 95, P at level 95, format "∀ᵢ[ A ]  P")
-    : category_scope.
+    : logic_scope.
 Notation "∃ᵢ[ A ] P" :=
   (exist A P)
     (at level 95, P at level 95, format "∃ᵢ[ A ]  P")
-    : category_scope.
+    : logic_scope.
 Notation "∀ᵢ x , P" :=
-  (discr_all _ (λ x, P)) (at level 95) : category_scope.
+  (discr_all _ (λ x, P)) (at level 95) : logic_scope.
 Notation "∃ᵢ x , P" :=
-  (discr_exist _ (λ x, P)) (at level 95) : category_scope.
-Notation "'⌜' P '⌝ᵢ'" := (pure P) : category_scope.
-Infix "⊢ᵢ" := entails (at level 99, no associativity) : category_scope.
+  (discr_exist _ (λ x, P)) (at level 95) : logic_scope.
+Notation "'⌜' P '⌝ᵢ'" := (pure P) : logic_scope.
+Infix "⊢ᵢ" := entails (at level 99, no associativity) : logic_scope.
 
 Section si_logic.
   Context {SI : indexT}.
@@ -996,10 +1001,59 @@ Section si_logic.
   Qed.
   Fail Next Obligation.
 
+  (* Program Definition laterIContractiveWitness : natural (later ₒ Ωₒ) (Ωₒ@{OrdCat SI}) *)
+  (*   := MkNat (λ x, _) _. *)
+  (* Next Obligation. *)
+  (*   intros; simpl. *)
+  (*   destruct (index_is_zero x) as [->| Hnx]. *)
+  (*   { *)
+  (*     rewrite later_func_o_map_zero. *)
+  (*     eapply (λset _, total_sieve _).       *)
+  (*   }     *)
+  (*   destruct (index_dec_limit x) as [[δ ->]|Hil]. *)
+  (*   { *)
+  (*     rewrite later_func_o_map_succ. *)
+  (*     unshelve econstructor. *)
+  (*     - intros; simpl in *. *)
+  (*       unshelve econstructor. *)
+  (*       + intros; simpl. *)
+  (*         unshelve econstructor. *)
+  (*         * intros; simpl. *)
+  (*           apply (X δ (id _)). *)
+  (*         * admit. *)
+  (*       + admit. *)
+  (*     - admit. *)
+  (*   } *)
+  (*   { *)
+  (*     change x with (mklimitidx x Hil Hnx : SI). *)
+  (*     rewrite later_func_o_map_lim. *)
+  (*     simpl. *)
+  (*     unshelve econstructor. *)
+  (*     - intros; simpl in *. *)
+  (*       unshelve econstructor. *)
+  (*       + intros; simpl in *. *)
+  (*         unshelve econstructor. *)
+  (*         * intros; simpl in *. *)
+  (*           destruct X. *)
+  (*           unshelve eapply x0. *)
+  (*           -- apply zero. *)
+  (*           -- simpl. *)
+  (*              eapply (MkDS (lt_dsp x) (squash Hnx)). *)
+  (*           -- simpl. *)
+  (*              reflexivity. *)
+  (*         * admit. *)
+  (*   } *)
+
+  (* Global Instance laterIContractive : Contractive laterI. *)
+  (* Proof. *)
+  (*   refine (MkContr laterIContractiveWitness). *)
+  (*   admit. *)
+  (* Admitted. *)
+
   Definition laterP {Γ} (P : hom Γ (Ωₒ)) : hom Γ (Ωₒ)
     := laterI ∘ P.
 
-  Notation "'▷ᵢ' P" := (laterP P) (at level 80) : category_scope.
+  Notation "'▷ᵢ' P" := (laterP P) (at level 80) : logic_scope.
 
   Lemma laterI_intro {Γ} (P : hom Γ (Ωₒ)) :
     P ⊢ᵢ ▷ᵢ P.
@@ -1062,7 +1116,7 @@ Section si_logic.
     apply id.
   Qed.
 
-  Lemma later_discr_forall {A} (Φ : A → (global_sections ₒ (Ωₒ)))
+  Lemma laterP_discr_forall {A} (Φ : A → (global_sections ₒ (Ωₒ)))
     : (∀ᵢ a, (▷ᵢ (Φ a))) ⊢ᵢ ▷ᵢ ∀ᵢ a, Φ a.
   Proof.
     intros n γ m f Px h.
@@ -1076,55 +1130,79 @@ Section si_logic.
       apply e.
   Qed.
 
-  (* Lemma later_discr_exist_false {A} (Φ : A → (global_sections ₒ (Ωₒ))) : *)
+  (* TODO: only with finite index *)
+  (* Lemma later_discr_exist_false `{FiniteIndex SI} {A} (Φ : A → (global_sections ₒ (Ωₒ))) : *)
   (*   (▷ᵢ ∃ᵢ a, Φ a) ⊢ᵢ ▷ᵢ ⊥ᵢ ∨ᵢ (∃ᵢ a, ▷ᵢ (Φ a)). *)
   (* Proof. *)
   (*   intros n [] m f Px. *)
-  (*   simpl in *. *)
-  (*   destruct (index_is_zero m) as [->| Hmz]. *)
-  (*   - left; intros. *)
-  (*     by eapply index_lt_zero_is_normal. *)
-  (*   - destruct (index_dec_limit m) as [[γ ->]|Hil]. *)
-  (*     + right. *)
-  (*       destruct (Px γ (index_succ_greater _)) as [r Px']. *)
-  (*       exists r. *)
-  (*       intros n' g. *)
-  (*       epose proof (@sieve_closed _ _ (((Φ r ₙ) n) ()) γ n'). *)
-  (*       simpl in *. *)
+  (*   admit. *)
+  (* Admitted. *)
+
+  (* Lemma later_next_app (A : obj (PSh (OrdCat SI))) *)
+  (*   (n m : obj (OrdCat SI)) *)
+  (*   (f : m ⪯ n) (α : A ₒ n) : *)
+  (*   ((later ₒ A)ₕ f) (((next ₙ A)ₙ n) α) ≡ (((next ₙ A)ₙ m) ((A ₕ f) α)). *)
+  (* Proof. *)
+  (*   destruct (index_le_lt_eq_dec _ _ f) as [Hlt| ->]; last first. *)
+  (*   - assert (f = reflexivity _) as ->. *)
+  (*     { simpl; apply proof_irrelevance. } *)
+  (*     rewrite !h_map_id /=. *)
+  (*     reflexivity. *)
+  (*   - simpl. *)
+  (*     match goal with *)
+  (*     | |- context G [?a ≡ ?b] *)
+  (*       => set (T1 := a); set (T2 := b) *)
+  (*     end. *)
+  (*     simpl in *. *)
+  (*     destruct (index_is_zero m) as [->| Hmz]. *)
+  (*     { *)
+  (*       clearbody T1 T2. *)
+  (*       revert T1 T2. *)
+  (*       set (R := later_func_o_map A zero). *)
+  (*       assert (R = term (term_of Setoid)) as ->. *)
+  (*       { subst R; apply (later_func_o_map_zero A). } *)
+  (*       by intros [] []. *)
+  (*     } *)
+  (*     destruct (index_dec_limit m) as [[δ ->]|Hil]; first last. *)
+  (*     { *)
+  (*       clearbody T1 T2. *)
+  (*       revert T1 T2. *)
+  (*       set (R := later_func_o_map A m). *)
+  (*       change m with (mklimitidx m Hil Hnz : SI). *)
+  (*       assert (R = vertex (term (complete (lift_func (lt_dsp m) A)))) as ->. *)
+  (*       { *)
+  (*         subst R. *)
+  (*         apply (later_func_o_map_lim A (mklimitidx m Hil Hmz : SI)). *)
+  (*       } *)
+  (*       intros T1 T2. *)
   (*       admit. *)
-  (*     + right. *)
-  (*       destruct (Px zero Hmz) as [r Px']. *)
-  (*       exists r. *)
-  (*       intros n' g. *)
-  (*       specialize (Hil n' g). *)
-  (*       (* epose proof (@sieve_closed _ _ (((Φ r ₙ) n) ()) zero n'). *) *)
-  (*       (* simpl in *. *) *)
-  (*       epose proof (psh_naturality (Φ r) n' n). *)
-  (*       simpl in *. *)
-  (*     epose proof (). *)
-  (*     admit. *)
+  (*     } *)
+  (*     revert T1 T2. *)
+
   (* Admitted. *)
 
   Opaque later next.
 
-  (* Lemma later_eq {Γ A} (t u : hom Γ A) : *)
-  (*   ▷ᵢ (t ≡ᵢ u) ⊢ᵢ (next ₙ _) ∘ t ≡ᵢ (next ₙ _) ∘ u. *)
-  (* Proof. *)
-  (*   intros n γ m f Px. *)
-  (*   simpl in Px. *)
-  (*   admit. *)
-  (* Admitted. *)
+  Lemma laterP_eq {Γ A} (t u : hom Γ A) :
+    ▷ᵢ (t ≡ᵢ u) ⊢ᵢ (next ₙ _) ∘ t ≡ᵢ (next ₙ _) ∘ u.
+  Proof.
+    intros n γ m f Px.
+    simpl in *.
+    (* revert n γ f Px. *)
+    (* induction (index_lt_wf _ m) as [m _ IHm]; intros n γ f Px. *)
 
-  (* Lemma later_eq_inv {Γ A} (t u : hom Γ A) : *)
-  (*   (next ₙ _) ∘ t ≡ᵢ (next ₙ _) ∘ u ⊢ᵢ ▷ᵢ (t ≡ᵢ u). *)
-  (* Proof. *)
-  (*   intros n γ m f Px h g. *)
-  (*   rewrite /= (h_map_comp _ _ A _ _ _ f (index_lt_le_subrel_hom g)) /=. *)
-  (*   f_equiv. *)
-  (*   simpl in Px. *)
-  (*   clear g h. *)
-  (*   admit. *)
-  (* Admitted. *)
+    admit.
+  Admitted.
+
+  (* TODO: Lemma 3.3 *)
+  Lemma laterP_eq_inv {Γ A} (t u : hom Γ A) :
+    (next ₙ _) ∘ t ≡ᵢ (next ₙ _) ∘ u ⊢ᵢ ▷ᵢ (t ≡ᵢ u).
+  Proof.
+    intros n γ m f Px h g.
+    simpl in *.
+    rewrite -!psh_naturality h_map_comp /= !psh_naturality.
+    admit.
+  Admitted.
 
   Transparent later next.
 
@@ -1165,4 +1243,4 @@ Section si_logic.
 
 End si_logic.
 
-Notation "'▷ᵢ' P" := (laterP P) (at level 80) : category_scope.
+Notation "'▷ᵢ' P" := (laterP P) (at level 80) : logic_scope.

@@ -1147,6 +1147,21 @@ Proof. rewrite (term_hom_unique f) (term_hom_unique g) //. Qed.
 Lemma term_hom_is_id `{!HasTerm C} : !ₕ (1ₒ) ≡ id (1ₒ).
 Proof. apply term_hom_unique'. Qed.
 
+Global Program Instance cat_has_term : HasTerm Cat :=
+  MkTerm SingletonCat (MkIsTerm _ (λ c, MkFunc (λ _, ()) (λ _ _ _, ()) _ _ _) _).
+Next Obligation. repeat intros ?; done. Qed.
+Next Obligation. repeat intros ?; done. Qed.
+Next Obligation.
+  repeat intros ?; simpl.
+  erewrite functor_equiv_unpack; first reflexivity.
+  unshelve econstructor.
+  - intros; simpl.
+    by destruct (f ₒ a).
+  - intros; simpl.
+    by destruct (f ₒ a), (f ₒ b).
+Qed.
+Fail Next Obligation.
+
 (* Initial Object *)
 
 Record is_initial {C} (i : obj C) := MkIsInit {
