@@ -36,17 +36,19 @@ Global Instance locally_contractive_contractive
   MkContr (contr_func_h_map F a b) (contr_func_h_map_is_h_map F a b).
 
 Global Program Instance LocallyContractiveFunctor_comp_l
-  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} (F G : functor C C)
+  {SI : indexT} {C D E : category} `{!Enriched C (PSh (OrdCat SI))}
+  `{!Enriched D (PSh (OrdCat SI))} `{!Enriched E (PSh (OrdCat SI))}
+  (F : functor C D) (G : functor D E)
   `{!LocallyContractiveFunctor F} `{!EnrichedFunctor G} :
   LocallyContractiveFunctor (functor_compose F G) :=
   MkLocContrFunc (λ a b, enr_func_h_map G (F ₒ a) (F ₒ b) ∘ contr_func_h_map F a b) _ _ _.
 Next Obligation.
-  intros ??? F G ?? a b α f g Heq; simpl in *.
+  intros ??????? F G ?? a b α f g Heq; simpl in *.
   pose proof (contr_func_h_map_is_h_map F a b α f g Heq) as Heq'.
   simpl in Heq'; rewrite -Heq' //.
 Qed.
 Next Obligation.
-  intros ??? F G ?? a b c α [la lb] [z1 z2] [<- <-]; clear z1 z2; simpl in *.
+  intros ??????? F G ?? a b c α [la lb] [z1 z2] [<- <-]; clear z1 z2; simpl in *.
   pose proof (contr_func_h_map_comp F a b c α (la, lb) _ (reflexivity _))
     as Hfg; simpl in Hfg; rewrite Hfg; clear Hfg.
   epose proof (enr_func_h_map_comp G _ _ _ α _ _ (reflexivity _)) as Hcmp;
@@ -54,7 +56,7 @@ Next Obligation.
   simpl; done.
 Qed.
 Next Obligation.
-  intros ??? F G ?? a α [] [] _; simpl in *.
+  intros ??????? F G ?? a α [] [] _; simpl in *.
   pose proof (contr_func_h_map_id F a α () _ (reflexivity _)) as Hid;
     simpl in Hid; rewrite Hid; clear Hid.
   epose proof (enr_func_h_map_id G _ α () _ (reflexivity _)) as Hg;
@@ -64,13 +66,15 @@ Qed.
 Fail Next Obligation.
 
 Global Program Instance LocallyContractiveFunctor_comp_r
-  {SI : indexT} {C : category} `{!Enriched C (PSh (OrdCat SI))} (F G : functor C C)
+  {SI : indexT} {C D E : category} `{!Enriched C (PSh (OrdCat SI))}
+  `{!Enriched D (PSh (OrdCat SI))} `{!Enriched E (PSh (OrdCat SI))}
+  (F : functor D E) (G : functor C D)
   `{!LocallyContractiveFunctor F} `{!EnrichedFunctor G} :
   LocallyContractiveFunctor (functor_compose G F) :=
   MkLocContrFunc
     (λ a b, contr_func_h_map F (G ₒ a) (G ₒ b) ∘ (later ₕ (enr_func_h_map G a b))) _ _ _.
 Next Obligation.
-  intros ??? F G ?? a b α f g <-; clear g; simpl in *.
+  intros ??????? F G ?? a b α f g <-; clear g; simpl in *.
   pose proof (contr_func_h_map_is_h_map
     F (G ₒ a) (G ₒ b) α ((enr_func_h_map G a b ₙ α) f) _ (reflexivity _))
     as Heq; simpl in Heq; rewrite Heq; clear Heq.
@@ -78,13 +82,13 @@ Next Obligation.
   pose proof (naturality next (enr_func_h_map G a b) α f _ (reflexivity _)); done.
 Qed.
 Next Obligation.
-  intros ??? F G ?? a b c α [la lb] [z1 z2] [<- <-]; clear z1 z2; simpl in *.
+  intros ??????? F G ?? a b c α [la lb] [z1 z2] [<- <-]; clear z1 z2; simpl in *.
   epose proof (h_map_comp _ _ later _ _ _
     (enr_comp a b c) (enr_func_h_map G a c) α _ _ (reflexivity _)) as Hlc;
     simpl in Hlc; rewrite -Hlc; clear Hlc.
   epose proof (enr_func_h_map_comp G _ _ _) as Hcmp;
     simpl in Hcmp; rewrite Hcmp; clear Hcmp.
-  epose proof (h_map_comp _ _ later _ _ _ _
+  epose proof (h_map_comp _ _ later _ _ _ (enr_func_h_map G a b ×ₕ enr_func_h_map G b c)
     (enr_comp _ _ _) α _ _ (reflexivity _)) as Hlc;
     simpl in Hlc; rewrite Hlc; clear Hlc.
   epose proof (@naturality _ _ _ _ (backward (later_preserves_prods_nat SI))
@@ -95,7 +99,7 @@ Next Obligation.
   done.
 Qed.
 Next Obligation.
-  intros ??? F G ?? a α [] [] _; simpl in *.
+  intros ??????? F G ?? a α [] [] _; simpl in *.
   pose proof (naturality next ⌜ id a ⌝ α () _ (reflexivity _)) as Hn;
     simpl in Hn; rewrite -Hn; clear Hn.
   epose proof (naturality next (enr_func_h_map G a a) α _ _ (reflexivity _)) as Hn;

@@ -1188,6 +1188,18 @@ Section si_logic.
   Proof.
     intros n γ m f Px.
     simpl in *.
+    rewrite -!psh_naturality.
+    assert (∀ (n' : SI) (g : n' ≺ m),
+              ((t ₙ n') ((Γ ₕ (f ∘ (index_lt_le_subrel_hom g))) γ))
+                ≡ ((u ₙ n') ((Γ ₕ (f ∘ (index_lt_le_subrel_hom g))) γ))).
+    {
+      intros n' g.
+      specialize (Px n' g).
+      rewrite !psh_naturality.
+      apply Px.
+    }
+    clear Px.
+
     (* revert n γ f Px. *)
     (* induction (index_lt_wf _ m) as [m _ IHm]; intros n γ f Px. *)
 
