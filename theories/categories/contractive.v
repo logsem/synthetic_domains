@@ -1,6 +1,7 @@
 From SynthDom Require Import prelude.
 From SynthDom Require Import stepindex.
-From SynthDom.categories Require Import category coprod ord_cat enriched domain.
+From SynthDom.categories Require Import category coprod
+  ord_cat enriched domain solution.
 
 Set Universe Polymorphism.
 Unset Universe Minimization ToSet.
@@ -164,20 +165,202 @@ Section functor_prod.
       f_equiv.
       rewrite {1}/later_preserves_prods_nat
         right_adj_preserves_prods_forward /=.
-      admit.
+      symmetry.
+      destruct y as [y1 y2]; simpl.
+      match goal with
+      | |- context G [next ₙ ?a]
+        => set (T := a)
+      end.
+      match goal with
+      | |- context G [later ₕ ?a]
+        => set (T' := a)
+      end.
+      epose proof (@naturality
+                     (PSh (OrdCat SI))
+                     (PSh (OrdCat SI))
+                     (id_functor _)
+                     (later)
+                     next
+                     T _ T' c
+                     (y1, y2) (y1, y2)
+                     (reflexivity _)) as H.
+      simpl in H.
+      rewrite -H; clear H.
+      reflexivity.
     - rewrite (contr_func_h_map_is_h_map g a.2 b.2 c y.2 y.2 (reflexivity _)) /=.
       f_equiv.
       rewrite {1}/later_preserves_prods_nat
         right_adj_preserves_prods_forward /=.
-      admit.
-  Admitted.
+      symmetry.
+      destruct y as [y1 y2]; simpl.
+      match goal with
+      | |- context G [next ₙ ?a]
+        => set (T := a)
+      end.
+      match goal with
+      | |- context G [later ₕ ?a]
+        => set (T' := a)
+      end.
+      epose proof (@naturality
+                     (PSh (OrdCat SI))
+                     (PSh (OrdCat SI))
+                     (id_functor _)
+                     (later)
+                     next
+                     T _ T' c
+                     (y1, y2) (y1, y2)
+                     (reflexivity _)) as H.
+      simpl in H.
+      rewrite -H; clear H.
+      reflexivity.
+  Qed.
   Next Obligation.
-    intros a b c d e e' ->.
+    intros a b c d e e' ->; clear e.
     simpl.
     f_equiv.
-    - epose proof (contr_func_h_map_comp f a.1 b.1 c.1 d).
-      admit.
-  Admitted.
+    - destruct e' as [e1 e2]; simpl.
+      match goal with
+      | |- context G [backward ?a ₙ ?b]
+        => set (T := a)
+      end.
+      simpl in *.
+      pose proof (contr_func_h_map_comp f a.1 b.1 c.1 d
+                    (((((forward T ₙ (enr_hom a.1 b.1, enr_hom a.2 b.2))ₙ d) e1).1),
+                      ((((forward T ₙ (enr_hom b.1 c.1, enr_hom b.2 c.2))ₙ d) e2).1))
+                    _ (reflexivity _)) as H.
+      simpl in H.
+      rewrite -H; clear H.
+      f_equiv.
+      rewrite {1}/later_preserves_prods_nat
+        right_adj_preserves_prods_forward /=.
+      match goal with
+      | |- context G [later ₕ ?a]
+        => set (T' := a)
+      end.
+      match goal with
+      | |- context G [setoid_fun_map _ _ ((later ₕ T')ₙ d)
+                       ((setoid_fun_map _ _ (later ₕ ?a ₙ _)) _)]
+        => set (T'' := a)
+      end.
+      simpl in *.
+      pose proof (h_map_comp _ _ later _ _ _ T'' T' d
+                    (((backward T ₙ (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2,
+                           enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2))ₙ d) (
+                         e1, e2))
+                    _ (reflexivity _)) as H.
+      simpl in H.
+      rewrite -H; clear H.
+      subst T'' T'.
+      match goal with
+      | |- context G [<< ?a, ?b >>]
+        => set (Q1 := a); set (Q2 := b)
+      end.
+      pose proof (hom_to_prod_prj1 Q1 Q2) as H.
+      simpl in H.
+      rewrite H; clear H.
+      subst Q1.
+      clear Q2.
+      subst T; simpl.
+      rewrite /later_preserves_prods_nat.
+      match goal with
+      | |- context G [backward ?a]
+        => set (T' := a)
+      end.
+      epose proof (@naturality _ _ _ _ (backward T')
+                     (_, _) (_, _) (_, _) _ (_, _) _ (reflexivity _)) as Hn;
+        simpl in Hn; rewrite Hn; clear Hn.
+      subst T'.
+      symmetry.
+      match goal with
+      | |- context G [later ₕ ?a]
+        => set (T := a)
+      end.
+      match goal with
+      | |- context G [setoid_fun_map _ _ ((later ₕ T)ₙ d)
+                       ((setoid_fun_map _ _ (later ₕ ?a ₙ _)) _)]
+        => set (T' := a)
+      end.
+      simpl in *.
+      pose proof (h_map_comp _ _ later _ _ _ T' T d
+                    (((backward (right_adj_preserves_prods later_adj) ₙ
+                         (_, _))ₙ d) (e1, e2))
+                    _ (reflexivity _)) as H.
+      simpl in H.
+      rewrite -H; clear H.
+      f_equiv.
+      reflexivity.
+    - destruct e' as [e1 e2]; simpl.
+      match goal with
+      | |- context G [backward ?a ₙ ?b]
+        => set (T := a)
+      end.
+      simpl in *.
+      pose proof (contr_func_h_map_comp g a.2 b.2 c.2 d
+                    (((((forward T ₙ (enr_hom a.1 b.1, enr_hom a.2 b.2))ₙ d) e1).2),
+                      ((((forward T ₙ (enr_hom b.1 c.1, enr_hom b.2 c.2))ₙ d) e2).2))
+                    _ (reflexivity _)) as H.
+      simpl in H.
+      rewrite -H; clear H.
+      f_equiv.
+      rewrite {1}/later_preserves_prods_nat
+        right_adj_preserves_prods_forward /=.
+      match goal with
+      | |- context G [later ₕ ?a]
+        => set (T' := a)
+      end.
+      match goal with
+      | |- context G [setoid_fun_map _ _ ((later ₕ T')ₙ d)
+                       ((setoid_fun_map _ _ (later ₕ ?a ₙ _)) _)]
+        => set (T'' := a)
+      end.
+      simpl in *.
+      pose proof (h_map_comp _ _ later _ _ _ T'' T' d
+                    (((backward T ₙ (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2,
+                           enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2))ₙ d) (
+                         e1, e2))
+                    _ (reflexivity _)) as H.
+      simpl in H.
+      rewrite -H; clear H.
+      subst T'' T'.
+      match goal with
+      | |- context G [<< ?a, ?b >>]
+        => set (Q1 := a); set (Q2 := b)
+      end.
+      pose proof (hom_to_prod_prj2 Q1 Q2) as H.
+      simpl in H.
+      rewrite H; clear H.
+      subst Q2.
+      clear Q1.
+      subst T; simpl.
+      rewrite /later_preserves_prods_nat.
+      match goal with
+      | |- context G [backward ?a]
+        => set (T' := a)
+      end.
+      epose proof (@naturality _ _ _ _ (backward T')
+                     (_, _) (_, _) (_, _) _ (_, _) _ (reflexivity _)) as Hn;
+        simpl in Hn; rewrite Hn; clear Hn.
+      subst T'.
+      symmetry.
+      match goal with
+      | |- context G [later ₕ ?a]
+        => set (T := a)
+      end.
+      match goal with
+      | |- context G [setoid_fun_map _ _ ((later ₕ T)ₙ d)
+                       ((setoid_fun_map _ _ (later ₕ ?a ₙ _)) _)]
+        => set (T' := a)
+      end.
+      simpl in *.
+      pose proof (h_map_comp _ _ later _ _ _ T' T d
+                    (((backward (right_adj_preserves_prods later_adj) ₙ
+                         (_, _))ₙ d) (e1, e2))
+                    _ (reflexivity _)) as H.
+      simpl in H.
+      rewrite -H; clear H.
+      f_equiv.
+      reflexivity.
+  Qed.
   Next Obligation.
     intros a c e e' ->.
     simpl.
@@ -637,8 +820,245 @@ Section exp_func.
   Fail Next Obligation.
 End exp_func.
 
-Example pcf_dom {SI : indexT}
-  : functor (cat_prod ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI))) (PSh (OrdCat SI))
-  := (functor_compose exp_func later)
-     +ᵨ (Δᵨ (1ₒ))
-     +ᵨ (↑ᵨ later).
+Section interface.
+  Context {SI : indexT}.
+  Local Instance : Enriched (PSh (OrdCat SI)) (PSh (OrdCat SI))
+    := (@self_enriched (PSh (OrdCat SI)) _).
+  Local Instance : Enriched ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI))
+    := op_enriched_def.
+  Local Instance : Enriched (cat_prod ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI)))
+                     (PSh (OrdCat SI))
+    := prod_enriched_def.
+  Local Instance : Enriched (cat_prod
+                               (cat_prod ((PSh (OrdCat SI)) ᵒᵖ)
+                                  (PSh (OrdCat SI)))
+                               (cat_prod ((PSh (OrdCat SI)) ᵒᵖ)
+                                  (PSh (OrdCat SI))))
+                     (PSh (OrdCat SI))
+    := prod_enriched_def.
+
+  Lemma i_cod_func_prod_lc
+    (f g : functor (cat_prod ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI)))
+             (PSh (OrdCat SI)))
+    {Hf : LocallyContractiveFunctor f}
+    {Hg : LocallyContractiveFunctor g}
+    : LocallyContractiveFunctor (cod_func_prod f g).
+  Proof.
+    unfold cod_func_prod.
+    apply (@LocallyContractiveFunctor_comp_r SI
+                   (cat_prod ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI)))
+                   (cat_prod (cat_prod ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI)))
+                      (cat_prod ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI))))
+                   (PSh (OrdCat SI)) _ _ _
+                   (functor_compose (functor_prod f g)
+                      (prod_func (PSh (OrdCat SI))))
+                   functor_diag);
+      last apply functor_diag_enr.
+    unshelve eapply LocallyContractiveFunctor_comp_l.
+    - apply prod_enriched_def.
+    - by apply func_prod_lc.
+    - apply prod_func_enr.
+  Qed.
+
+  Lemma i_cod_func_sum_lc
+    (f g : functor (cat_prod ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI)))
+             (PSh (OrdCat SI)))
+    {Hf : LocallyContractiveFunctor f}
+    {Hg : LocallyContractiveFunctor g}
+    : LocallyContractiveFunctor (cod_func_sum f g).
+  Proof.
+    unfold cod_func_sum.
+    set (T1 := functor_diag).
+    set (T2 := (functor_prod f g)).
+    set (T3 := (coprod_func (PSh (OrdCat SI)))).
+    apply (@LocallyContractiveFunctor_comp_r SI
+             (cat_prod (PSh (OrdCat SI))ᵒᵖ (PSh (OrdCat SI)))
+             (cat_prod (cat_prod (PSh (OrdCat SI))ᵒᵖ (PSh (OrdCat SI)))
+                (cat_prod (PSh (OrdCat SI))ᵒᵖ (PSh (OrdCat SI))))
+             (PSh (OrdCat SI))
+             _ _ _ (functor_compose T2 T3) T1);
+      last apply functor_diag_enr.
+    unshelve eapply LocallyContractiveFunctor_comp_l.
+    - apply prod_enriched_def.
+    - by apply func_prod_lc.
+    - apply coprod_func_enr.
+  Qed.
+
+  Lemma i_lift_func_lc
+    (f : functor (PSh (OrdCat SI)) (PSh (OrdCat SI)))
+    {Hf : LocallyContractiveFunctor f}
+    : LocallyContractiveFunctor (func_lift f).
+  Proof.
+    by apply func_lift_lc.
+  Qed.
+
+  Lemma i_const_func_lc
+    (c : obj (PSh (OrdCat SI)))
+    : LocallyContractiveFunctor (func_const c).
+  Proof.
+    apply func_const_lc.
+  Qed.
+End interface.
+
+Section complete_prod.
+  Context {C D : category}.
+  Context {HC : Complete C} {HD : Complete D}.
+
+  Program Definition cat_prod_limit_cone (J : category)
+    (F : functor J (cat_prod C D)) : cone F
+    := MkCone ((vertex (term (HC J (functor_compose F (cat_proj1 _ _)))))
+           , (vertex (term (HD J (functor_compose F (cat_proj2 _ _))))))
+         (λ j, ((side (term (HC J (functor_compose F (cat_proj1 _ _)))) j)
+                 , (side (term (HD J (functor_compose F (cat_proj2 _ _)))) j))) _.
+  Next Obligation.
+    intros; simpl.
+    rewrite -!side_commutes //.
+  Qed.
+
+  Program Definition cone_proj1 (J : category)
+    (F : functor J (cat_prod C D)) (cn : cone F)
+    : cone (functor_compose F (cat_proj1 C D))
+    := MkCone (vertex cn).1 (λ j, (side cn j).1) _.
+  Next Obligation.
+    intros; simpl.
+    rewrite (side_commutes cn f).
+    reflexivity.
+  Qed.
+
+  Program Definition cone_proj2 (J : category)
+    (F : functor J (cat_prod C D)) (cn : cone F)
+    : cone (functor_compose F (cat_proj2 C D))
+    := MkCone (vertex cn).2 (λ j, (side cn j).2) _.
+  Next Obligation.
+    intros; simpl.
+    rewrite (side_commutes cn f).
+    reflexivity.
+  Qed.
+
+  Program Definition cat_prod_limit_is_term (J : category)
+    (F : functor J (cat_prod C D))
+    : is_terminal (C := ConeCat F) (cat_prod_limit_cone J F)
+    := MkIsTerm _ (λ d,
+           MkConeHom ((cone_hom_map
+                         (bang
+                            (term_is_terminal
+                               (HC J (functor_compose F (cat_proj1 _ _))))
+                            (cone_proj1 J F d))),
+               (cone_hom_map
+                  (bang
+                     (term_is_terminal
+                        (HD J (functor_compose F (cat_proj2 _ _))))
+                     (cone_proj2 J F d)))) _) _.
+  Next Obligation.
+    intros; simpl.
+    rewrite -(cone_hom_commutes
+                (bang (term_is_terminal (HC J (functor_compose F (cat_proj1 C D))))
+                   (cone_proj1 J F d)) j).
+    rewrite -(cone_hom_commutes
+                (bang (term_is_terminal (HD J (functor_compose F (cat_proj2 C D))))
+                   (cone_proj2 J F d)) j).
+    simpl.
+    destruct (side d j).
+    reflexivity.
+  Qed.
+  Next Obligation.
+    intros; simpl.
+    destruct f as [[f1 f2] fc]; simpl.
+    unshelve eset (f1' := (MkConeHom (F := (functor_compose F (cat_proj1 C D))) _ _)
+           : hom (C := ConeCat (functor_compose F (cat_proj1 C D)))
+               (cone_proj1 J F c)
+               (term (HC J (functor_compose F (cat_proj1 C D))))).
+    {
+      simpl.
+      apply f1.
+    }
+    {
+      intros; simpl.
+      epose proof (fc j) as H.
+      simpl in H.
+      destruct H as [H1 H2].
+      rewrite H1.
+      reflexivity.
+    }
+    unshelve eset (f2' := (MkConeHom (F := (functor_compose F (cat_proj2 C D))) _ _)
+           : hom (C := ConeCat (functor_compose F (cat_proj2 C D)))
+               (cone_proj2 J F c)
+               (term (HD J (functor_compose F (cat_proj2 C D))))).
+    {
+      simpl.
+      apply f2.
+    }
+    {
+      intros; simpl.
+      epose proof (fc j) as H.
+      simpl in H.
+      destruct H as [H1 H2].
+      rewrite H2.
+      reflexivity.
+    }
+    rewrite /equiv /cone_hom_eq /=.
+    f_equiv.
+    - epose proof (@bang_unique _ _
+                     (term_is_terminal
+                        (HC J (functor_compose F (cat_proj1 C D))))
+                     (cone_proj1 J F c) f1') as H.
+      subst f1'.
+      simpl in H.
+      rewrite -H.
+      reflexivity.
+    - epose proof (@bang_unique _ _
+                     (term_is_terminal
+                        (HD J (functor_compose F (cat_proj2 C D))))
+                     (cone_proj2 J F c) f2') as H.
+      subst f2'.
+      simpl in H.
+      rewrite -H.
+      reflexivity.
+  Qed.
+
+  Program Definition cat_prod_limit_term (J : category)
+    (F : functor J (cat_prod C D)) : terminal (ConeCat F)
+    := MkTerm (cat_prod_limit_cone J F) (cat_prod_limit_is_term J F).
+
+  Program Definition cat_prod_complete : Complete (cat_prod C D)
+    := λ J F, cat_prod_limit_term J F.
+End complete_prod.
+
+Section example.
+  Context {SI : indexT}.
+  Local Instance : Enriched (PSh (OrdCat SI)) (PSh (OrdCat SI))
+    := (@self_enriched (PSh (OrdCat SI)) _).
+  Local Instance : Enriched ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI))
+    := op_enriched_def.
+  Local Instance : Enriched (cat_prod ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI)))
+                     (PSh (OrdCat SI))
+    := prod_enriched_def.
+
+  Example pcf_dom
+    : functor (cat_prod ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI))) (PSh (OrdCat SI))
+    := (functor_compose exp_func later)
+       +ᵨ (Δᵨ (1ₒ))
+       +ᵨ (↑ᵨ later).
+  Lemma pcf_dom_lc
+    : LocallyContractiveFunctor pcf_dom.
+  Proof.
+    apply i_cod_func_sum_lc.
+    - apply i_cod_func_sum_lc.
+      + eapply LocallyContractiveFunctor_comp_r.
+        * apply later_lc.
+        * apply exp_psh_enr.
+      + apply i_const_func_lc.
+    - apply i_lift_func_lc.
+      apply later_lc.
+  Qed.
+
+  Lemma pcf_dom_sol : @bifunc_solution _ pcf_dom.
+  Proof.
+    unshelve eapply (@symmetrization_sol SI
+                       (PSh (OrdCat SI)) _ _ pcf_dom pcf_dom_lc _).
+    intros F ?.
+    unshelve eapply solver; last done.
+    unshelve eapply cat_prod_complete.
+    apply func_cat_cocomplete.
+  Qed.
+End example.

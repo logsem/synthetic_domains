@@ -1355,9 +1355,10 @@ Section symmetrization.
   Local Instance : Enriched (cat_prod (C ᵒᵖ) C) (PSh (OrdCat SI)) :=
     prod_enriched_def.
 
-  Context {sol : ∀ {C : category}
-                   `{!Enriched C (PSh (OrdCat SI))} `{!LimitsEnriched C}
-                   (F : functor C C) `{!LocallyContractiveFunctor F},
+  Context {sol : ∀ (F : functor
+                          (cat_prod (C ᵒᵖ) C)
+                          (cat_prod (C ᵒᵖ) C))
+                   `{!LocallyContractiveFunctor F},
              solution F}.
 
   Context {F : functor (cat_prod (C ᵒᵖ) C) C}
@@ -1439,7 +1440,7 @@ Section symmetrization.
   Lemma symmetrization_sol `{!LimitsEnriched (cat_prod (C ᵒᵖ) C)}
     : bifunc_solution.
   Proof using LC SI sol.
-    set (X := (sol (cat_prod (C ᵒᵖ) C) _ _ symmetrization _)).
+    set (X := (sol symmetrization _)).
     set (s := sol_obj _ X).
     set (s1 := cat_proj1 _ _ ₒ s).
     set (s2 := cat_proj2 _ _ ₒ s).
