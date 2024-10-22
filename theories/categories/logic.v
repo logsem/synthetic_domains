@@ -1001,55 +1001,6 @@ Section si_logic.
   Qed.
   Fail Next Obligation.
 
-  (* Program Definition laterIContractiveWitness : natural (later ₒ Ωₒ) (Ωₒ@{OrdCat SI}) *)
-  (*   := MkNat (λ x, _) _. *)
-  (* Next Obligation. *)
-  (*   intros; simpl. *)
-  (*   destruct (index_is_zero x) as [->| Hnx]. *)
-  (*   { *)
-  (*     rewrite later_func_o_map_zero. *)
-  (*     eapply (λset _, total_sieve _).       *)
-  (*   }     *)
-  (*   destruct (index_dec_limit x) as [[δ ->]|Hil]. *)
-  (*   { *)
-  (*     rewrite later_func_o_map_succ. *)
-  (*     unshelve econstructor. *)
-  (*     - intros; simpl in *. *)
-  (*       unshelve econstructor. *)
-  (*       + intros; simpl. *)
-  (*         unshelve econstructor. *)
-  (*         * intros; simpl. *)
-  (*           apply (X δ (id _)). *)
-  (*         * admit. *)
-  (*       + admit. *)
-  (*     - admit. *)
-  (*   } *)
-  (*   { *)
-  (*     change x with (mklimitidx x Hil Hnx : SI). *)
-  (*     rewrite later_func_o_map_lim. *)
-  (*     simpl. *)
-  (*     unshelve econstructor. *)
-  (*     - intros; simpl in *. *)
-  (*       unshelve econstructor. *)
-  (*       + intros; simpl in *. *)
-  (*         unshelve econstructor. *)
-  (*         * intros; simpl in *. *)
-  (*           destruct X. *)
-  (*           unshelve eapply x0. *)
-  (*           -- apply zero. *)
-  (*           -- simpl. *)
-  (*              eapply (MkDS (lt_dsp x) (squash Hnx)). *)
-  (*           -- simpl. *)
-  (*              reflexivity. *)
-  (*         * admit. *)
-  (*   } *)
-
-  (* Global Instance laterIContractive : Contractive laterI. *)
-  (* Proof. *)
-  (*   refine (MkContr laterIContractiveWitness). *)
-  (*   admit. *)
-  (* Admitted. *)
-
   Definition laterP {Γ} (P : hom Γ (Ωₒ)) : hom Γ (Ωₒ)
     := laterI ∘ P.
 
@@ -1138,51 +1089,6 @@ Section si_logic.
   (*   admit. *)
   (* Admitted. *)
 
-  (* Lemma later_next_app (A : obj (PSh (OrdCat SI))) *)
-  (*   (n m : obj (OrdCat SI)) *)
-  (*   (f : m ⪯ n) (α : A ₒ n) : *)
-  (*   ((later ₒ A)ₕ f) (((next ₙ A)ₙ n) α) ≡ (((next ₙ A)ₙ m) ((A ₕ f) α)). *)
-  (* Proof. *)
-  (*   destruct (index_le_lt_eq_dec _ _ f) as [Hlt| ->]; last first. *)
-  (*   - assert (f = reflexivity _) as ->. *)
-  (*     { simpl; apply proof_irrelevance. } *)
-  (*     rewrite !h_map_id /=. *)
-  (*     reflexivity. *)
-  (*   - simpl. *)
-  (*     match goal with *)
-  (*     | |- context G [?a ≡ ?b] *)
-  (*       => set (T1 := a); set (T2 := b) *)
-  (*     end. *)
-  (*     simpl in *. *)
-  (*     destruct (index_is_zero m) as [->| Hmz]. *)
-  (*     { *)
-  (*       clearbody T1 T2. *)
-  (*       revert T1 T2. *)
-  (*       set (R := later_func_o_map A zero). *)
-  (*       assert (R = term (term_of Setoid)) as ->. *)
-  (*       { subst R; apply (later_func_o_map_zero A). } *)
-  (*       by intros [] []. *)
-  (*     } *)
-  (*     destruct (index_dec_limit m) as [[δ ->]|Hil]; first last. *)
-  (*     { *)
-  (*       clearbody T1 T2. *)
-  (*       revert T1 T2. *)
-  (*       set (R := later_func_o_map A m). *)
-  (*       change m with (mklimitidx m Hil Hnz : SI). *)
-  (*       assert (R = vertex (term (complete (lift_func (lt_dsp m) A)))) as ->. *)
-  (*       { *)
-  (*         subst R. *)
-  (*         apply (later_func_o_map_lim A (mklimitidx m Hil Hmz : SI)). *)
-  (*       } *)
-  (*       intros T1 T2. *)
-  (*       admit. *)
-  (*     } *)
-  (*     revert T1 T2. *)
-
-  (* Admitted. *)
-
-  (* Opaque later. *)
-
   Lemma laterP_eq {Γ A} (t u : hom Γ A) :
     ▷ᵢ (t ≡ᵢ u) ⊢ᵢ (next ₙ _) ∘ t ≡ᵢ (next ₙ _) ∘ u.
   Proof.
@@ -1196,82 +1102,70 @@ Section si_logic.
     specialize (Px β Hlt); simpl in Px.
     rewrite -!psh_naturality h_map_comp
       (psh_naturality t) (psh_naturality u) /= in Px.
-
-    assert ((ic_side (il_is_cone (later_func_o_map_is_limit A m)) β')
-              ∘ ((next ₙ A)ₙ m)
-              ≡ (A ₕ index_lt_le_subrel_hom Hlt)) as H.
-    {
-      replace Hlt with (unsquash (ds_in_dsp β')) by apply proof_irrelevance.
-      clear Px.
-      admit.
-      (* unshelve epose proof (@hom_to_limit_unique _ _ *)
-      (*                (lift_func (lt_dsp (succ β)) A) *)
-      (*                _ _ _ _ *)
-      (*                (* (ic_side (il_is_cone *) *)
-      (*                (*             (later_func_o_map_is_limit A m)) β' *) *)
-      (*                (*    ∘ ((next ₙ A)ₙ m)) *)                      *)
-      (*                (* (A ₕ index_lt_le_subrel_hom (unsquash (ds_in_dsp β'))) *) *)
-      (*                (later_func_o_map_is_limit A (succ β)) *)
-      (*                (cone_is_cone *)
-      (*                   (proj_cone A (index_le_succ_mono _ _ *)
-      (*                                   (index_lt_le_subrel _ _ Hlt)) *)
-      (*                      (cone_at A m (lt_dsp (succ m)) (in_lt_dsp_succ m))))) as H. *)
-      (* - simpl. *)
-      (*   unshelve eapply (hom_trans *)
-      (*                  Logic.eq_refl *)
-      (*                  _ *)
-      (*                  (ic_side (il_is_cone *)
-      (*                              (later_func_o_map_is_limit A m)) β' *)
-      (*                     ∘ ((next ₙ A)ₙ m))). *)
-      (*   apply (Logic.eq_sym (later_func_o_map_succ A β)). *)
-      (* - simpl. *)
-      (*   unshelve eapply (hom_trans *)
-      (*                  Logic.eq_refl *)
-      (*                  _ *)
-      (*                  (A ₕ index_lt_le_subrel_hom (unsquash (ds_in_dsp β')))). *)
-      (*   apply (Logic.eq_sym (later_func_o_map_succ A β)). *)
-      (* - simpl in H. *)
-      (*   rewrite -(hom_trans_refl (ic_side *)
-      (*                               (il_is_cone (later_func_o_map_is_limit A m)) β' *)
-      (*                               ∘ ((next ₙ A)ₙ m))). *)
-      (*   rewrite -(hom_trans_refl (A ₕ index_lt_le_subrel_hom (unsquash (ds_in_dsp β')))). *)
-      (*   epose proof (Logic.eq_sym (later_func_o_map_succ A β)). *)
-      (*   destruct H0. *)
-      (*   epose proof (later_func_o_map_is_limit_succ A β). *)
-      (*   admit. *)
-      (* (* - intros ? y ->; simpl. *) *)
-      (* (*   f_equiv. *) *)
-      (* (* - intros ?? y ->; simpl. *) *)
-      (* (*   set (T := (in_lt_dsp_succ m *) *)
-      (* (*                (lift_in_lt_ds *) *)
-      (* (*                   (index_le_succ_mono β m *) *)
-      (* (*                      (index_lt_le_subrel β m Hlt)) j))). *) *)
-      (* (*   simpl in T. *) *)
-      (* (*   rewrite_cone_hom_commutes_back; simpl. *) *)
-
-      (* (*   admit. *) *)
-      (* (* - intros ?? y ->; simpl. *) *)
-      (* (*   admit.       *) *)
-    }
-    pose proof (H ((t ₙ m) ((Γ ₕ f) γ)) _ (reflexivity _)) as H'.
-    simpl in H'.
-    rewrite H'; clear H'.
-    pose proof (H ((u ₙ m) ((Γ ₕ f) γ)) _ (reflexivity _)) as H'.
-    simpl in H'.
-    rewrite H'; clear H'.
+    rewrite_cone_hom_commutes_back; simpl.
+    rewrite_cone_hom_commutes_back; simpl.
+    assert (in_lt_dsp m β' = index_lt_le_subrel_hom Hlt) as ->.
+    { apply proof_irrelevance. }
     apply Px.
-  Admitted.
+  Qed.
 
-  (* TODO: Lemma 3.3 *)
-  Lemma laterP_eq_inv {Γ A} (t u : hom Γ A) :
-    (next ₙ _) ∘ t ≡ᵢ (next ₙ _) ∘ u ⊢ᵢ ▷ᵢ (t ≡ᵢ u).
-  Proof.
-    intros n γ m f Px h g; simpl in *.
-    rewrite -!psh_naturality h_map_comp /= !psh_naturality.
-    set (β' := (MkDS (lt_dsp m) (squash g))).
-    pose proof (side_of_later' A β') as H.
-    admit.
-  Admitted.
+  (* Lemma next_proj (A : obj (PSh (OrdCat SI))) (m : SI) (α β : A ₒ m) : *)
+  (*   (∀ (n' : SI) (g : n' ≺ m), *)
+  (*      ((A ₕ (index_lt_le_subrel_hom g)) α ≡ ((A ₕ (index_lt_le_subrel_hom g))) β)) *)
+  (*   <-> *)
+  (*     ((((next ₙ A)ₙ m) α) ≡ (((next ₙ A)ₙ m) β)). *)
+  (* Proof. *)
+  (*   split. *)
+  (*   - intros Px. *)
+  (*     apply equiv_of_into_later_psh. *)
+  (*     intros p Hlt. *)
+  (*     set (p' := (MkDS (lt_dsp m) (squash Hlt))). *)
+  (*     replace Hlt with (unsquash (squash Hlt)) by apply proof_irrelevance. *)
+  (*     rewrite (side_of_later' A p'). *)
+  (*     simpl; f_equiv. *)
+  (*     specialize (Px p Hlt); simpl in Px. *)
+  (*     rewrite_cone_hom_commutes_back; simpl. *)
+  (*     rewrite_cone_hom_commutes_back; simpl. *)
+  (*     assert (in_lt_dsp m p' = index_lt_le_subrel_hom Hlt) as ->. *)
+  (*     { apply proof_irrelevance. } *)
+  (*     apply Px. *)
+  (*   - intros Px p Hlt. *)
+  (*     set (β' := (MkDS (lt_dsp m) (squash Hlt))). *)
+  (*     assert (((later ₒ A) ₕ (index_succ_le_lt2 _ _ Hlt)) (((next ₙ A)ₙ m) α) *)
+  (*               ≡ *)
+  (*               ((later ₒ A) ₕ (index_succ_le_lt2 _ _ Hlt)) (((next ₙ A)ₙ m) β)) as Qx. *)
+  (*     { by rewrite Px. } *)
+  (*     replace Hlt with (unsquash (squash Hlt)) in Qx by apply proof_irrelevance. *)
+  (*     rewrite (side_of_later' A β') /= in Qx. *)
+  (*     match goal with *)
+  (*     | [ H : context ctx [setoid_fun_map _ _ (ic_side _ ?j) *)
+  (*                            (setoid_fun_map _ _ (cone_hom_map ?c) ?x)] |- _ ] => *)
+  (*         pose proof (cone_hom_commutes c j x x (reflexivity _)) as G *)
+  (*     end. *)
+  (*     simpl in G. *)
+  (*     rewrite -G in Qx; clear G. *)
+  (*     match goal with *)
+  (*     | [ H : context ctx [setoid_fun_map _ _ (ic_side _ ?j) *)
+  (*                            (setoid_fun_map _ _ (cone_hom_map ?c) ?x)] |- _ ] => *)
+  (*         pose proof (cone_hom_commutes c j x x (reflexivity _)) as G *)
+  (*     end. *)
+  (*     simpl in G. *)
+  (*     rewrite -G in Qx; clear G. *)
+  (*     assert (index_lt_le_subrel_hom Hlt = in_lt_dsp m β') as ->. *)
+  (*     { simpl; apply proof_irrelevance. } *)
+  (*     simpl in Qx. *)
+  (*     admit. *)
+  (* Admitted. *)
+
+  (* Lemma laterP_eq_inv {Γ A} (t u : hom Γ A) : *)
+  (*   (next ₙ _) ∘ t ≡ᵢ (next ₙ _) ∘ u ⊢ᵢ ▷ᵢ (t ≡ᵢ u). *)
+  (* Proof. *)
+  (*   intros n γ m f Px h g; simpl. *)
+  (*   rewrite h_map_comp /=. *)
+  (*   rewrite -psh_naturality. *)
+  (*   apply (next_proj A m). *)
+  (*   admit. *)
+  (* Admitted. *)
 
   Transparent later next.
 
