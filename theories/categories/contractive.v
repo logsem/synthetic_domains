@@ -1037,7 +1037,7 @@ Section example.
   Example pcf_dom
     : functor (cat_prod ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI))) (PSh (OrdCat SI))
     := (functor_compose exp_func later)
-       +ᵨ (Δᵨ (1ₒ))
+       +ᵨ (Δᵨ (discr_psh nat))
        +ᵨ (↑ᵨ later).
   Lemma pcf_dom_lc
     : LocallyContractiveFunctor pcf_dom.
