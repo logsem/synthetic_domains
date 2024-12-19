@@ -1,5 +1,7 @@
 From SynthDom Require Import prelude.
 
+Set Universe Polymorphism.
+Unset Universe Minimization ToSet.
 
 (* TODO: move into stdpp *)
 Inductive rc {A} (R: A → A → Prop) (x y: A):  Prop :=

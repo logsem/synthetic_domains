@@ -37,3 +37,47 @@ Definition castS {A B : Set} (Heq : A = B) (a : A) : B :=
 
 Definition castP {A B : Prop} (Heq : A = B) (a : A) : B :=
   match Heq in _ = u return u with eq_refl => a end.
+
+Local Set Universe Polymorphism.
+Unset Universe Minimization ToSet.
+
+Inductive prod (A B : Type) : Type :=
+| pair : A -> B -> prod A B
+where "x * y" := (prod x y) : type_scope.
+Arguments pair {A B} _ _.
+Notation "( x , y , .. , z )" := (pair .. (pair x y) .. z) : core_scope.
+
+Register prod as core.prod.type.
+Register pair as core.prod.intro.
+Register prod_rect as core.prod.rect.
+
+Section projections.
+  Context {A : Type} {B : Type}.
+
+  Definition fst (p:A * B) := match p with (x, y) => x end.
+  Definition snd (p:A * B) := match p with (x, y) => y end.
+
+  Register fst as core.prod.proj1.
+  Register snd as core.prod.proj2.
+
+End projections.
+
+#[global]
+Hint Resolve pair : core.
+
+Lemma surjective_pairing (A B:Type) (p:A * B) : p = (fst p, snd p).
+Proof. destruct p; reflexivity. Qed.
+
+Lemma injective_projections (A B:Type) (p1 p2:A * B) :
+  fst p1 = fst p2 -> snd p1 = snd p2 -> p1 = p2.
+Proof. destruct p1, p2; simpl; by intros -> ->. Qed.
+
+Notation "( x ,.)" := (pair x) (only parsing) : stdpp_scope.
+Notation "(., y )" := (λ x, (x,y)) (only parsing) : stdpp_scope.
+
+Notation "p .1" := (fst p).
+Notation "p .2" := (snd p).
+
+Global Instance: Params (@pair) 2 := {}.
+Global Instance: Params (@fst) 2 := {}.
+Global Instance: Params (@snd) 2 := {}.

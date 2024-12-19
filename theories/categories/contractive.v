@@ -19,10 +19,7 @@ Section functor_diag.
 
   Program Definition functor_diag_enr_def (a b : obj C)
     : natural (enr_hom a b) (enr_hom (functor_diag ₒ a) (functor_diag ₒ b))
-    := MkNat (λ x, λset f, (f, f)) _.
-  Next Obligation.
-    repeat intros ?; solve_by_eq_rewrite.
-  Qed.
+    := MkNat (λ x, λ f, (f, f)) _.
   Next Obligation.
     repeat intros ?; solve_by_eq_rewrite.
   Qed.
@@ -33,17 +30,23 @@ Section functor_diag.
   Next Obligation.
     intros; simpl.
     rewrite enr_project_embed.
-    intros ????; simpl.
+    apply natural_equiv_unpack.
+    intros ?; simpl.
+    extensionality x; simpl.
     solve_by_eq_rewrite.
   Qed.
   Next Obligation.
     intros; simpl.
-    intros ? [? ?] [? ?] [-> ->].
+    apply natural_equiv_unpack.
+    intros ?.
+    extensionality x; destruct x; simpl.
     reflexivity.
   Qed.
   Next Obligation.
     intros; simpl.
-    intros ??? ->.
+    apply natural_equiv_unpack.
+    intros ?.
+    extensionality x; simpl.
     reflexivity.
   Qed.
   Fail Next Obligation.
@@ -65,15 +68,13 @@ Section functor_prod.
 
   Program Definition functor_prod_enr_def (a b : obj (cat_prod C D))
     : natural (enr_hom a b) (enr_hom (f ₒ a.1, g ₒ a.2) (f ₒ b.1, g ₒ b.2))
-    := MkNat (λ x, λset h, (((enr_func_h_map f a.1 b.1 ₙ x) h.1),
+    := MkNat (λ x, λ h, (((enr_func_h_map f a.1 b.1 ₙ x) h.1),
                              ((enr_func_h_map g a.2 b.2 ₙ x) h.2)))
          _.
   Next Obligation.
-    repeat intros ?; solve_by_eq_rewrite.
-  Qed.
-  Next Obligation.
-    intros ????? x y H.
-    rewrite H /= !psh_naturality //.
+    intros ?????.
+    extensionality x.
+    rewrite /= !psh_naturality //.
   Qed.
   Fail Next Obligation.
 
@@ -81,30 +82,36 @@ Section functor_prod.
     := MkEnrFunc (λ a b, functor_prod_enr_def a b) _ _ _.
   Next Obligation.
     intros; simpl.
-    intros ??? ->; simpl.
+    apply natural_equiv_unpack.
+    intros ?; simpl.
     rewrite !enr_func_h_map_is_h_map /=.
     reflexivity.
   Qed.
   Next Obligation.
     intros a b c; simpl.
-    intros d ? y ->; simpl.
-    pose proof (enr_func_h_map_comp f a.1 b.1 c.1 d
-                  (y.1.1, y.2.1) (y.1.1, y.2.1) (reflexivity _)) as H.
+    apply natural_equiv_unpack.
+    intros d.
+    extensionality y; simpl.
+
+    pose proof (equal_f (natural_equiv_pack (enr_func_h_map_comp f a.1 b.1 c.1) d)
+                  (y.1.1, y.2.1)) as H.
     simpl in H.
     rewrite H; clear H.
-    pose proof (enr_func_h_map_comp g a.2 b.2 c.2 d
-                  (y.1.2, y.2.2) (y.1.2, y.2.2) (reflexivity _)) as H.
+    pose proof (equal_f (natural_equiv_pack (enr_func_h_map_comp g a.2 b.2 c.2) d)
+                  (y.1.2, y.2.2)) as H.
     simpl in H.
     rewrite H; clear H.
     reflexivity.
   Qed.
   Next Obligation.
     intros a; simpl.
-    intros b ? y ->; simpl.
-    pose proof (enr_func_h_map_id f a.1 b y y (reflexivity _)) as H.
+    apply natural_equiv_unpack.
+    intros b.
+    extensionality y; simpl.
+    pose proof (equal_f (natural_equiv_pack (enr_func_h_map_id f a.1) b) y) as H.
     simpl in H.
     rewrite H; clear H.
-    pose proof (enr_func_h_map_id g a.2 b y y (reflexivity _)) as H.
+    pose proof (equal_f (natural_equiv_pack (enr_func_h_map_id g a.2) b) y) as H.
     simpl in H.
     rewrite H; clear H.
     reflexivity.
@@ -116,38 +123,34 @@ Section functor_prod.
     : natural (later_func (enr_hom a.1 b.1 ×ₒ@{PSh (OrdCat SI)} enr_hom a.2 b.2))
         (enr_hom (f ₒ a.1) (f ₒ b.1) ×ₒ enr_hom (g ₒ a.2) (g ₒ b.2))
     := MkNat (λ x,
-           λset h,
+           λ h,
            ((((contr_func_h_map f a.1 b.1) ₙ x)
                ((forward (later_prod (enr_hom a.1 b.1) (enr_hom a.2 b.2)) ₙ x) h).1)
              , (((contr_func_h_map g a.2 b.2) ₙ x)
                   ((forward (later_prod (enr_hom a.1 b.1) (enr_hom a.2 b.2)) ₙ x) h).2))) _.
   Next Obligation.
-    repeat intros ?.
-    solve_by_eq_rewrite.
-  Qed.
-  Next Obligation.
     intros ???? j; simpl.
-    intros ? y ->; simpl.
+    extensionality y; simpl.
     pose proof (psh_naturality (contr_func_h_map f a.1 b.1) _ _ j) as H.
     simpl in H.
+    unfold hom_prod; simpl.
     rewrite -H; clear H.
     pose proof (psh_naturality (contr_func_h_map g a.2 b.2) _ _ j) as H.
     simpl in H.
     rewrite -H; clear H.
     f_equiv.
     - f_equiv.
-      pose proof (@naturality _ _ _ _
+      pose proof (equal_f (@naturality _ _ _ _
                     (forward (later_preserves_prods_nat SI)ₙ
-                       (enr_hom a.1 b.1, enr_hom a.2 b.2)) _ _ j
-                    y y (reflexivity _)) as Hn.
+                       (enr_hom a.1 b.1, enr_hom a.2 b.2)) _ _ j) y) as Hn.
       simpl in Hn.
       rewrite Hn; clear Hn.
       reflexivity.
     - f_equiv.
-      pose proof (@naturality _ _ _ _
+      pose proof (equal_f (@naturality _ _ _ _
                     (forward (later_preserves_prods_nat SI)ₙ
-                       (enr_hom a.1 b.1, enr_hom a.2 b.2)) _ _ j
-                    y y (reflexivity _)) as Hn.
+                       (enr_hom a.1 b.1, enr_hom a.2 b.2)) _ _ j)
+                    y) as Hn.
       simpl in Hn.
       rewrite Hn; clear Hn.
       reflexivity.
@@ -159,9 +162,11 @@ Section functor_prod.
   := MkLocContrFunc (λ a b, func_prod_lc_def a b) _ _ _.
   Next Obligation.
     intros a b.
-    intros c ? y ->; simpl.
+    apply natural_equiv_unpack.
+    intros c.
+    extensionality y; simpl.
     f_equiv.
-    - rewrite (contr_func_h_map_is_h_map f a.1 b.1 c y.1 y.1 (reflexivity _)) /=.
+    - rewrite (equal_f (natural_equiv_pack (contr_func_h_map_is_h_map f a.1 b.1) c) y.1) /=.
       f_equiv.
       rewrite {1}/later_preserves_prods_nat
         right_adj_preserves_prods_forward /=.
@@ -175,19 +180,17 @@ Section functor_prod.
       | |- context G [later ₕ ?a]
         => set (T' := a)
       end.
-      epose proof (@naturality
+      epose proof (equal_f (natural_equiv_pack (@naturality
                      (PSh (OrdCat SI))
                      (PSh (OrdCat SI))
                      (id_functor _)
                      (later)
                      next
-                     T _ T' c
-                     (y1, y2) (y1, y2)
-                     (reflexivity _)) as H.
+                     T _ T') c) (y1, y2)) as H.
       simpl in H.
       rewrite -H; clear H.
       reflexivity.
-    - rewrite (contr_func_h_map_is_h_map g a.2 b.2 c y.2 y.2 (reflexivity _)) /=.
+    - rewrite (equal_f (natural_equiv_pack (contr_func_h_map_is_h_map g a.2 b.2) c) y.2)/=.
       f_equiv.
       rewrite {1}/later_preserves_prods_nat
         right_adj_preserves_prods_forward /=.
@@ -201,21 +204,23 @@ Section functor_prod.
       | |- context G [later ₕ ?a]
         => set (T' := a)
       end.
-      epose proof (@naturality
+      epose proof (equal_f (natural_equiv_pack (@naturality
                      (PSh (OrdCat SI))
                      (PSh (OrdCat SI))
                      (id_functor _)
                      (later)
                      next
-                     T _ T' c
-                     (y1, y2) (y1, y2)
-                     (reflexivity _)) as H.
+                     T _ T') c)
+                     (y1, y2)) as H.
       simpl in H.
       rewrite -H; clear H.
       reflexivity.
   Qed.
   Next Obligation.
-    intros a b c d e e' ->; clear e.
+    intros a b c.
+    apply natural_equiv_unpack.
+    intros d.
+    extensionality e'.
     simpl.
     f_equiv.
     - destruct e' as [e1 e2]; simpl.
@@ -224,10 +229,9 @@ Section functor_prod.
         => set (T := a)
       end.
       simpl in *.
-      pose proof (contr_func_h_map_comp f a.1 b.1 c.1 d
+      pose proof (equal_f (natural_equiv_pack (contr_func_h_map_comp f a.1 b.1 c.1) d)
                     (((((forward T ₙ (enr_hom a.1 b.1, enr_hom a.2 b.2))ₙ d) e1).1),
-                      ((((forward T ₙ (enr_hom b.1 c.1, enr_hom b.2 c.2))ₙ d) e2).1))
-                    _ (reflexivity _)) as H.
+                      ((((forward T ₙ (enr_hom b.1 c.1, enr_hom b.2 c.2))ₙ d) e2).1))) as H.
       simpl in H.
       rewrite -H; clear H.
       f_equiv.
@@ -238,16 +242,15 @@ Section functor_prod.
         => set (T' := a)
       end.
       match goal with
-      | |- context G [setoid_fun_map _ _ ((later ₕ T')ₙ d)
-                       ((setoid_fun_map _ _ (later ₕ ?a ₙ _)) _)]
+      | |- context G [((later ₕ T')ₙ d)
+                       (((later ₕ ?a ₙ _)) _)]
         => set (T'' := a)
       end.
       simpl in *.
-      pose proof (h_map_comp _ _ later _ _ _ T'' T' d
+      pose proof (equal_f (natural_equiv_pack (h_map_comp _ _ later _ _ _ T'' T') d)
                     (((backward T ₙ (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2,
                            enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2))ₙ d) (
-                         e1, e2))
-                    _ (reflexivity _)) as H.
+                         e1, e2))) as H.
       simpl in H.
       rewrite -H; clear H.
       subst T'' T'.
@@ -266,39 +269,29 @@ Section functor_prod.
       | |- context G [backward ?a]
         => set (T' := a)
       end.
-      epose proof (@naturality _ _ _ _ (backward T')
-                     (_, _) (_, _) (_, _) _ (_, _) _ (reflexivity _)) as Hn;
-        simpl in Hn; rewrite Hn; clear Hn.
-      subst T'.
-      symmetry.
-      match goal with
-      | |- context G [later ₕ ?a]
-        => set (T := a)
-      end.
-      match goal with
-      | |- context G [setoid_fun_map _ _ ((later ₕ T)ₙ d)
-                       ((setoid_fun_map _ _ (later ₕ ?a ₙ _)) _)]
-        => set (T' := a)
-      end.
-      simpl in *.
-      pose proof (h_map_comp _ _ later _ _ _ T' T d
-                    (((backward (right_adj_preserves_prods later_adj) ₙ
-                         (_, _))ₙ d) (e1, e2))
-                    _ (reflexivity _)) as H.
-      simpl in H.
-      rewrite -H; clear H.
+      rewrite h_map_comp /=.
       f_equiv.
-      reflexivity.
+      epose proof (equal_f
+                     (natural_equiv_pack
+                        (@naturality _ _ _ _ (backward T')
+                           (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2,
+                             enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2)
+                           (enr_hom a.1 b.1, enr_hom b.1 c.1)
+                           (_, _)
+                           )
+                        d)
+                     (e1, e2)) as Hn.
+      simpl in Hn; rewrite ->Hn; clear Hn.
+      done.
     - destruct e' as [e1 e2]; simpl.
       match goal with
       | |- context G [backward ?a ₙ ?b]
         => set (T := a)
       end.
       simpl in *.
-      pose proof (contr_func_h_map_comp g a.2 b.2 c.2 d
+      pose proof (equal_f (natural_equiv_pack (contr_func_h_map_comp g a.2 b.2 c.2) d)
                     (((((forward T ₙ (enr_hom a.1 b.1, enr_hom a.2 b.2))ₙ d) e1).2),
-                      ((((forward T ₙ (enr_hom b.1 c.1, enr_hom b.2 c.2))ₙ d) e2).2))
-                    _ (reflexivity _)) as H.
+                      ((((forward T ₙ (enr_hom b.1 c.1, enr_hom b.2 c.2))ₙ d) e2).2))) as H.
       simpl in H.
       rewrite -H; clear H.
       f_equiv.
@@ -309,16 +302,15 @@ Section functor_prod.
         => set (T' := a)
       end.
       match goal with
-      | |- context G [setoid_fun_map _ _ ((later ₕ T')ₙ d)
-                       ((setoid_fun_map _ _ (later ₕ ?a ₙ _)) _)]
+      | |- context G [((later ₕ T')ₙ d)
+                       (((later ₕ ?a ₙ _)) _)]
         => set (T'' := a)
       end.
       simpl in *.
-      pose proof (h_map_comp _ _ later _ _ _ T'' T' d
+      pose proof (equal_f (natural_equiv_pack (h_map_comp _ _ later _ _ _ T'' T') d)
                     (((backward T ₙ (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2,
                            enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2))ₙ d) (
-                         e1, e2))
-                    _ (reflexivity _)) as H.
+                         e1, e2))) as H.
       simpl in H.
       rewrite -H; clear H.
       subst T'' T'.
@@ -337,63 +329,58 @@ Section functor_prod.
       | |- context G [backward ?a]
         => set (T' := a)
       end.
-      epose proof (@naturality _ _ _ _ (backward T')
-                     (_, _) (_, _) (_, _) _ (_, _) _ (reflexivity _)) as Hn;
-        simpl in Hn; rewrite Hn; clear Hn.
-      subst T'.
-      symmetry.
-      match goal with
-      | |- context G [later ₕ ?a]
-        => set (T := a)
-      end.
-      match goal with
-      | |- context G [setoid_fun_map _ _ ((later ₕ T)ₙ d)
-                       ((setoid_fun_map _ _ (later ₕ ?a ₙ _)) _)]
-        => set (T' := a)
-      end.
-      simpl in *.
-      pose proof (h_map_comp _ _ later _ _ _ T' T d
-                    (((backward (right_adj_preserves_prods later_adj) ₙ
-                         (_, _))ₙ d) (e1, e2))
-                    _ (reflexivity _)) as H.
-      simpl in H.
-      rewrite -H; clear H.
+      rewrite h_map_comp /=.
       f_equiv.
-      reflexivity.
+      epose proof (equal_f
+                     (natural_equiv_pack
+                        (@naturality _ _ _ _
+                           (backward T')
+                           (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2,
+                             enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2)
+                           (enr_hom a.2 b.2, enr_hom b.2 c.2)
+                           (_, _)) d)
+                     (e1, e2)) as Hn.
+      simpl in Hn.
+      rewrite <-Hn.
+      done.
   Qed.
   Next Obligation.
-    intros a c e e' ->.
+    intros a.
+    apply natural_equiv_unpack.
+    intros c.
+    extensionality e'.
     simpl.
     f_equiv.
-    - rewrite -(contr_func_h_map_id f a.1 c e' e' (reflexivity _)).
+    - rewrite -(equal_f (natural_equiv_pack (contr_func_h_map_id f a.1) c) e').
       simpl.
       f_equiv.
       rewrite {1}/later_preserves_prods_nat
         right_adj_preserves_prods_forward /=.
       set (T := func_prj1 _ _).
       set (T' := << _, _ >>).
-      pose proof (h_map_comp _ _ later _ _ _ T' T c (((next ₙ 1ₒ)ₙ c) e')
-                    (((next ₙ 1ₒ)ₙ c) e') (reflexivity _)) as H.
+      pose proof (equal_f
+                     (natural_equiv_pack (h_map_comp _ _ later _ _ _ T' T) c)
+                     (((next ₙ 1ₒ)ₙ c) e')) as H.
       simpl in H.
       rewrite -H; clear H.
-      f_equiv.
+      f_equal.
       subst T T'.
       pose proof (hom_to_prod_prj1 ⌜ id a.1 ⌝ ⌜ id a.2 ⌝) as H.
       simpl in H.
       rewrite H; clear H.
       reflexivity.
-    - rewrite -(contr_func_h_map_id g a.2 c e' e' (reflexivity _)).
+    - rewrite -(equal_f (natural_equiv_pack (contr_func_h_map_id g a.2) c) e').
       simpl.
       f_equiv.
       rewrite {1}/later_preserves_prods_nat
         right_adj_preserves_prods_forward /=.
       set (T := func_prj2 _ _).
       set (T' := << _, _ >>).
-      pose proof (h_map_comp _ _ later _ _ _ T' T c (((next ₙ 1ₒ)ₙ c) e')
-                    (((next ₙ 1ₒ)ₙ c) e') (reflexivity _)) as H.
+      pose proof (equal_f (natural_equiv_pack (h_map_comp _ _ later _ _ _ T' T) c) (((next ₙ 1ₒ)ₙ c) e'))
+                    as H.
       simpl in H.
       rewrite -H; clear H.
-      f_equiv; last done.
+      f_equal.
       subst T T'.
       pose proof (hom_to_prod_prj2 ⌜ id a.1 ⌝ ⌜ id a.2 ⌝) as H.
       simpl in H.
@@ -414,27 +401,22 @@ Section prod_func.
     (a b : obj (cat_prod (PSh (OrdCat SI)) (PSh (OrdCat SI))))
     : natural (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2) (enr_hom (a.1 ×ₒ a.2) (b.1 ×ₒ b.2))
     := MkNat (λ x,
-           λset f,
+           λ f,
            MkNat (λ c,
-               λset g,
+               λ g,
                (((f.1 ₙ c) (g.1, g.2.1)), ((f.2 ₙ c) (g.1, g.2.2)))) _) _.
   Next Obligation.
-    intros ??????? ->.
-    reflexivity.
+    intros ??? M ?? F.
+    extensionality y.
+    simpl; unfold hom_prod; simpl.
+    rewrite -(psh_naturality M.2 _ _ F) /=; f_equiv; last done.
+    rewrite -(psh_naturality M.1 _ _ F) /=; f_equiv; done.
   Qed.
   Next Obligation.
-    intros ??? M ?? F ?? H.
-    rewrite (setoid_eq_reflect H) /=.
-    rewrite -(psh_naturality M.2 _ _ F) /=; f_equiv.
-    rewrite -(psh_naturality M.1 _ _ F) /=; f_equiv.
-  Qed.
-  Next Obligation.
-    intros a b x r t H.
-    rewrite (setoid_eq_reflect H).
-    reflexivity.
-  Qed.
-  Next Obligation.
-    intros ??????? -> ??? ->; simpl.
+    intros ?????.
+    extensionality x; simpl.
+    apply natural_equiv_unpack; intros ?; simpl.
+    extensionality y; simpl.
     reflexivity.
   Qed.
   Fail Next Obligation.
@@ -443,23 +425,35 @@ Section prod_func.
     := MkEnrFunc (λ a b, prod_func_enr_def a b) _ _ _.
   Next Obligation.
     intros a b f; simpl.
-    intros ? [] [] _ a' ? y ->; simpl.
-    pose proof ((naturality f y.1 () () (reflexivity _))) as H.
+    apply natural_equiv_unpack; intros ?; simpl.
+    extensionality x; destruct x; simpl.
+    apply natural_equiv_unpack; intros ?; simpl.
+    extensionality y; simpl.
+    pose proof (equal_f (naturality f y.1) ()) as H.
     simpl in H.
-    destruct H as [H1 H2].
-    simpl in H1, H2.
-    rewrite (H1 a') (H2 a') /=.
-    split; by do 3 f_equiv.
+    unfold hom_prod in H; simpl in H.
+    rewrite H.
+    apply injective_projections;
+      simpl; do 2 f_equiv; apply proof_irrel.
   Qed.
   Next Obligation.
     intros a b c; simpl.
-    intros d ? y -> ?? y' ->.
-    simpl.
-    reflexivity.
+    apply natural_equiv_unpack; intros ?; simpl.
+    extensionality x; destruct x; simpl.
+    apply natural_equiv_unpack; intros ?; simpl.
+    extensionality y; simpl.
+    apply injective_projections;
+      simpl; do 2 f_equiv; apply proof_irrel.
   Qed.
   Next Obligation.
-    repeat intros ?.
-    solve_by_eq_rewrite.
+    repeat intros ?; simpl.
+    apply natural_equiv_unpack; intros ?; simpl.
+    extensionality x; destruct x; simpl.
+    apply natural_equiv_unpack; intros ?; simpl.
+    extensionality y; simpl.
+    destruct y as [? y]; simpl.
+    destruct y; simpl.
+    reflexivity.
   Qed.
   Fail Next Obligation.
 End prod_func.
@@ -474,34 +468,28 @@ Section coprod_func.
     (a b : obj (cat_prod (PSh (OrdCat SI)) (PSh (OrdCat SI))))
     : natural (b.1 ↑ₒ a.1 ×ₒ (b.2 ↑ₒ a.2)) (b.1 +ₒ b.2 ↑ₒ (a.1 +ₒ a.2))
     := MkNat (λ x,
-           λset f,
+           λ f,
            MkNat (λ c,
-               λset g,
+               λ g,
                (sum_rect
                   (λ _, (b.1 ₒ c) +ₒ (b.2 ₒ c))
                   (λ g', inl ((f.1 ₙ c) (g.1, g')))
                   (λ g', inr ((f.2 ₙ c) (g.1, g'))) g.2)) _) _.
   Next Obligation.
-    intros ??????? H.
-    rewrite (setoid_eq_reflect H); clear H.
-    reflexivity.
-  Qed.
-  Next Obligation.
-    intros ??? M ?? F ? y H.
-    rewrite (setoid_eq_reflect H) /=.
-    destruct y as [? [g | g]]; simpl.
-    - rewrite -(setoid_eq_reflect (psh_naturality M.1 _ _ F _)) /=.
+    intros ??? M ?? F.
+    extensionality y; simpl.
+    unfold hom_coprod; simpl.
+    destruct y as [o [g | g]]; simpl.
+    - rewrite -(psh_naturality M.1 _ _ F (o, g)) /=.
       by do 2 f_equiv.
-    - rewrite -(setoid_eq_reflect (psh_naturality M.2 _ _ F _)) /=.
+    - rewrite -(psh_naturality M.2 _ _ F (o, g)) /=.
       by do 2 f_equiv.
   Qed.
   Next Obligation.
-    intros a b x r t H.
-    rewrite (setoid_eq_reflect H).
-    reflexivity.
-  Qed.
-  Next Obligation.
-    intros ??????? -> ?? t ->; simpl.
+    intros ?????.
+    extensionality x; simpl.
+    apply natural_equiv_unpack; intros ?; simpl.
+    extensionality t; simpl.
     destruct t as [? [t | t]]; simpl.
     - by do 2 f_equiv.
     - by do 2 f_equiv.
@@ -512,31 +500,41 @@ Section coprod_func.
     := MkEnrFunc (λ a b, coprod_func_enr_def a b) _ _ _.
   Next Obligation.
     intros a b f; simpl.
-    intros ? [] [] _ a' ? y ->; simpl.
+    apply natural_equiv_unpack; intros ?; simpl.
+    extensionality a'; destruct a'; simpl.
+    apply natural_equiv_unpack; intros ?; simpl.
+    extensionality y; simpl.
     destruct y as [y1 [t | t]]; simpl.
     - f_equiv.
-      pose proof ((naturality f y1 () () (reflexivity _))) as H.
+      pose proof (equal_f (naturality f y1) ()) as H.
       simpl in H.
-      destruct H as [H1 H2].
-      simpl in H1, H2.
-      rewrite (H1 a') /=.
-      by do 2 f_equiv.
+      rewrite H; clear H.
+      unfold hom_prod; simpl.
+      do 2 f_equiv.
+      apply proof_irrel.
     - f_equiv.
-      pose proof ((naturality f y1 () () (reflexivity _))) as H.
+      pose proof (equal_f (naturality f y1) ()) as H.
       simpl in H.
-      destruct H as [H1 H2].
-      simpl in H1, H2.
-      rewrite (H2 a') /=.
-      by do 2 f_equiv.
+      rewrite H; clear H.
+      unfold hom_prod; simpl.
+      do 2 f_equiv.
+      apply proof_irrel.
   Qed.
   Next Obligation.
     intros a b c; simpl.
-    intros d ? y -> ?? y' ->.
-    simpl.
+    apply natural_equiv_unpack; intros d.
+    extensionality y.
+    apply natural_equiv_unpack; intros ?.
+    extensionality y'; simpl.
     destruct y' as [? [y' | y']]; simpl; by f_equiv.
   Qed.
   Next Obligation.
-    intros ???? -> ?? t ->; simpl.
+    intros ?.
+    apply natural_equiv_unpack; intros ?.
+    extensionality x.
+    apply natural_equiv_unpack; intros ?.
+    extensionality t.
+    simpl.
     destruct t as [? [t | t]]; simpl; by f_equiv.
   Qed.
   Fail Next Obligation.
@@ -579,7 +577,7 @@ Section cat_proj.
 
   Program Definition cat_proj2_enr_def (a b : obj (cat_prod C D))
     : natural (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2) (enr_hom a.2 b.2)
-    := MkNat (λ x, λset f, f.2) _.
+    := MkNat (λ x, λ f, f.2) _.
   Next Obligation.
     repeat intros ?; solve_by_eq_rewrite.
   Qed.
@@ -590,17 +588,23 @@ Section cat_proj.
   Next Obligation.
     intros; simpl.
     rewrite enr_project_embed.
-    intros ????; simpl.
+    apply natural_equiv_unpack; intros ?.
+    extensionality x.
+    simpl.
     solve_by_eq_rewrite.
   Qed.
   Next Obligation.
     intros; simpl.
-    intros ? [? ?] [? ?] [-> ->].
+    apply natural_equiv_unpack; intros ?.
+    extensionality x.
+    simpl.
     reflexivity.
   Qed.
   Next Obligation.
     intros; simpl.
-    intros ??? ->.
+    apply natural_equiv_unpack; intros ?.
+    extensionality x.
+    simpl.
     reflexivity.
   Qed.
   Fail Next Obligation.
@@ -655,48 +659,43 @@ Section func_const.
   Next Obligation.
     intros a b d.
     rewrite hom_prod_comp.
-    rewrite -!comp_assoc.
-    assert (enr_comp c c c ∘ (⌜ id c ⌝ ×ₕ ⌜ id c ⌝)
-              ≡ ⌜ id c ⌝ ∘ !ₕ _) as ->.
-    {
-      intros ??? ->; simpl.
-      simpl in *.
-      destruct x as [[] []], y as [[] []]; simpl.
-      intros ?? y ->; simpl.
-      reflexivity.
-    }
-    rewrite !comp_assoc.
-    f_equiv; last done.
-    do 2 rewrite (bang_unique (term_is_terminal _) (_ ∘ _)).
+    unfold hom_prod.
+    apply natural_equiv_unpack; intros ?.
+    extensionality x.
+    simpl.
+    apply natural_equiv_unpack; intros ?.
+    extensionality y.
+    simpl.
     reflexivity.
   Qed.
   Next Obligation.
-    intros a; simpl.
-    rewrite natural_comp_assoc /=.
-    intros ?? [] ->; simpl.
-    intros ?? y ->; simpl.
+    intros a.
+    cbn beta.
+    rewrite comp_assoc.
+    apply natural_equiv_unpack; intros ?.
+    extensionality x.
+    simpl.
+    apply natural_equiv_unpack; intros ?.
+    extensionality y.
+    simpl.
     reflexivity.
   Qed.
   Fail Next Obligation.
 
   Program Definition func_const_lc_def (a b : obj (cat_prod C (PSh (OrdCat SI))))
     : natural (later_func (enr_hom a.1 b.1 ×ₒ (b.2 ↑ₒ a.2))) (c ↑ₒ c)
-    := MkNat (λ x, λset f, MkNat (λ d, λset g, g.2) _) _.
+    := MkNat (λ x, λ f, MkNat (λ d, λ g, g.2) _) _.
   Next Obligation.
     repeat intros ?.
     solve_by_eq_rewrite.
   Qed.
   Next Obligation.
     repeat intros ?; simpl.
-    solve_by_eq_rewrite.
-  Qed.
-  Next Obligation.
-    repeat intros ?; simpl.
-    solve_by_eq_rewrite.
-  Qed.
-  Next Obligation.
-    repeat intros ?; simpl.
-    solve_by_eq_rewrite.
+    extensionality x.
+    apply natural_equiv_unpack; intros ?.
+    extensionality y.
+    simpl.
+    reflexivity.
   Qed.
   Fail Next Obligation.
 
@@ -704,15 +703,33 @@ Section func_const.
     := MkLocContrFunc (λ a b, func_const_lc_def a b) _ _ _.
   Next Obligation.
     repeat intros ?; simpl.
-    solve_by_eq_rewrite.
+    apply natural_equiv_unpack; intros ?.
+    extensionality x.
+    simpl.
+    apply natural_equiv_unpack; intros ?.
+    extensionality y.
+    simpl.
+    reflexivity.
   Qed.
   Next Obligation.
     repeat intros ?; simpl.
-    solve_by_eq_rewrite.
+    apply natural_equiv_unpack; intros ?.
+    extensionality x.
+    simpl.
+    apply natural_equiv_unpack; intros ?.
+    extensionality y.
+    simpl.
+    reflexivity.
   Qed.
   Next Obligation.
     repeat intros ?; simpl.
-    solve_by_eq_rewrite.
+    apply natural_equiv_unpack; intros ?.
+    extensionality x.
+    simpl.
+    apply natural_equiv_unpack; intros ?.
+    extensionality y.
+    simpl.
+    reflexivity.
   Qed.
   Fail Next Obligation.
 End func_const.
@@ -730,54 +747,54 @@ Section exp_func.
   Local Opaque later next.
 
   Program Definition exp_psh_enr_def
-    (a b : functor (OrdCat SI)ᵒᵖ Setoid * functor (OrdCat SI)ᵒᵖ Setoid)
+    (a b : functor (OrdCat SI)ᵒᵖ Typ * functor (OrdCat SI)ᵒᵖ Typ)
     : natural (a.1 ↑ₒ b.1 ×ₒ (b.2 ↑ₒ a.2)) (b.2 ↑ₒ b.1 ↑ₒ (a.2 ↑ₒ a.1))
     := MkNat (λ x,
-           λset f,
+           λ f,
            MkNat (λ c,
-               λset g,
+               λ g,
                MkNat (λ d,
-                   λset h,
+                   λ h,
                    ((f.2 ₙ d)
                       (g.1 ∘ h.1,
                         ((g.2 ₙ d) (h.1,
                              ((f.1 ₙ d) (g.1 ∘ h.1, h.2))))))) _) _) _.
   Next Obligation.
-    intros ????????? ->.
-    reflexivity.
-  Qed.
-  Next Obligation.
-    intros ??? N ? M ?? F ?? H.
-    rewrite (setoid_eq_reflect H) /=.
+    intros ??? N ? M ?? F.
+    cbn beta.
+    extensionality t1.
+    simpl.
     rewrite -(psh_naturality N.2 _ _ F) /=; f_equiv.
-    f_equiv; first done.
+    unfold hom_prod; simpl.
+    f_equiv; first apply proof_irrel.
     rewrite -(psh_naturality M.2 _ _ F) /=; f_equiv.
-    f_equiv; first done.
+    unfold hom_prod; simpl.
+    f_equiv.
     rewrite -(psh_naturality N.1 _ _ F) /=; f_equiv.
-    by f_equiv.
+    unfold hom_prod; simpl.
+    f_equiv.
+    apply proof_irrel.
   Qed.
   Next Obligation.
-    intros a b x f c.
-    intros r t H.
-    rewrite (setoid_eq_reflect H).
-    reflexivity.
+    intros ???????.
+    extensionality t1.
+    apply natural_equiv_unpack; intros ?.
+    extensionality t2.
+    simpl.
+    do 2 f_equiv; first apply proof_irrel.
+    do 4 f_equiv. apply proof_irrel.
   Qed.
   Next Obligation.
-    intros ????????? -> ??? ->; simpl.
-    do 2 f_equiv; first done.
-    do 2 f_equiv; first done.
-    by do 2 f_equiv.
-  Qed.
-  Next Obligation.
-    intros ????? H.
-    rewrite (setoid_eq_reflect H).
-    reflexivity.
-  Qed.
-  Next Obligation.
-    intros ????? ?? -> ??? -> ??? ->; simpl.
-    do 2 f_equiv; first done.
-    do 2 f_equiv; first done.
-    by do 2 f_equiv.
+    intros ?????.
+    extensionality t1.
+    apply natural_equiv_unpack; intros ?.
+    extensionality t2.
+    apply natural_equiv_unpack; intros ?.
+    extensionality t3.
+    simpl.
+    do 2 f_equiv; first apply proof_irrel.
+    do 4 f_equiv.
+    apply proof_irrel.
   Qed.
   Fail Next Obligation.
 
@@ -785,37 +802,47 @@ Section exp_func.
     := MkEnrFunc (λ a b, exp_psh_enr_def a b) _ _ _.
   Next Obligation.
     intros a b f; simpl.
-    intros ? [] [] _ a' ? y ->; simpl.
-    intros d ? y' ->; simpl.
-    pose proof ((naturality f y'.1 () () (reflexivity _))) as H.
+    apply natural_equiv_unpack; intros ?.
+    extensionality x; destruct x.
+    apply natural_equiv_unpack; intros ?.
+    extensionality y.
+    apply natural_equiv_unpack; intros d.
+    extensionality y'; simpl.
+    epose proof (equal_f (naturality f y'.1) ()) as H.
     simpl in H.
-    destruct H as [H1 H2].
-    pose proof ((naturality f y.1 () () (reflexivity _))) as G.
-    simpl in G.
-    destruct G as [G1 G2].
-    simpl in G1, G2.
-    rewrite (H2 d) /=.
-    rewrite (G2 d) /=.
-    do 2 f_equiv; first done.
-    do 2 f_equiv; first done.
-    rewrite (H1 d) /=.
-    rewrite (G1 d) /=.
-    by f_equiv.
+    rewrite H /hom_prod /=; clear H.
+    epose proof (equal_f (naturality f y.1) ()) as H.
+    simpl in H.
+    rewrite H /hom_prod /=; clear H.
+    do 3 f_equiv; first apply proof_irrel.
+    f_equiv; first apply proof_irrel.
+    do 2 f_equiv; apply proof_irrel.
   Qed.
   Next Obligation.
     intros a b c; simpl.
-    intros d ? y -> ?? y' -> ?? y'' ->; simpl.
-    do 2 f_equiv; first done.
-    do 2 f_equiv; first done.
-    f_equiv; first done.
-    f_equiv; first done.
-    do 2 f_equiv; first done.
-    by do 2 f_equiv.
+    apply natural_equiv_unpack; intros d.
+    extensionality y.
+    apply natural_equiv_unpack; intros ?.
+    extensionality y'.
+    apply natural_equiv_unpack; intros ?.
+    extensionality y''.
+    simpl.
+    do 2 f_equiv; first apply proof_irrel.
+    do 2 f_equiv; first apply proof_irrel.
+    do 4 f_equiv; first apply proof_irrel.
+    do 2 f_equiv; apply proof_irrel.
   Qed.
   Next Obligation.
-    intros a c ? y -> d ? y' -> e ? y'' ->; simpl.
+    intros a.
+    apply natural_equiv_unpack; intros c.
+    extensionality y.
+    apply natural_equiv_unpack; intros d.
+    extensionality y'.
+    apply natural_equiv_unpack; intros e.
+    extensionality y''.
+    simpl.
     f_equiv.
-    done.
+    by destruct y''.
   Qed.
   Fail Next Obligation.
 End exp_func.
@@ -976,8 +1003,7 @@ Section complete_prod.
       intros; simpl.
       epose proof (fc j) as H.
       simpl in H.
-      destruct H as [H1 H2].
-      rewrite H1.
+      rewrite H.
       reflexivity.
     }
     unshelve eset (f2' := (MkConeHom (F := (functor_compose F (cat_proj2 C D))) _ _)
@@ -992,11 +1018,12 @@ Section complete_prod.
       intros; simpl.
       epose proof (fc j) as H.
       simpl in H.
-      destruct H as [H1 H2].
-      rewrite H2.
+      rewrite H.
       reflexivity.
     }
     rewrite /equiv /cone_hom_eq /=.
+    apply cone_hom_equiv_unpack.
+    unfold cone_hom_eq; simpl.
     f_equiv.
     - epose proof (@bang_unique _ _
                      (term_is_terminal

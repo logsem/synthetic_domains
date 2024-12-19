@@ -10,7 +10,7 @@ Opaque later next.
 Lemma transpose_compose_right {C} `{!HasTerm C, !HasProducts C
     , !HasExponentials C}
   {a b c d : obj C} (f : hom (b ×ₒ a) c) (g : hom d a) :
-  transpose f ∘ g ≡ transpose (f ∘ (id _ ×ₕ g)).
+  transpose f ∘ g = transpose (f ∘ (id _ ×ₕ g)).
 Proof.
   unfold transpose.
   apply exp_hom_unique.
@@ -37,7 +37,7 @@ Section solution_unique.
 
   Program Definition fix_of_solution_to_alg_alg_hom (S : solution) (A : algebra F)
     (fx : natural (1ₒ) (enr_hom (sol_obj S) (car A)))
-    (fx_fix : (solution_to_alg S A) ∘@{PSh _} fx ≡ fx) :
+    (fx_fix : (solution_to_alg S A) ∘@{PSh _} fx = fx) :
     alg_hom (alg_of_solution S) A :=
     MkAlgHom ⌞fx⌟ _.
   Next Obligation.
@@ -54,7 +54,7 @@ Section solution_unique.
 
   Lemma alg_hom_from_solution_is_fix (S : solution) (A : algebra F)
     (h : alg_hom (alg_of_solution S) A) :
-    (solution_to_alg S A) ∘@{PSh _} ⌜alg_hom_map h⌝ ≡ ⌜alg_hom_map h⌝.
+    (solution_to_alg S A) ∘@{PSh _} ⌜alg_hom_map h⌝ = ⌜alg_hom_map h⌝.
   Proof.
     rewrite /solution_to_alg.
     rewrite (comp_assoc _ _ (enr_comp_r _))
@@ -78,9 +78,9 @@ Section solution_unique.
   Next Obligation.
     intros S A h; simpl.
     match goal with
-    |- ?A ≡ ?B =>
-      assert (alg_hom_map A ≡ alg_hom_map B); last done;
-      rewrite -(enr_embed_project (alg_hom_map A))
+      |- ?A = ?B =>
+        apply alg_hom_map_eq;
+        rewrite -(enr_embed_project (alg_hom_map A))
         -(enr_embed_project (alg_hom_map B))
     end.
     f_equiv.
@@ -116,7 +116,7 @@ Section later.
   Lemma later_hom_action_project_embed
     (F G : obj (PSh (OrdCat SI))) (f : hom (1ₒ) (G ↑ₒ F))
     : later_hom_action F G ∘ (next ₙ (G ↑ₒ F)) ∘ f
-        ≡ transpose' (later ₕ untranspose' f).
+        = transpose' (later ₕ untranspose' f).
   Proof.
     intros; simpl.
     unfold later_hom_action.
@@ -137,7 +137,7 @@ Section later.
     pose proof (exp_hom_commutes (exponential_of F G)
                   (untranspose' f ∘ term_times_proj F ∘ commutator F (1ₒ)))
       as HEQ.
-    rewrite <-HEQ; clear HEQ.
+    rewrite -HEQ; clear HEQ.
     rewrite comp_assoc.
     rewrite commute_term_times_proj.
     rewrite h_map_comp.
@@ -145,19 +145,21 @@ Section later.
     rewrite comp_assoc.
     rewrite comp_assoc.
     assert ((later ₕ prj1 (product_of F (1ₒ))
-        ∘ (backward (later_preserves_prods_nat SI)ₙ (F, term_func (OrdCat SI)ᵒᵖ Setoid)
-             ∘ (id (later ₒ F) ×ₕ (next ₙ term_func (OrdCat SI)ᵒᵖ Setoid))))
-              ≡ prj1 _) as ->.
+        ∘ (backward (later_preserves_prods_nat SI)ₙ (F, term_func (OrdCat SI)ᵒᵖ Typ)
+             ∘ (id (later ₒ F) ×ₕ (next ₙ term_func (OrdCat SI)ᵒᵖ Typ))))
+              = prj1 _) as HEQ.
     {
       unfold later_preserves_prods_nat.
       rewrite <-comp_assoc.
       rewrite (right_adj_preserves_prods_backward_prj1
                  later_adj _ _ _ _
                  (id (later ₒ F))
-                 (next ₙ term_func (OrdCat SI)ᵒᵖ Setoid)).
+                 (next ₙ term_func (OrdCat SI)ᵒᵖ Typ)).
       rewrite left_id.
       reflexivity.
     }
+    simpl in HEQ.
+    rewrite HEQ; clear HEQ.
     unfold transpose'.
     rewrite comp_assoc.
     rewrite commute_term_times_proj.
@@ -168,7 +170,7 @@ Section later.
     (F G H : obj (PSh (OrdCat SI)))
     : (enr_comp _ _ _
          ∘ (later_hom_action F G ×ₕ (later_hom_action G H)))
-        ≡ (later_hom_action F H ∘ (later ₕ enr_comp _ _ _) ∘ (backward (later_prod _ _))).
+        = (later_hom_action F H ∘ (later ₕ enr_comp _ _ _) ∘ (backward (later_prod _ _))).
   Proof.
     simpl.
     rewrite transpose_compose_right.
@@ -209,9 +211,9 @@ Section later.
     assert ((backward (later_preserves_prods_nat SI)ₙ (F ×ₒ psh_exp F G, psh_exp G H)
                ∘ (backward (later_preserves_prods_nat SI)ₙ (F, psh_exp F G) ×ₕ id (later ₒ psh_exp G H)
                     ∘ associator' (later ₒ F) (later ₒ (G ↑ₒ F)) (later ₒ (H ↑ₒ G))))
-               ≡ ((later ₕ (associator' F (G ↑ₒ F) (H ↑ₒ G)))
+               = ((later ₕ (associator' F (G ↑ₒ F) (H ↑ₒ G)))
                     ∘ (backward (later_preserves_prods_nat SI)ₙ (F, (G ↑ₒ F ×ₒ (H ↑ₒ G)))))
-               ∘ (id _ ×ₕ (backward (later_preserves_prods_nat SI)ₙ ((G ↑ₒ F), H ↑ₒ G)))) as ->.
+               ∘ (id _ ×ₕ (backward (later_preserves_prods_nat SI)ₙ ((G ↑ₒ F), H ↑ₒ G)))) as HEQ.
     {
       rewrite -right_adj_preserves_prods_backward_assoc.
       simpl.
@@ -221,6 +223,7 @@ Section later.
       f_equiv.
       reflexivity.
     }
+    simpl in HEQ; rewrite HEQ; clear HEQ.
     rewrite <-!comp_assoc.
     rewrite -transpose_compose_right.
     epose proof (h_map_comp _ _ later _ _ _
@@ -236,7 +239,7 @@ Section later.
     f_equiv.
     rewrite -h_map_id.
     epose proof (comp_assoc _ _ (later ₕ eval (exponential_of F H))) as HEQ.
-    rewrite HEQ; clear HEQ.
+    rewrite ->HEQ; clear HEQ.
     epose proof (@naturality _ _ _ _
                    (backward (later_preserves_prods_nat SI))
                    (F, (psh_exp F G ×ₒ psh_exp G H))
@@ -259,7 +262,7 @@ Section later.
     (F G H : obj (PSh (OrdCat SI)))
     : enr_comp _ _ _
         ∘ (later_hom_action F G ∘ (next ₙ (G ↑ₒ F)) ×ₕ (later_hom_action G H ∘ (next ₙ (H ↑ₒ G))))
-        ≡ later_hom_action F H ∘ (next ₙ (H ↑ₒ F)) ∘ enr_comp _ _ _.
+        = later_hom_action F H ∘ (next ₙ (H ↑ₒ F)) ∘ enr_comp _ _ _.
   Proof.
     intros; simpl.
     rewrite hom_prod_comp.
@@ -275,7 +278,7 @@ Section later.
     rewrite <-(left_id (next ₙ (G ↑ₒ F ×ₒ (H ↑ₒ G)))).
     epose proof (iso_lr (is_iso (natural_iso_proj (later_preserves_prods_nat SI) (G ↑ₒ F, H ↑ₒ G)))) as HEQ.
     simpl in HEQ.
-    rewrite <-HEQ; clear HEQ.
+    rewrite -HEQ; clear HEQ.
     rewrite ->!comp_assoc.
     f_equiv; last done.
     unfold later_preserves_prods_nat.
@@ -283,9 +286,9 @@ Section later.
     simpl.
     rewrite hom_to_prod_comp_r.
     pose proof (naturality next (prj1 (product_of (G ↑ₒ F) (H ↑ₒ G)))) as HEQ.
-    rewrite <-HEQ; clear HEQ.
+    rewrite -HEQ; clear HEQ.
     pose proof (naturality next (prj2 (product_of (G ↑ₒ F) (H ↑ₒ G)))) as HEQ.
-    rewrite <-HEQ; clear HEQ.
+    rewrite -HEQ; clear HEQ.
     simpl.
     rewrite hom_to_prod_comp.
     rewrite <-(right_id (prj1 (product_of (G ↑ₒ F) (H ↑ₒ G)))).
@@ -298,7 +301,7 @@ Section later.
   Lemma later_hom_action_contr_id
     (F : obj (PSh (OrdCat SI)))
     : later_hom_action F _ ∘ (later ₕ (transpose' (id _))) ∘ (next ₙ (1ₒ))
-        ≡ transpose' (id (later ₒ F)).
+        = transpose' (id (later ₒ F)).
   Proof.
     unfold later_hom_action.
     rewrite transpose_compose_right.
@@ -334,7 +337,7 @@ Section later.
   Lemma later_hom_action_enr_id
     (F : obj (PSh (OrdCat SI)))
     : later_hom_action F F ∘ (next ₙ _) ∘ (transpose' (id _))
-        ≡ transpose' (id (later ₒ F)).
+        = transpose' (id (later ₒ F)).
   Proof.
     intros; simpl.
     rewrite -later_hom_action_contr_id.
@@ -404,13 +407,7 @@ Section op_enriched.
       (λ x y f, enr_embed (C := C) f)
       (λ x y f, enr_project (C := C) f)
       (λ x y z, enr_comp (C := C) z y x ∘ commutator _ _)
-      _ _ _ _ _ _ _ _.
-  Next Obligation.
-    solve_proper.
-  Qed.
-  Next Obligation.
-    solve_proper.
-  Qed.
+      _ _ _ _ _ _.
   Next Obligation.
     intros; simpl in *.
     apply enr_embed_project.
@@ -500,16 +497,11 @@ Section prod_enriched.
                   ∘ (prj1 _ ×ₕ prj1 _)
         , enr_comp _ _ _
             ∘ (prj2 _ ×ₕ prj2 _)>>)
-      _ _ _ _ _ _ _ _.
-  Next Obligation.
-    solve_proper.
-  Qed.
-  Next Obligation.
-    solve_proper.
-  Qed.
+      _ _ _ _ _ _.
   Next Obligation.
     intros; simpl in *.
-    by rewrite hom_to_prod_prj1 hom_to_prod_prj2 !enr_embed_project.
+    rewrite hom_to_prod_prj1 hom_to_prod_prj2 !enr_embed_project.
+    by destruct f.
   Qed.
   Next Obligation.
     intros; simpl in *.
@@ -549,7 +541,7 @@ Section prod_enriched.
                  ∘ associator (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2)
                  (enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2)
                  (enr_hom c.1 d.1 ×ₒ enr_hom c.2 d.2))
-                ≡
+                =
                 (id (enr_hom a.1 b.1) ×ₕ enr_comp b.1 c.1 d.1)
                 ∘ associator (enr_hom a.1 b.1) (enr_hom b.1 c.1) (enr_hom c.1 d.1)
                 ∘ ((prj1 _ ×ₕ prj1 _) ×ₕ prj1 _)) as ->.
@@ -577,7 +569,7 @@ Section prod_enriched.
                  ∘ associator (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2)
                  (enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2)
                  (enr_hom c.1 d.1 ×ₒ enr_hom c.2 d.2))
-                ≡
+                =
                 (id (enr_hom a.2 b.2) ×ₕ enr_comp b.2 c.2 d.2)
                 ∘ associator (enr_hom a.2 b.2) (enr_hom b.2 c.2)
                 (enr_hom c.2 d.2)
@@ -668,13 +660,13 @@ Section psh_op_limits_enriched.
   Program Definition psh_colimits_enriched_enr_cocone_to_pointwise_cocone
     {α} (cn : enr_cone F α) : cone (pointwise_func_colim F α) :=
     MkCone (enr_vertex cn ₒ α)
-      (λ j, λset x, (enr_side cn j ₙ α) (id _, x)) _.
-  Next Obligation. repeat intros ?; simpl in *; repeat f_equiv; done. Qed.
+      (λ j, λ x, (enr_side cn j ₙ α) (id _, x)) _.
   Next Obligation.
-    intros ?? j j' f x y <-; clear y; simpl in *.
-    rewrite (λ z, enr_side_commutes cn f α
-                    ((reflexivity _), z) _ (reflexivity _)) /=.
-    repeat f_equiv; done.
+    intros ?? j j' f.
+    extensionality x; simpl in *.
+    rewrite (λ z, equal_f (natural_equiv_pack (enr_side_commutes cn f) α)
+                    ((reflexivity _), z)) /=.
+    repeat f_equiv; apply proof_irrel.
   Qed.
   Fail Next Obligation.
 
@@ -688,17 +680,21 @@ Section psh_op_limits_enriched.
       _
       .
   Next Obligation.
-    intros α cn β f j x y <-; clear y; simpl in *.
-    epose proof (naturality (enr_side cn j) f (_, _) _ (reflexivity _)) as Hn;
-      simpl in Hn; rewrite -Hn /=; clear Hn.
-    repeat f_equiv; done.
+    intros α cn β f j; extensionality x; simpl in *.
+    epose proof (equal_f
+                   (naturality (enr_side cn j) f) (_, _)) as Hn;
+      simpl in Hn; rewrite <-Hn; simpl; clear Hn.
+    repeat f_equiv; simpl.
+    unfold hom_prod; simpl.
+    f_equiv; last done.
+    apply proof_irrel.
   Qed.
 
   Program Definition psh_colimits_enriched_enr_cocone_hom_back {α}
     (cn : enr_cone F α) :
     enr_cone_hom cn (cone_to_enr_cone (cone_of_is_cone (il_is_cone il)) α) :=
     MkEnrConeHom
-      (MkNat (λ c, λset f,
+      (MkNat (λ c, λ f,
            (cone_hom_map
               (bang (il_is_limiting_cone _ _
                        (func_cat_colimits_pointwise F il c))
@@ -706,55 +702,52 @@ Section psh_op_limits_enriched.
                     (enr_cone_natural cn f.1))) f.2)) _)
       _.
   Next Obligation.
-    intros ??? [le1 ?] [le2 ?] [? ->];
-      replace le1 with le2 by apply proof_irrel; done.
-  Qed.
-  Next Obligation.
-    intros α cn β γ f [le x] [le' y] [? <-];
-      replace le' with le by apply proof_irrel;
-      clear dependent le'; clear y; simpl in *.
+    intros α cn β γ f.
+    extensionality H; destruct H as [le x]; simpl in *.
     replace (transitivity le (reflexivity α)) with le by apply proof_irrel.
-    epose proof (func_cat_colimits_pointwise_natural F il
-      (enr_cocone_coherent_partial_cocone (enr_cone_natural cn le))
-      f x _ (reflexivity _)) as Hpln.
+    epose proof (equal_f
+                   (func_cat_colimits_pointwise_natural F il
+                      (enr_cocone_coherent_partial_cocone (enr_cone_natural cn le))
+                      f) x) as Hpln.
     simpl in Hpln; rewrite Hpln /=; clear Hpln.
-    f_equiv; last done.
+    eta_expand_equation ((L ₕ f) x).
     apply (hom_to_limit_unique
              _ _ _ (func_cat_colimits_pointwise F il γ)
              (cone_is_cone
                 (psh_colimits_enriched_enr_cocone_to_pointwise_cocone
                    (enr_cone_natural (enr_cone_natural cn le) f)))).
-    - intros ??? ->; simpl in *.
-      pose proof (cone_hom_commutes
+    - intros ?; simpl in *.
+      extensionality y; simpl.
+      pose proof (equal_f (cone_hom_commutes
                     (bang (il_is_limiting_cone
                              (pointwise_func_colim F γ) (L ₒ γ)
                              (func_cat_colimits_pointwise F il γ))
                        (psh_colimits_enriched_enr_cocone_to_pointwise_cocone
-                          (enr_cone_natural cn (transitivity f le)))) j y) as HEQ.
-      simpl in HEQ; rewrite -HEQ; clear HEQ; last done.
+                          (enr_cone_natural cn (transitivity f le)))) j) y) as HEQ.
+      simpl in HEQ; rewrite -HEQ; clear HEQ.
       do 2 f_equiv.
-      f_equal.
-    - intros ??? ->; simpl in *.
-      pose proof (cone_hom_commutes
+      apply proof_irrel.
+    - intros ?; extensionality y; simpl in *.
+      pose proof (equal_f (cone_hom_commutes
                     (bang (il_is_limiting_cone
                              (pointwise_func_colim F γ) (L ₒ γ)
                              (func_cat_colimits_pointwise F il γ))
                        (psh_colimits_enriched_enr_cocone_to_pointwise_cocone
-                          (enr_cone_natural (enr_cone_natural cn le) f))) j y) as HEQ.
+                          (enr_cone_natural (enr_cone_natural cn le) f))) j) y) as HEQ.
       simpl in HEQ; rewrite -HEQ; clear HEQ; last done.
-      do 2 f_equiv.
   Qed.
   Next Obligation.
-    intros α cn j β [le x] [le' y] [? <-];
-      replace le' with le by apply proof_irrel;
-      clear dependent le'; clear y; simpl in *.
-
-    epose proof (cone_hom_commutes (bang
+    intros α cn j.
+    apply natural_equiv_unpack; intros β.
+    extensionality t.
+    destruct t as [le x]; simpl in *.
+    epose proof (equal_f (cone_hom_commutes (bang
             (il_is_limiting_cone (pointwise_func_colim F β)
                (L ₒ β) (func_cat_colimits_pointwise F il β))
-            (psh_colimits_enriched_enr_cocone_to_pointwise_cocone _))
-      j _ _ (reflexivity _)) as Hn; simpl in Hn; rewrite -Hn /=; clear Hn.
-    repeat f_equiv; done.
+            (psh_colimits_enriched_enr_cocone_to_pointwise_cocone
+               (enr_cone_natural cn (transitivity (reflexivity β) le)))) j)) as Hn;
+      simpl in Hn; rewrite -Hn; simpl; clear Hn.
+    repeat f_equiv. apply proof_irrel.
   Qed.
   Fail Next Obligation.
 
@@ -766,37 +759,35 @@ Section psh_op_limits_enriched.
         (psh_colimits_enriched_enr_cocone_to_pointwise_cocone
            (enr_cone_natural cn le))
         (cone_of_is_cone (il_is_cone (func_cat_colimits_pointwise F il β))) :=
-  MkConeHom (λset x, (enr_cone_hom_map h ₙ β) (le, x)) _.
-  Next Obligation. intros ??????? ->; done. Qed.
+  MkConeHom (λ x, (enr_cone_hom_map h ₙ β) (le, x)) _.
   Next Obligation.
-    intros ???? h ??? ->; simpl in *.
-    epose proof (enr_cone_hom_commutes h _ _ (_, _) _ (reflexivity _)) as Hsc;
-    simpl in Hsc; rewrite Hsc; clear.
-    repeat f_equiv; done.
+    intros ???? h ?; extensionality x; simpl in *.
+    epose proof (natural_equiv_pack (enr_cone_hom_commutes h _) _) as Hsc;
+    simpl in Hsc; rewrite ->Hsc; clear.
+    repeat f_equiv; first apply proof_irrel.
+    reflexivity.
   Qed.
   Fail Next Obligation.
 
   Program Definition psh_op_limits_enriched : enr_limit il :=
     λ α, MkEnrConeIsLimit (λ cn, psh_colimits_enriched_enr_cocone_hom_back cn) _.
   Next Obligation.
-    intros α cn h h' β [le x] [le' y] [? <-];
-      replace le' with le by apply proof_irrel;
-      clear dependent le'; clear y; simpl in *.
-    epose proof (@bang_unique _ _
+    intros α cn h h'.
+    apply natural_equiv_unpack; intros β.
+    extensionality t; destruct t as [le x]; simpl in *.
+    epose proof (equal_f (cone_hom_equiv_pack _ (@bang_unique _ _
                    (il_is_limiting_cone _ _
                       (func_cat_colimits_pointwise F il β))
                    (psh_colimits_enriched_enr_cocone_to_pointwise_cocone
                       (enr_cone_natural cn le))
-                   (psh_colimits_enr_cocone_hom_to_cocone_hom le h) x _
-                   (reflexivity _)) as Hbu;
-      simpl in Hbu; rewrite Hbu; clear Hbu.
-    epose proof (@bang_unique _ _
+                   (psh_colimits_enr_cocone_hom_to_cocone_hom le h))) x) as Hbu.
+    simpl in Hbu; rewrite Hbu; clear Hbu.
+    epose proof (equal_f (cone_hom_equiv_pack _ (@bang_unique _ _
                    (il_is_limiting_cone _ _
                       (func_cat_colimits_pointwise F il β))
                    (psh_colimits_enriched_enr_cocone_to_pointwise_cocone
                       (enr_cone_natural cn le))
-                   (psh_colimits_enr_cocone_hom_to_cocone_hom le h') x _
-                   (reflexivity _)) as Hbu;
+                   (psh_colimits_enr_cocone_hom_to_cocone_hom le h'))) x) as Hbu;
       simpl in Hbu; rewrite Hbu; clear Hbu.
     done.
   Qed.
@@ -826,9 +817,13 @@ Section proj_limits.
                   (vertex c, L.2)
                   (λ j, ((side c j), (ic_side (il_is_cone il) j).2))
                   (λ j j' f,
-                    conj
-                      (side_commutes c f)
-                      (proj2 (ic_side_commutes (il_is_cone il) f))).
+                    _).
+  Next Obligation.
+    intros; simpl.
+    f_equal.
+    - apply (side_commutes c f).
+    - by rewrite (ic_side_commutes (il_is_cone il) f).
+  Qed.
 
   Local Definition cone_from_limit_left_proj
     (c : cone (functor_compose F (cat_proj1 C D)))
@@ -840,16 +835,22 @@ Section proj_limits.
     MkIsCone
       L.1
       (λ j, (ic_side (il_is_cone il) j).1)
-      (λ j j' f, proj1 (ic_side_commutes (il_is_cone il) f)).
+      (λ j j' f, _).
+  Next Obligation.
+    intros; simpl.
+    by rewrite (ic_side_commutes (il_is_cone il) f).
+  Qed.
 
   Local Program Definition extend_cone_proj1
     (c : cone (functor_compose F (cat_proj1 C D)))
     (f : cone_hom c (cone_of_is_cone cone_proj1))
     : cone_hom (cone_from_limit_left c) (cone_of_is_cone (il_is_cone il))
     := MkConeHom (cone_hom_map f, id _)
-         (λ j, conj
-                 (cone_hom_commutes f j)
-                 (symmetry (right_id _))).
+         (λ j, _).
+  Next Obligation.
+    intros; simpl.
+    by rewrite (cone_hom_commutes f j) right_id.
+  Qed.
 
   Program Definition limit_proj1
     : is_limit (functor_compose F (cat_proj1 C D)) L.1
@@ -859,20 +860,37 @@ Section proj_limits.
             _
             (λ c, MkConeHom
                     (cone_hom_map (cone_from_limit_left_proj c)).1
-                    (λ j, (proj1 (cone_hom_commutes
-                                    (cone_from_limit_left_proj c) j))))
-            (λ c f, (proj1 (bang_unique (il_is_limiting_cone _ _ il)
-                              (extend_cone_proj1 c f))))).
+                    (λ j, _))
+            (λ c f, _)).
+  Next Obligation.
+    intros.
+    simpl.
+    pose proof (cone_hom_commutes (cone_from_limit_left_proj c) j) as H.
+    by inversion H.
+  Qed.
+  Next Obligation.
+    intros; simpl.
+    apply cone_hom_equiv_unpack.
+    unfold cone_hom_eq; simpl.
+    pose proof (cone_hom_equiv_pack _ (bang_unique (il_is_limiting_cone _ _ il)
+                                         (extend_cone_proj1 c f))).
+    unfold cone_hom_eq in H; simpl in H.
+    rewrite -H.
+    done.
+  Qed.
 
   Local Program Definition cone_from_limit_right
     (c : cone (functor_compose F (cat_proj2 C D)))
     : cone F := MkCone
                   (L.1, vertex c)
                   (λ j, ((ic_side (il_is_cone il) j).1, (side c j)))
-                  (λ j j' f,
-                    conj
-                      (proj1 (ic_side_commutes (il_is_cone il) f))
-                      (side_commutes c f)).
+                  (λ j j' f, _).
+  Next Obligation.
+    intros; simpl.
+    rewrite (ic_side_commutes (il_is_cone il) f).
+    rewrite (side_commutes c f).
+    done.
+  Qed.
 
   Local Definition cone_from_limit_right_proj
     (c : cone (functor_compose F (cat_proj2 C D)))
@@ -884,16 +902,23 @@ Section proj_limits.
     MkIsCone
       L.2
       (λ j, (ic_side (il_is_cone il) j).2)
-      (λ j j' f, proj2 (ic_side_commutes (il_is_cone il) f)).
+      (λ j j' f, _).
+  Next Obligation.
+    intros; simpl.
+    rewrite (ic_side_commutes (il_is_cone il) f).
+    done.
+  Qed.
 
   Local Program Definition extend_cone_proj2
     (c : cone (functor_compose F (cat_proj2 C D)))
     (f : cone_hom c (cone_of_is_cone cone_proj2))
     : cone_hom (cone_from_limit_right c) (cone_of_is_cone (il_is_cone il))
     := MkConeHom (id _, cone_hom_map f)
-         (λ j, conj
-                 (symmetry (right_id _))
-                 (cone_hom_commutes f j)).
+         (λ j, _).
+  Next Obligation.
+    intros; simpl.
+    by rewrite (cone_hom_commutes f j) right_id.
+  Qed.
 
   Program Definition limit_proj2
     : is_limit (functor_compose F (cat_proj2 C D)) L.2
@@ -903,10 +928,24 @@ Section proj_limits.
             _
             (λ c, MkConeHom
                     (cone_hom_map (cone_from_limit_right_proj c)).2
-                    (λ j, (proj2 (cone_hom_commutes
-                                    (cone_from_limit_right_proj c) j))))
-            (λ c f, (proj2 (bang_unique (il_is_limiting_cone _ _ il)
-                              (extend_cone_proj2 c f))))).
+                    (λ j, _))
+            (λ c f, _)).
+  Next Obligation.
+    intros; simpl.
+    pose proof (cone_hom_commutes (cone_from_limit_right_proj c) j) as H.
+    simpl in *.
+    by inversion H.
+  Qed.
+  Next Obligation.
+    intros; simpl.
+    apply cone_hom_equiv_unpack.
+    unfold cone_hom_eq; simpl.
+    pose proof (cone_hom_equiv_pack _  (bang_unique (il_is_limiting_cone _ _ il) (extend_cone_proj2 c f))) as H.
+    unfold cone_hom_eq in H; simpl in H.
+    rewrite -H.
+    done.
+  Qed.
+
 End proj_limits.
 
 Section prod_limits_enriched.
@@ -926,32 +965,55 @@ Section prod_limits_enriched.
     := MkEnrCone
          (enr_vertex cn).1
          (λ j, (enr_side cn j).1)
-         (λ j j' f, (proj1 (enr_side_commutes cn f))).
+         (λ j j' f, _).
+  Next Obligation.
+    intros; simpl.
+    rewrite (enr_side_commutes cn f).
+    done.
+  Qed.
 
   Local Program Definition restrict_enr_cone_right {α} (cn : enr_cone F α)
     : enr_cone (functor_compose F (cat_proj2 C D)) α
     := MkEnrCone
          (enr_vertex cn).2
          (λ j, (enr_side cn j).2)
-         (λ j j' f, (proj2 (enr_side_commutes cn f))).
+         (λ j j' f, _).
+  Next Obligation.
+    intros; simpl.
+    rewrite (enr_side_commutes cn f).
+    done.
+  Qed.
 
   Local Program Definition restrict_enr_hom_left {α}
     (cn' : enr_cone F α)
     (h : enr_cone_hom cn'
            (cone_to_enr_cone (cone_of_is_cone (il_is_cone il)) α))
     : enr_cone_hom (restrict_enr_cone_left cn')
-        (cone_to_enr_cone (cone_of_is_cone (il_is_cone (limit_proj1 _))) α)
+        (cone_to_enr_cone (cone_of_is_cone (il_is_cone (limit_proj1 il))) α)
     := MkEnrConeHom (enr_cone_hom_map h).1
-         (λ j, proj1 (enr_cone_hom_commutes h j)).
+         (λ j, _).
+  Next Obligation.
+    intros; simpl.
+    rewrite (enr_cone_hom_commutes h j).
+    simpl.
+    do 2 f_equiv.
+  Qed.
 
   Local Program Definition restrict_enr_hom_right {α}
     (cn' : enr_cone F α)
     (h : enr_cone_hom cn'
            (cone_to_enr_cone (cone_of_is_cone (il_is_cone il)) α))
     : enr_cone_hom (restrict_enr_cone_right cn')
-        (cone_to_enr_cone (cone_of_is_cone (il_is_cone (limit_proj2 _))) α)
+        (cone_to_enr_cone (cone_of_is_cone (il_is_cone (limit_proj2 il))) α)
     := MkEnrConeHom (enr_cone_hom_map h).2
-         (λ j, proj2 (enr_cone_hom_commutes h j)).
+         (λ j, _).
+  Next Obligation.
+    intros; simpl.
+    rewrite (enr_cone_hom_commutes h j).
+    simpl.
+    do 2 f_equiv.
+    reflexivity.
+  Qed.
 
   Local Program Definition prod_limits_enriched_enr_cone_hom_back {α}
     (cn : enr_cone F α) :
@@ -959,29 +1021,35 @@ Section prod_limits_enriched.
     MkEnrConeHom
       ((enr_cone_hom_map (enr_limit_hom
                             (HLE1 J (functor_compose F (cat_proj1 _ _)) L.1
-                               (limit_proj1 _) α)
+                               (limit_proj1 il) α)
                             (restrict_enr_cone_left cn))),
         (enr_cone_hom_map (enr_limit_hom
                              (HLE2 J (functor_compose F (cat_proj2 _ _)) L.2
-                                (limit_proj2 _) α)
+                                (limit_proj2 il) α)
                              (restrict_enr_cone_right cn))))
-      (λ j, conj
-              (enr_cone_hom_commutes (enr_limit_hom
+      (λ j, _).
+  Next Obligation.
+    intros; simpl.
+    pose proof (enr_cone_hom_commutes (enr_limit_hom
                                         (HLE1 J (functor_compose F
                                                    (cat_proj1 _ _)) L.1
-                                           (limit_proj1 _) α)
-                                        (restrict_enr_cone_left cn)) j)
-              (enr_cone_hom_commutes (enr_limit_hom
+                                           (limit_proj1 il) α)
+                                        (restrict_enr_cone_left cn)) j) as H.
+    simpl in H; rewrite -H; clear H.
+    pose proof (enr_cone_hom_commutes (enr_limit_hom
                                         (HLE2 J (functor_compose F
                                                    (cat_proj2 _ _)) L.2
-                                           (limit_proj2 _) α)
-                                        (restrict_enr_cone_right cn)) j)).
+                                           (limit_proj2 il) α)
+                                        (restrict_enr_cone_right cn)) j) as H.
+    simpl in H; rewrite -H; clear H.
+    by destruct (enr_side cn j).
+  Qed.
 
   Program Definition prod_limits_enriched_lim : enr_limit il :=
     λ α, MkEnrConeIsLimit (λ cn, prod_limits_enriched_enr_cone_hom_back cn) _.
   Next Obligation.
     intros; simpl.
-    split.
+    apply injective_projections.
     - apply (@enr_limit_hom_unique _ _ _ _ _ _ _
                (HLE1 J (functor_compose F (cat_proj1 _ _)) L.1
                   (limit_proj1 _) α)
@@ -1126,10 +1194,7 @@ Program Definition flip_bifunc {C : category}
   : functor (cat_prod (C ᵒᵖ) C) (C ᵒᵖ) :=
   MkFunc (λ x, F ₒ (x.2, x.1))
     (λ a b f, @h_map (cat_prod (C ᵒᵖ) C) C F (b.2, b.1) (a.2, a.1) (f.2, f.1))
-    _ _ _.
-Next Obligation.
-  solve_proper.
-Qed.
+    _ _.
 Next Obligation.
   intros; simpl.
   by rewrite -h_map_comp.
@@ -1182,7 +1247,7 @@ Section enr_func_flip_bifunc.
                                            (enr_hom b.1 c.1))
                                      ×ₕ prj1 (product_of (enr_hom a.2 b.2)
                                                 (enr_hom a.1 b.1 )))) as HEQ.
-      rewrite -HEQ; clear HEQ.
+      rewrite <-HEQ; clear HEQ.
       rewrite -hom_prod_comp.
       rewrite !hom_to_prod_prj1.
       rewrite commute_hom_prod.
@@ -1258,7 +1323,7 @@ Section lc_func_flip_bifunc.
     unfold later_prod.
     simpl.
     rewrite ->!comp_assoc.
-    f_equiv.
+    f_equiv; last done.
     rewrite <-!comp_assoc.
     rewrite -h_map_comp.
     rewrite commute_hom_to_prod.
@@ -1266,7 +1331,7 @@ Section lc_func_flip_bifunc.
     epose proof (comp_assoc _ _ (backward (later_preserves_prods_nat SI) ₙ
                                    (enr_hom b.2 c.2 ×ₒ enr_hom b.1 c.1, enr_hom a.2 b.2 ×ₒ enr_hom a.1 b.1))) as HEQ.
     simpl in HEQ.
-    rewrite -HEQ; clear HEQ.
+    rewrite <-HEQ; clear HEQ.
     epose proof (@naturality _ _ _ _ (backward (later_preserves_prods_nat SI))
                    ((enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2), (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2))
                    ((enr_hom b.2 c.2 ×ₒ enr_hom b.1 c.1), (enr_hom a.2 b.2 ×ₒ enr_hom a.1 b.1))
@@ -1281,7 +1346,7 @@ Section lc_func_flip_bifunc.
               ∘ commutator
               (later ₒ (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2))
               (later ₒ (enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2))
-              ≡
+              =
               later ₕ (commutator ((enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2)) ((enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2)))
               ∘ (backward (later_preserves_prods_nat SI)ₙ
                    (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2, enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2))) as HEQ.
@@ -1294,8 +1359,7 @@ Section lc_func_flip_bifunc.
     f_equiv.
     rewrite -h_map_comp.
     rewrite !hom_to_prod_comp_r.
-    rewrite h_map_proper; first reflexivity.
-    f_equiv.
+    do 2 f_equiv.
     - rewrite ->!comp_assoc.
       epose proof (comp_assoc (commutator (enr_hom a.1 b.1 ×ₒ enr_hom a.2 b.2) (enr_hom b.1 c.1 ×ₒ enr_hom b.2 c.2))) as HEQ.
       simpl in HEQ; rewrite <-HEQ; clear HEQ.
@@ -1319,9 +1383,9 @@ Section lc_func_flip_bifunc.
   Next Obligation.
     intros; simpl.
     rewrite !comp_assoc.
-    epose proof (comp_assoc (next ₙ term_func (OrdCat SI)ᵒᵖ Setoid)
+    epose proof (comp_assoc (next ₙ term_func (OrdCat SI)ᵒᵖ Typ)
                   (later ₕ << ⌜ id a.1 ⌝, ⌜ id a.2 ⌝ >>)) as Heq.
-    rewrite -Heq; clear Heq.
+    rewrite <-Heq; clear Heq.
     rewrite <-h_map_comp.
     rewrite commute_hom_to_prod.
     rewrite -(contr_func_h_map_id F (a.2, a.1)).
@@ -1338,13 +1402,41 @@ End lc_func_flip_bifunc.
 
 Program Definition iso_cat_prod_left {C D} {a c : obj C} {b d : obj D}
   (HISO : (a, b) ≃@{cat_prod C D} (c, d)) : a ≃ c
-  := MkIsoIc (forward HISO).1 (backward HISO).1
-       (MkIso (proj1 (iso_lr (is_iso HISO))) (proj1 (iso_rl (is_iso HISO)))).
+  := MkIsoIc (forward HISO).1 (backward HISO).1 _.
+Next Obligation.
+  intros; split.
+  - pose proof (iso_lr (is_iso HISO)).
+    simpl.
+    destruct (backward HISO).
+    destruct (forward HISO).
+    simpl in *.
+    by inversion H.
+  - pose proof (iso_rl (is_iso HISO)).
+    simpl.
+    destruct (backward HISO).
+    destruct (forward HISO).
+    simpl in *.
+    by inversion H.
+Qed.
 
 Program Definition iso_cat_prod_right {C D} {a c : obj C} {b d : obj D}
   (HISO : (a, b) ≃@{cat_prod C D} (c, d)) : b ≃ d
-  := MkIsoIc (forward HISO).2 (backward HISO).2
-       (MkIso (proj2 (iso_lr (is_iso HISO))) (proj2 (iso_rl (is_iso HISO)))).
+  := MkIsoIc (forward HISO).2 (backward HISO).2 _.
+Next Obligation.
+  intros; split.
+  - pose proof (iso_lr (is_iso HISO)).
+    simpl.
+    destruct (backward HISO).
+    destruct (forward HISO).
+    simpl in *.
+    by inversion H.
+  - pose proof (iso_rl (is_iso HISO)).
+    simpl.
+    destruct (backward HISO).
+    destruct (forward HISO).
+    simpl in *.
+    by inversion H.
+Qed.
 
 Section symmetrization.
   Context {SI : indexT} {C : category}
@@ -1409,10 +1501,10 @@ Section symmetrization.
                    (F ₒ (s, s'), F ₒ (s', s)) (s', s))
              ((forward H1), (forward H2))).
     apply MkIso.
-    - split.
+    - apply injective_projections; simpl.
       + apply (iso_lr (is_iso H1)).
       + apply (iso_lr (is_iso H2)).
-    - split.
+    - apply injective_projections; simpl.
       + apply (iso_rl (is_iso H1)).
       + apply (iso_rl (is_iso H2)).
   Qed.

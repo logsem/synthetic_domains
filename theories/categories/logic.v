@@ -14,7 +14,7 @@ Local Open Scope logic_scope.
 
 Record Sieve {C : category} (c : obj C) := MkSieve {
     sieve_arrows :> ∀ {d : obj C},
-      hom (C := Setoid) (hom_setoid d c) prop_setoid;
+      hom (C := Typ) (hom_typ d c) Prop;
     sieve_closed : ∀ {d e : obj C} (f : hom d c) (g : hom e d),
       sieve_arrows f → sieve_arrows (f ∘ g);
   }.
@@ -26,48 +26,53 @@ Notation "'λsieve' δ , e" :=
   (MkSieve (λ δ, e) _)
     (at level 120, δ binder, no associativity) : category_scope.
 
-Program Definition sieve_setoid {C : category} (c : obj C) : setoid
-  := MkSetoid (Sieve c) (λ a b,
-         ∀ (d : obj C) (f : hom d c), sieve_arrows a f ≡ sieve_arrows b f) _ _.
-Next Obligation.
-  intros; simpl.
+Global Instance sieve_eq {C} {c : obj C} : Equiv (Sieve c) :=
+  λ a b, ∀ (d : obj C) (f : hom d c), sieve_arrows a f = sieve_arrows b f.
+
+Global Instance sieve_eq_equiv {C} {c : obj C}
+  : Equivalence (@sieve_eq C c).
+Proof.
+  split.
+  - intros η; by intros ?.
+  - intros η η' H.
+    intros ?; by symmetry.
+  - intros ??? H J.
+    intros d f.
+    by rewrite (H d) (J d).
+Qed.
+
+Lemma sieve_equiv_unpack {C} {c : obj C}
+  {η ρ : Sieve c}
+  (p : sieve_eq η ρ) : η = ρ.
+Proof.
+  destruct η as [η1 η2];
+    destruct ρ as [ρ1 ρ2].
   simpl in *.
-  destruct x as [x1 x2], y as [y1 y2]; simpl in *.
-  assert (x1 = y1) as Hf.
-  {
-    extensionality x.
-    apply (setoid_eq_reflect (s := (setoid_exp (hom_setoid x c) prop_setoid))).
-    intros f g ->.
-    apply H.
-  }
+  assert (η1 = ρ1) as Hf.
+  { apply functional_extensionality_dep; intros x.
+    apply functional_extensionality_dep; intros f.
+    apply p. }
   destruct Hf.
-  assert (x2 = y2) as Hf.
+  assert (η2 = ρ2) as Hf.
   { apply proof_irrelevance. }
   destruct Hf.
   reflexivity.
 Qed.
-Next Obligation.
-  intros; simpl.
-  split.
-  - done.
-  - intros ?????; by symmetry.
-  - intros ??? J1 J2 ??. etransitivity; [apply J1 | apply J2].
-Qed.
-Fail Next Obligation.
 
-Program Definition total_sieve {C : category} (c : obj C) : sieve_setoid c
-  := MkSieve (λ d, λset f, True) _.
+Lemma sieve_equiv_pack {C} {c : obj C}
+  {η η' : Sieve c}
+  (p : η = η') : sieve_eq η η'.
+Proof. rewrite p. apply sieve_eq_equiv. Qed.
+
+Program Definition total_sieve {C : category} (c : obj C) : Sieve c
+  := MkSieve (λ d, λ f, True) _.
 Solve All Obligations with done.
 Fail Next Obligation.
 
 Program Definition subobject_classifier_psh C : obj (PSh C) :=
-  MkFunc (λ x, sieve_setoid (C := C) x)
-    (λ a b f, λset s, λsieve x, λset y, s x (f ∘ y))
-    _ _ _.
-Next Obligation.
-  repeat intros ?; simpl.
-  solve_by_eq_rewrite.
-Qed.
+  MkFunc (λ x, Sieve (C := C) x)
+    (λ a b f, λ s, λsieve x, λ y, s x (f ∘ y))
+    _ _.
 Next Obligation.
   intros ???? s ? f g h H; simpl in *.
   rewrite -comp_assoc.
@@ -75,22 +80,21 @@ Next Obligation.
 Qed.
 Next Obligation.
   repeat intros ?; simpl.
-  solve_by_eq_rewrite.
-Qed.
-Next Obligation.
-  repeat intros ?; simpl.
-  solve_by_eq_rewrite.
-Qed.
-Next Obligation.
-  repeat intros ?; simpl.
+  extensionality x; simpl.
+  apply sieve_equiv_unpack.
+  intros d h; simpl.
   rewrite comp_assoc.
-  solve_by_eq_rewrite.
+  reflexivity.
 Qed.
 Next Obligation.
   repeat intros ?; simpl.
+  extensionality x; simpl.
+  apply sieve_equiv_unpack.
+  intros d h; simpl.
   rewrite left_id.
-  solve_by_eq_rewrite.
+  reflexivity.
 Qed.
+Fail Next Obligation.
 
 Notation "Ωₒ@{ C }" := (subobject_classifier_psh C) (at level 20, no associativity)
     : category_scope.
@@ -101,7 +105,7 @@ Section logic.
   Context {C : category}.
 
   Program Definition global_sections
-    : functor (PSh C) Setoid
+    : functor (PSh C) Typ
     := functor_fix_left (Hom (PSh C)) ₒ (1ₒ@{PSh C}).
 
   Definition PROP : Type := global_sections ₒ (Ωₒ@{C}).
@@ -131,25 +135,20 @@ Section logic.
 
   Program Definition eqI {X : obj (PSh C)}
     : hom (X ×ₒ X) (Ωₒ)
-    := MkNat (λ x, λset y, λsieve p, λset t, ((X ₕ t) (fst y) ≡ (X ₕ t) (snd y))) _.
+    := MkNat (λ x, λ y, λsieve p, λ t, ((X ₕ t) (fst y) = (X ₕ t) (snd y))) _.
   Next Obligation.
     intros ?? [? ?] ?.
     repeat intros ?; simpl.
-    solve_by_eq_rewrite.
-  Qed.
-  Next Obligation.
-    intros ?? [? ?] ?????; simpl in *.
     rewrite h_map_comp /=.
-    solve_by_eq_rewrite.
+    by rewrite H.
   Qed.
   Next Obligation.
     repeat intros ?; simpl.
-    solve_by_eq_rewrite.
-  Qed.
-  Next Obligation.
-    repeat intros ?; simpl.
+    extensionality x.
+    apply sieve_equiv_unpack.
+    intros ??; simpl.
     rewrite h_map_comp /=.
-    solve_by_eq_rewrite.
+    reflexivity.
   Qed.
 
   Definition eq
@@ -160,7 +159,7 @@ Section logic.
 
   Program Definition true_arr
     : hom (C := PSh C) (1ₒ) (Ωₒ)
-    := MkNat (λ _, λset _, total_sieve _) _.
+    := MkNat (λ _, λ _, total_sieve _) _.
   Next Obligation.
     repeat intros ?; done.
   Qed.

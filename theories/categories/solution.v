@@ -226,11 +226,7 @@ Lemma alg_hom_map_prop_eq {C : category} {T : functor C C} {A B : algebra T} (f 
   alg_hom_map f = alg_hom_map g → f = g.
 Proof.
   intros H.
-  apply (@hom_eq_reflect (Alg T)); simpl.
-  destruct f, g; simpl.
-  unfold alg_hom_eq; simpl.
-  simpl in H; rewrite H.
-  reflexivity.
+  by apply alg_hom_map_eq.
 Qed.
 
 Lemma alg_hom_map_prop_eq' {C : category} {T : functor C C} {A B : algebra T} (f g : alg_hom A B) :
@@ -404,7 +400,8 @@ Section solution.
       _.
   Next Obligation.
   intros α ps ps' psiso pse pse' pseseq; split; simpl in *.
-  - intros β; simpl.
+  - apply natural_equiv_unpack.
+    intros β; simpl.
     destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp β))) as [Hltβ|Heqβ].
     + rewrite !(extend_ord_ds_cat_nat_map_lt _ _ Hltβ) /=.
       apply alg_hom_map_eq; simpl.
@@ -413,7 +410,7 @@ Section solution.
       rewrite !eq_trans_sym_inv_r !eq_trans_refl_r.
       rewrite hom_trans_compose_take_in_r /= -hom_trans_trans.
       rewrite !eq_trans_refl_l !eq_trans_refl_r !hom_trans_refl /=.
-      pose proof (iso_lr (is_iso psiso) (MkDS (lt_dsp α) (squash Hltβ))) as Hlr;
+      pose proof (natural_equiv_pack (iso_lr (is_iso psiso)) (MkDS (lt_dsp α) (squash Hltβ))) as Hlr;
         apply alg_hom_map_eq' in Hlr; simpl in Hlr; rewrite Hlr; clear Hlr.
       rewrite hom_trans_id //.
     + rewrite !(extend_ord_ds_cat_nat_map_at _ _ Heqβ) /=.
@@ -423,10 +420,11 @@ Section solution.
       rewrite !eq_trans_sym_inv_r !eq_trans_refl_r.
       rewrite hom_trans_compose_take_in_r /= -hom_trans_trans.
       rewrite !eq_trans_refl_l !eq_trans_refl_r !hom_trans_refl /=.
-      pose proof (iso_lr (is_iso (eq_cones_vertexes pseseq))) as Hlr;
+      pose proof iso_lr (is_iso (eq_cones_vertexes pseseq)) as Hlr;
         apply alg_hom_map_eq' in Hlr; simpl in Hlr; rewrite Hlr; clear Hlr.
       rewrite hom_trans_id //.
-  - intros β; simpl.
+  - apply natural_equiv_unpack.
+    intros β; simpl.
     destruct (index_le_lt_eq_dec _ _ (unsquash (ds_in_dsp β))) as [Hltβ|Heqβ].
     + rewrite !(extend_ord_ds_cat_nat_map_lt _ _ Hltβ) /=.
       apply alg_hom_map_eq; simpl.
@@ -435,7 +433,7 @@ Section solution.
       rewrite !eq_trans_sym_inv_r !eq_trans_refl_r.
       rewrite hom_trans_compose_take_in_r /= -hom_trans_trans.
       rewrite !eq_trans_refl_l !eq_trans_refl_r !hom_trans_refl /=.
-      pose proof (iso_rl (is_iso psiso) (MkDS (lt_dsp α) (squash Hltβ))) as Hlr;
+      pose proof (natural_equiv_pack (iso_rl (is_iso psiso)) (MkDS (lt_dsp α) (squash Hltβ))) as Hlr;
         apply alg_hom_map_eq' in Hlr; simpl in Hlr; rewrite Hlr; clear Hlr.
       rewrite hom_trans_id //.
     + rewrite !(extend_ord_ds_cat_nat_map_at _ _ Heqβ) /=.
@@ -563,7 +561,7 @@ Section solution.
     epose proof (λ δ γ g, func_eq_h_map (eqs α) (a := δ) (b := γ) g) as HEQ.
     rewrite /= /cut_ord_ds_cat_func_h_map /= in HEQ.
     match goal with
-    | |- context G [_ ₕ ?a ≡ _] =>
+    | |- context G [_ ₕ ?a = _] =>
         set (f' := a)
     end.
     simpl in f'.
@@ -587,11 +585,11 @@ Section solution.
                (cut_ord_ds_cat_func _ (le_dsp_included a) Q);
            iso_fam_compat_forward : ∀ (a b : downset dsp) (f : le_dsp b a),
              forward (iso_fam a) ₙ (dsp_le_top a)
-               ≡ forward (iso_fam b) ₙ (MkDS (le_dsp b)
+               = forward (iso_fam b) ₙ (MkDS (le_dsp b)
                                           (squash f));
            iso_fam_compat_backward : ∀ (a b : downset dsp) (f : le_dsp b a),
              backward (iso_fam a) ₙ (dsp_le_top a)
-               ≡ backward (iso_fam b) ₙ (MkDS (le_dsp b)
+               = backward (iso_fam b) ₙ (MkDS (le_dsp b)
                                            (squash f));
          }.
 
@@ -618,8 +616,6 @@ Section solution.
     | |- context G [MkDS ?a ?b] =>
         set (T := MkDS a b)
     end.
-    pose proof (forward (iso_fam P Q eqs b)ₙ (dsp_le_top b)).
-    pose proof (forward (iso_fam P Q eqs a)ₙ T).
     apply (iso_fam_compat_forward _ _ eqs b).
   Qed.
   Next Obligation.
@@ -636,14 +632,16 @@ Section solution.
   Next Obligation.
     intros; simpl.
     split.
-    - intros ?; simpl.
-      pose proof (iso_lr (is_iso (iso_fam _ _ eqs a))
+    - apply natural_equiv_unpack.
+      intros ?; simpl.
+      pose proof (natural_equiv_pack (iso_lr (is_iso (iso_fam _ _ eqs a)))
                     (dsp_le_top a)) as H.
       simpl in H.
       rewrite H; clear H.
       reflexivity.
-    - intros ?; simpl.
-      pose proof (iso_rl (is_iso (iso_fam _ _ eqs a))
+    - apply natural_equiv_unpack.
+      intros ?; simpl.
+      pose proof (natural_equiv_pack (iso_rl (is_iso (iso_fam _ _ eqs a)))
                     (dsp_le_top a)) as H.
       simpl in H.
       rewrite H; clear H.
@@ -722,7 +720,8 @@ Section solution.
   Transparent comp id.
   Next Obligation.
     intros; simpl; split.
-    - intros ?; simpl.
+    - apply natural_equiv_unpack.
+      intros ?; simpl.
       apply alg_hom_map_eq; simpl.
       rewrite !hom_trans_alg_hom_map /=.
       rewrite !hom_trans_compose_take_in_l.
@@ -730,7 +729,8 @@ Section solution.
       rewrite !hom_trans_refl.
       rewrite left_id.
       reflexivity.
-    - intros ?; simpl.
+    - apply natural_equiv_unpack.
+      intros ?; simpl.
       apply alg_hom_map_eq; simpl.
       rewrite !hom_trans_alg_hom_map /=.
       rewrite !hom_trans_compose_take_in_l.
@@ -797,7 +797,7 @@ Section solution.
     (ps : partial_solution (lt_dsp α))
     (H : dsp_included (lt_dsp α) (le_dsp α))
     : ∀ (β : downset (lt_dsp α)),
-    forward (extend_par_sol_lt_le_iso_lt ps H) ₙ β ≡
+    forward (extend_par_sol_lt_le_iso_lt ps H) ₙ β =
       hom_trans
       eq_refl
       (extend_ord_ds_cat_func_o_map_lt
@@ -822,11 +822,13 @@ Section solution.
                 (β := (dsp_include H β))
                 (alg_func_on_cone (alg_lim_cone ps')) (unsquash (ds_in_dsp β)))
              (forward (extend_par_sol_lt_le_iso Hiso) ₙ (dsp_include H β)))
-        ≡ (forward Hiso ₙ β).
+        = (forward Hiso ₙ β).
   Proof.
     simpl.
     unshelve rewrite extend_ord_ds_cat_nat_map_lt.
     { apply (unsquash (ds_in_dsp β)). }
+    intros T.
+    replace T with (unsquash (ds_in_dsp β)); last apply proof_irrel.
     rewrite -!hom_trans_trans.
     rewrite !eq_trans_sym_inv_l.
     rewrite hom_trans_refl.
@@ -846,11 +848,13 @@ Section solution.
                 (β := (dsp_include H β))
                 (alg_func_on_cone (alg_lim_cone ps)) (unsquash (ds_in_dsp β)))
              (backward (extend_par_sol_lt_le_iso Hiso) ₙ (dsp_include H β)))
-        ≡ (backward Hiso ₙ β).
+        = (backward Hiso ₙ β).
   Proof.
     simpl.
     unshelve rewrite extend_ord_ds_cat_nat_map_lt.
     { apply (unsquash (ds_in_dsp β)). }
+    intros T.
+    replace T with (unsquash (ds_in_dsp β)); last apply proof_irrel.
     rewrite -!hom_trans_trans.
     rewrite !eq_trans_sym_inv_l.
     rewrite hom_trans_refl.
@@ -863,7 +867,7 @@ Section solution.
     (Hiso : ps ≃@{FuncCat _ _} ps')
     (β : downset (lt_dsp α))
     : backward (extend_par_sol_lt_le_iso Hiso) ₙ (dsp_include H β)
-        ≡ hom_trans
+        = hom_trans
              (eq_sym (extend_ord_ds_cat_func_o_map_lt
                 (β := (dsp_include H β))
                 (alg_func_on_cone (alg_lim_cone ps')) (unsquash (ds_in_dsp β))))
@@ -875,6 +879,8 @@ Section solution.
     simpl.
     unshelve rewrite extend_ord_ds_cat_nat_map_lt.
     { apply (unsquash (ds_in_dsp β)). }
+    intros T.
+    replace T with (unsquash (ds_in_dsp β)); last apply proof_irrel.
     f_equiv.
     reflexivity.
   Qed.
@@ -885,7 +891,7 @@ Section solution.
     (Hiso : ps ≃@{FuncCat _ _} ps')
     (β : downset (lt_dsp α))
     : forward (extend_par_sol_lt_le_iso Hiso) ₙ (dsp_include H β)
-        ≡ hom_trans
+        = hom_trans
              (eq_sym (extend_ord_ds_cat_func_o_map_lt
                 (β := (dsp_include H β))
                 (alg_func_on_cone (alg_lim_cone ps)) (unsquash (ds_in_dsp β))))
@@ -897,6 +903,8 @@ Section solution.
     simpl.
     unshelve rewrite extend_ord_ds_cat_nat_map_lt.
     { apply (unsquash (ds_in_dsp β)). }
+    intros T.
+    replace T with (unsquash (ds_in_dsp β)); last apply proof_irrel.
     f_equiv.
     reflexivity.
   Qed.
@@ -905,7 +913,7 @@ Section solution.
     (ps : partial_solution (lt_dsp α))
     (H : dsp_included (lt_dsp α) (le_dsp α))
     : ∀ (β : downset (lt_dsp α)),
-    backward (extend_par_sol_lt_le_iso_lt ps H) ₙ β ≡
+    backward (extend_par_sol_lt_le_iso_lt ps H) ₙ β =
       hom_trans
       (extend_ord_ds_cat_func_o_map_lt
          (β := (dsp_include H β))
@@ -940,37 +948,37 @@ Section solution.
     rewrite -alg_hom_map_comp.
     rewrite -h_map_comp.
     do 2 f_equiv.
-    reflexivity.
+    apply proof_irrel.
   Qed.
 
   Lemma iso_forward_trans {D : category} {a b c : obj D}
     (H1 : a ≃ b) (H2 : b ≃ c) :
     forward (isomorphic_trans H1 H2)
-      ≡ (forward H2) ∘ (forward H1).
+      = (forward H2) ∘ (forward H1).
   Proof. reflexivity. Qed.
 
   Lemma iso_backward_trans {D : category} {a b c : obj D}
     (H1 : a ≃ b) (H2 : b ≃ c) :
     backward (isomorphic_trans H1 H2)
-      ≡ (backward H1) ∘ (backward H2).
+      = (backward H1) ∘ (backward H2).
   Proof. reflexivity. Qed.
 
   Lemma iso_forward_sym {D : category} {a b : obj D}
     (H : a ≃ b) :
     forward (isomorphic_sym H)
-      ≡ backward H.
+      = backward H.
   Proof. reflexivity. Qed.
 
   Lemma iso_backward_sym {D : category} {a b : obj D}
     (H : a ≃ b) :
     backward (isomorphic_sym H)
-      ≡ forward H.
+      = forward H.
   Proof. reflexivity. Qed.
 
   Lemma iso_backward_equiv {D E : category} {a b : functor D E}
-    (H : a ≡ b) x
+    (H : functor_equiv a b) x
     : backward (functor_eq_natural_iso H) ₙ x
-        ≡ hom_trans (func_eq_o_map H _) eq_refl (id _).
+        = hom_trans (func_eq_o_map H _) eq_refl (id _).
   Proof.
     unfold functor_eq_natural_iso.
     simpl.
@@ -979,9 +987,9 @@ Section solution.
   Qed.
 
   Lemma iso_forward_equiv {D E : category} {a b : functor D E}
-    (H : a ≡ b) x
+    (H : functor_equiv a b) x
     : forward (functor_eq_natural_iso H) ₙ x
-        ≡ hom_trans eq_refl (func_eq_o_map H _) (id _).
+        = hom_trans eq_refl (func_eq_o_map H _) (id _).
   Proof.
     unfold functor_eq_natural_iso.
     simpl.
@@ -990,28 +998,31 @@ Section solution.
   Qed.
 
   Lemma functor_eq_natural_iso_trans_fwd {D E : category} {a b : functor D E}
-    (H : a ≡ b)
-    : forward (functor_eq_natural_iso H) ≡ functor_eq_natural H.
+    (H : functor_equiv a b)
+    : forward (functor_eq_natural_iso H) = functor_eq_natural H.
   Proof.
+    apply natural_equiv_unpack.
     intros ?; simpl.
     reflexivity.
   Qed.
 
   Lemma functor_eq_natural_iso_trans_bwd {D E : category} {a b : functor D E}
-    (H : a ≡ b)
-    : backward (functor_eq_natural_iso H) ≡ functor_eq_natural_backward H.
+    (H : functor_equiv a b)
+    : backward (functor_eq_natural_iso H) = functor_eq_natural_backward H.
   Proof.
+    apply natural_equiv_unpack.
     intros ?; simpl.
     reflexivity.
   Qed.
 
   Lemma iso_backward_equiv' {D E : category} {a b : functor D E}
-    (H : a ≡ b)
+    (H : functor_equiv a b)
     : backward (functor_eq_natural_iso H)
-        ≡ forward (functor_eq_natural_iso (symmetry H)).
+        = forward (functor_eq_natural_iso (symmetry H)).
   Proof.
     unfold functor_eq_natural_iso.
     simpl.
+    apply natural_equiv_unpack.
     intros ?.
     rewrite -functor_eq_natural_iso_trans_bwd /=.
     f_equiv.
@@ -1293,7 +1304,7 @@ Section solution.
                          (dsp_le_top α)
                          (dsp_include J β)),
                   (hom_trans (C := C) (car_eq H') (car_eq (func_eq_o_map H β))
-                     (alg_hom_map (P ₕ f)) ≡ alg_hom_map (Q ₕ f))))
+                     (alg_hom_map (P ₕ f)) = alg_hom_map (Q ₕ f))))
     : functor_equiv P Q.
   Proof.
     unshelve econstructor.
@@ -1419,7 +1430,7 @@ Section solution.
         rewrite /cut_ord_ds_cat_func_h_map.
         symmetry.
         match goal with
-        | |- context G [_ ₕ ?a ≡ _] =>
+        | |- context G [_ ₕ ?a = _] =>
             set (f' := a)
         end.
         simpl in f'.
@@ -1492,7 +1503,7 @@ Section solution.
           set (T1 := b)
       end.
       match goal with
-      | |- context G [_ ≡ ?a] =>
+      | |- context G [_ = ?a] =>
           set (T2 := a)
       end.
       assert (T1 = T2) as <-.
@@ -1717,13 +1728,7 @@ Section solution.
                    (cut_par_sol_canon _ P (canon_fam _))
                    (canon_fam b)) (dsp_le_top b)) (id _))
               ∘ h_map (a := dsp_le_top a) (b := b') (collection a) f))
-         _ _ _.
-  Next Obligation.
-    intros; simpl.
-    intros ???.
-    assert (x = y) as -> by apply proof_irrelevance.
-    f_equal.
-  Qed.
+         _ _.
   Next Obligation.
     intros; simpl.
     match goal with
@@ -1751,7 +1756,7 @@ Section solution.
     { by rewrite eq_sym_involutive. }
     rewrite -hom_trans_compose_r.
     match goal with
-    | |- context G [_ ≡ hom_trans _ _ _ ∘ ?a]
+    | |- context G [_ = hom_trans _ _ _ ∘ ?a]
       => assert (a = hom_trans eq_refl eq_refl a) as ->
     end; first by rewrite hom_trans_refl.
     rewrite hom_trans_compose_take_in_r.
@@ -1766,11 +1771,11 @@ Section solution.
       => set (P2 := a)
     end.
     match goal with
-    | |- context G [_ ≡ hom_trans ?a _ _]
+    | |- context G [_ = hom_trans ?a _ _]
       => set (P3 := a)
     end; clearbody P3.
     match goal with
-    | |- context G [_ ≡ hom_trans _ (func_eq_o_map ?a _) _]
+    | |- context G [_ = hom_trans _ (func_eq_o_map ?a _) _]
       => set (P4 := a)
     end.
     match goal with
@@ -1843,7 +1848,7 @@ Section solution.
     := MkParSol (tower collection canon_fam) _ _.
   Next Obligation.
     intros; simpl.
-    rewrite (hom_eq_reflect (alg_hom_map_comp _ _)).
+    rewrite ((alg_hom_map_comp _ _)).
     apply is_iso_at_compose.
     - apply (parsol_edge_iso (collection α)).
     - rewrite hom_trans_alg_hom_map.
@@ -1877,7 +1882,7 @@ Section solution.
     - eapply (cones_equiv_pack (reflexivity _)).
       unshelve econstructor.
       + reflexivity.
-      + intros; apply hom_eq_reflect, alg_hom_map_eq; simpl.
+      + intros; apply alg_hom_map_eq; simpl.
         rewrite func_eq_o_map_refl hom_trans_refl; simpl.
         reflexivity.
   Qed.
@@ -1893,7 +1898,7 @@ Section solution.
     unshelve econstructor.
     - simpl.
       reflexivity.
-    - intros; apply hom_eq_reflect, alg_hom_map_eq; simpl.
+    - intros; apply alg_hom_map_eq; simpl.
       rewrite func_eq_o_map_refl hom_trans_refl; simpl.
       reflexivity.
   Qed.
@@ -1908,7 +1913,7 @@ Section solution.
     unshelve econstructor.
     - simpl.
       reflexivity.
-    - intros; apply hom_eq_reflect, alg_hom_map_eq; simpl.
+    - intros; apply alg_hom_map_eq; simpl.
       rewrite func_eq_o_map_refl hom_trans_refl; simpl.
       reflexivity.
   Qed.
@@ -1965,7 +1970,7 @@ Section solution.
       eapply (eq_trans (extend_ord_ds_cat_func_o_map_lt
                           (alg_func_on_cone (alg_lim_cone P)) Hlt)).
       reflexivity.
-    - intros; apply hom_eq_reflect, alg_hom_map_eq.
+    - intros; apply alg_hom_map_eq.
       rewrite !hom_trans_alg_hom_map /=.
       rewrite extend_ord_ds_cat_func_h_map_lt_lt; first last.
       + intros Hyp.
@@ -2055,7 +2060,7 @@ Section solution.
                              (α := β') (β := β')
                              (alg_func_on_cone (alg_lim_cone P)) eq_refl))).
         simpl. reflexivity.
-      * intros j; apply hom_eq_reflect, alg_hom_map_eq.
+      * intros j; apply alg_hom_map_eq.
         rewrite !hom_trans_alg_hom_map /=.
         rewrite extend_ord_ds_cat_func_h_map_lt_eq.
         { simpl. apply (unsquash (ds_in_dsp j)). }
@@ -2180,7 +2185,7 @@ Section solution.
         => set (T2 := a)
       end; clearbody T2.
       match goal with
-      | |- context G [_ ≡ hom_trans _ ?a _ ∘ _]
+      | |- context G [_ = hom_trans _ ?a _ ∘ _]
         => set (T3 := a)
       end; clearbody T3.
       simpl in *.
