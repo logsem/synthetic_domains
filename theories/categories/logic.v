@@ -104,12 +104,6 @@ Notation "'Ωₒ'" := (subobject_classifier_psh _) (at level 20, no associativit
 Section logic.
   Context {C : category}.
 
-  Program Definition global_sections
-    : functor (PSh C) Typ
-    := functor_fix_left (Hom (PSh C)) ₒ (1ₒ@{PSh C}).
-
-  Definition PROP : Type := global_sections ₒ (Ωₒ@{C}).
-
   Definition entails {Γ : obj (PSh C)}
     (P Q : hom Γ (Ωₒ)) : Prop :=
     ∀ n γ m f, (P ₙ n) γ m f → (Q ₙ n) γ m f.
@@ -161,7 +155,11 @@ Section logic.
     : hom (C := PSh C) (1ₒ) (Ωₒ)
     := MkNat (λ _, λ _, total_sieve _) _.
   Next Obligation.
-    repeat intros ?; done.
+    repeat intros ?.
+    extensionality x; simpl.
+    apply sieve_equiv_unpack.
+    intros ?; simpl.
+    done.
   Qed.
   Fail Next Obligation.
 
@@ -172,18 +170,17 @@ Section logic.
 
   Program Definition falseI
     : hom (C := PSh C) (1ₒ) (Ωₒ)
-    := MkNat (λ _, λset _, λsieve _, λset _, False) _.
+    := MkNat (λ _, λ _, λsieve _, λ _, False) _.
   Next Obligation.
-    repeat intros ?; done.
+    repeat intros ?.
+    done.
   Qed.
   Next Obligation.
-    repeat intros ?; done.
-  Qed.
-  Next Obligation.
-    repeat intros ?; done.
-  Qed.
-  Next Obligation.
-    repeat intros ?; done.
+    repeat intros ?.
+    extensionality x; simpl.
+    apply sieve_equiv_unpack.
+    intros ?; simpl.
+    done.
   Qed.
   Fail Next Obligation.
 
@@ -193,21 +190,17 @@ Section logic.
   Notation "'⊥ᵢ'" := false : logic_scope.
 
   Program Definition conj_arr : hom ((Ωₒ) ×ₒ@{PSh C} (Ωₒ)) (Ωₒ)
-    := MkNat (λ x, λset y, λsieve p, λset t, (fst y p t) ∧ (snd y p t)) _.
-  Next Obligation.
-    repeat intros ?; solve_by_eq_rewrite.
-  Qed.
+    := MkNat (λ x, λ y, λsieve p, λ t, (fst y p t) ∧ (snd y p t)) _.
   Next Obligation.
     intros; simpl in *.
     split; now apply sieve_closed.
   Qed.
   Next Obligation.
-    intros ? [? ?] [? ?] [? ?] ??; simpl in *.
-    solve_by_eq_rewrite.
-  Qed.
-  Next Obligation.
-    intros ??? [? ?] [? ?] [? ?] ??; simpl in *.
-    solve_by_eq_rewrite.
+    repeat intros ?.
+    extensionality x; simpl.
+    apply sieve_equiv_unpack.
+    intros ?; simpl.
+    done.
   Qed.
   Fail Next Obligation.
 
@@ -217,22 +210,18 @@ Section logic.
   Infix "∧ᵢ" := conj (at level 80, right associativity) : logic_scope.
 
   Program Definition disjI : hom ((Ωₒ) ×ₒ@{PSh C} (Ωₒ)) (Ωₒ)
-    := MkNat (λ x, λset y, λsieve p, λset t, (fst y p t) ∨ (snd y p t)) _.
-  Next Obligation.
-    repeat intros ?; solve_by_eq_rewrite.
-  Qed.
+    := MkNat (λ x, λ y, λsieve p, λ t, (fst y p t) ∨ (snd y p t)) _.
   Next Obligation.
     intros ?????? [H | H]; simpl in *.
     - left; now apply sieve_closed.
     - right; now apply sieve_closed.
   Qed.
   Next Obligation.
-    intros ? [? ?] [? ?] [? ?] ??; simpl in *.
-    solve_by_eq_rewrite.
-  Qed.
-  Next Obligation.
-    intros ??? [? ?] [? ?] [? ?] ??; simpl in *.
-    solve_by_eq_rewrite.
+    repeat intros ?.
+    extensionality x; simpl.
+    apply sieve_equiv_unpack.
+    intros ?; simpl.
+    done.
   Qed.
   Fail Next Obligation.
 
@@ -242,20 +231,8 @@ Section logic.
   Infix "∨ᵢ" := disj (at level 85, right associativity) : logic_scope.
 
   Program Definition implI : hom ((Ωₒ) ×ₒ@{PSh C} (Ωₒ)) (Ωₒ)
-    := MkNat (λ x, λset y, λsieve p, λset t,
+    := MkNat (λ x, λ y, λsieve p, λ t,
            (∀ q (e : hom q p), fst y q (t ∘ e) → snd y q (t ∘ e))) _.
-  Next Obligation.
-    intros; simpl in *.
-    intros ?? H; split; intros G q e J.
-    - rewrite -H.
-      apply G.
-      rewrite H.
-      apply J.
-    - rewrite H.
-      apply G.
-      rewrite -H.
-      apply J.
-  Qed.
   Next Obligation.
     intros ?????? H; simpl in *.
     intros ?? K.
@@ -265,28 +242,15 @@ Section logic.
     apply K.
   Qed.
   Next Obligation.
-    intros; simpl in *.
-    intros d f [H1 H2].
-    split; intros G q e J.
-    - rewrite -H2.
-      apply G.
-      by rewrite H1.
-    - rewrite H2.
-      apply G.
-      by rewrite -H1.
-  Qed.
-  Next Obligation.
-    intros a b f; simpl in *.
-    intros c d [H1 H2].
-    split; intros J q e K.
-    - rewrite comp_assoc.
-      apply H2, J; simpl.
-      rewrite -comp_assoc.
-      apply H1, K.
-    - rewrite /= -comp_assoc.
-      apply H2, J, H1.
-      rewrite comp_assoc.
-      apply K.
+    repeat intros ?.
+    extensionality x; simpl.
+    apply sieve_equiv_unpack.
+    intros ?; simpl.
+    intros; simpl.
+    extensionality y; simpl.
+    extensionality z; simpl.
+    rewrite comp_assoc.
+    done.
   Qed.
   Fail Next Obligation.
 
@@ -297,29 +261,23 @@ Section logic.
 
   Program Definition all_arr {X : obj (PSh C)}
     : hom ((Ωₒ) ↑ₒ X) (Ωₒ)
-    := MkNat (λ x, λset y,
-           λsieve p, λset t,
+    := MkNat (λ x, λ y,
+           λsieve p, λ t,
            ∀ q (e : hom q p) (r : X ₒ q), (y ₙ q) (t ∘ e, r) q (id _)) _.
-  Next Obligation.
-    intros ?????? H; apply setoid_eq_reflect in H; by rewrite H.
-  Qed.
   Next Obligation.
     intros ??????? H ???; simpl.
     simpl in *.
-    rewrite (hom_eq_reflect (comp_assoc _ _ _)).
+    rewrite (comp_assoc _ _ _).
     apply H.
   Qed.
   Next Obligation.
-    intros ???? H; simpl.
-    rewrite (setoid_eq_reflect H).
+    repeat intros ?.
+    extensionality x; simpl.
+    apply sieve_equiv_unpack.
+    repeat intros ?; simpl.
+    extensionality y; extensionality z.
+    rewrite comp_assoc.
     done.
-  Qed.
-  Next Obligation.
-    intros ?????? H ??; simpl.
-    rewrite (setoid_eq_reflect H).
-    split; intros ????.
-    - by rewrite (hom_eq_reflect (comp_assoc _ _ _)).
-    - by rewrite -(hom_eq_reflect (comp_assoc _ _ _)).
   Qed.
 
   Definition all {Γ : obj (PSh C)}
@@ -331,75 +289,25 @@ Section logic.
       (at level 95, P at level 95, format "∀ᵢ[ A ]  P")
       : logic_scope.
 
-  Program Definition discr_all :
-    ∀ A, (A → (global_sections ₒ (Ωₒ@{C})))
-         → (global_sections ₒ (Ωₒ@{C}))
-  := λ A f, MkNat (λ x, λset y, λsieve d, λset g,
-                ∀ q (e : hom q d) (r : A),
-                     ((f r) ₙ x) y q (g ∘ e)) _.
-  Next Obligation.
-    intros ??????? H.
-    by rewrite (setoid_eq_reflect H).
-  Qed.
-  Next Obligation.
-    intros; simpl in *.
-    intros.
-    by rewrite (hom_eq_reflect (comp_assoc _ _ _)).
-  Qed.
-  Next Obligation.
-    by intros ??? [] [] [].
-  Qed.
-  Next Obligation.
-    intros ? f ?? g x y G ? h; simpl; split; intros H' q e r.
-    - specialize (H' q e r).
-      rewrite (setoid_eq_reflect (naturality (f r) g x y G q (h ∘ e))) in H'.
-      rewrite (hom_eq_reflect (comp_assoc _ _ _)).
-      apply H'.
-    - specialize (H' q e r).
-      rewrite (setoid_eq_reflect (naturality (f r) g x y G q (h ∘ e))).
-      rewrite (hom_eq_reflect (comp_assoc _ _ _)) in H'.
-      apply H'.
-  Qed.
-
-  Notation "∀ᵢ x , P" :=
-    (discr_all _ (λ x, P)) (at level 95) : logic_scope.
-
   Program Definition existI {X : obj (PSh C)} : hom ((Ωₒ) ↑ₒ X) (Ωₒ) :=
-    MkNat (λ x, λset y, λsieve p, λset t,
+    MkNat (λ x, λ y, λsieve p, λ t,
         ∃ (r : X ₒ p), (y ₙ p) (t, r) p (id _)) _.
-  Next Obligation.
-    intros; simpl in *.
-    intros ?? H.
-    split; intros [r G]; exists r.
-    - by rewrite -(hom_eq_reflect H).
-    - by rewrite (hom_eq_reflect H).
-  Qed.
   Next Obligation.
     intros ?????? g [r H]; simpl in *.
     exists ((X ₕ g) r).
-    pose proof (naturality y g (f, r) (f, r)) as G.
-    simpl in G.
-    rewrite (hom_eq_reflect (left_id _)) in G.
-    rewrite G; last done; clear G.
-    rewrite /= right_id.
+    pose proof (equal_f (naturality y g) (f, r)) as G.
+    rewrite /= /hom_prod /= left_id in G.
+    rewrite G /= right_id; clear G.
     eapply sieve_closed in H.
-    rewrite (hom_eq_reflect (left_id _)) in H.
+    rewrite left_id in H.
     apply H.
   Qed.
   Next Obligation.
-    intros; simpl in *.
-    intros f d H.
-    split; intros [r G]; exists r.
-    - rewrite -(natural_equiv_unpack H).
-      apply G.
-    - rewrite (natural_equiv_unpack H).
-      apply G.
-  Qed.
-  Next Obligation.
-    intros; simpl in *; intros e d H c g; simpl.
-    split; intros [r G]; exists r.
-    - rewrite -(natural_equiv_unpack H); apply G.
-    - rewrite (natural_equiv_unpack H); apply G.
+    repeat intros ?.
+    extensionality x; simpl.
+    apply sieve_equiv_unpack.
+    intros ?; simpl.
+    done.
   Qed.
   Fail Next Obligation.
 
@@ -411,42 +319,20 @@ Section logic.
                             (at level 95, P at level 95, format "∃ᵢ[ A ]  P")
       : logic_scope.
 
-  Program Definition discr_exist :
-    ∀ A, (A → (global_sections ₒ (Ωₒ@{C})))
-         → (global_sections ₒ (Ωₒ@{C}))
-  := λ A f, MkNat (λ x, λset γ, λsieve p, λset t,
-                ∃ (r : A), ((f r) ₙ x) γ p t) _.
+  Program Definition pureI (P : Prop) : hom (1ₒ) (Ωₒ@{C}) :=
+    MkNat (λ x, λ y, λsieve p, λ t, P) _.
   Next Obligation.
-    intros; simpl.
-    intros ?? H; split; intros [r G]; exists r.
-    - now rewrite -H.
-    - now rewrite H.
+    repeat intros ?; simpl.
+    assumption.
   Qed.
   Next Obligation.
-    intros; simpl.
-    simpl in H.
-    destruct H as [r H].
-    exists r.
-    apply sieve_closed, H.
-  Qed.
-  Next Obligation.
-    intros; simpl.
-    intros [] [] H; split; intros [r G]; exists r; apply G.
-  Qed.
-  Next Obligation.
-    intros A f a b g.
-    intros [] [] H d h.
-    split; intros G; destruct G as [r G]; exists r;
-      eapply (naturality (f r) g () () (reflexivity _) d h), G.
+    repeat intros ?.
+    extensionality x; simpl.
+    apply sieve_equiv_unpack.
+    intros ?; simpl.
+    done.
   Qed.
   Fail Next Obligation.
-
-  Notation "∃ᵢ x , P" :=
-    (discr_exist _ (λ x, P)) (at level 95) : logic_scope.
-
-  Program Definition pureI (P : Prop) : hom (1ₒ) (Ωₒ@{C}) :=
-    MkNat (λ x, λset y, λsieve p, λset t, P) _.
-  Solve All Obligations with done.
 
   Definition pure {Γ : obj (PSh C)} (P : Prop) : hom Γ (Ωₒ@{C})
     := pureI P ∘ (!ₕ _).
@@ -463,7 +349,7 @@ Section logic.
     t ≡ᵢ u ⊢ᵢ u ≡ᵢ t.
   Proof.
     intros n γ m f H; simpl.
-    by rewrite (setoid_eq_reflect H).
+    by rewrite H.
   Qed.
 
   Lemma eq_trans {Γ A} (t u v : hom Γ A) :
@@ -487,9 +373,10 @@ Section logic.
     P ≡ᵢ Q ∧ᵢ P ⊢ᵢ Q.
   Proof.
     intros n γ m f [He HP]; simpl in *.
-    specialize (He m (id _)).
-    rewrite /= (hom_eq_reflect (right_id _)) in He.
-    by apply He.
+    pose proof (sieve_equiv_pack He m (id _)) as G.
+    rewrite /= right_id in G.
+    rewrite -G; clear G.
+    apply HP.
   Qed.
 
   Lemma true_intro {Γ} {P : hom Γ (Ωₒ)} :
@@ -564,7 +451,7 @@ Section logic.
     assert (Px' : (P ₙ) n γ m (f ∘ (id _))).
     { by rewrite right_id. }
     specialize (H Px').
-    rewrite (hom_eq_reflect (right_id _)) in H.
+    rewrite right_id in H.
     apply H.
   Qed.
 
@@ -573,7 +460,7 @@ Section logic.
   Proof.
     intros H n γ m f Rx j Hj y; simpl.
     apply H; simpl.
-    rewrite (psh_naturality R j n (f ∘ Hj) γ j (id _)) /=.
+    rewrite (psh_naturality R j n (f ∘ Hj) γ) /=.
     rewrite right_id.
     apply sieve_closed.
     apply Rx.
@@ -586,12 +473,14 @@ Section logic.
     intros n γ m f H; simpl.
     specialize (H m (id _) ((t ₙ) m ((Γ ₕ f) γ))).
     simpl in H.
-    pose proof (psh_naturality P _ _ (f ∘ (id _)) (((t ₙ n) γ), γ) m (id _)) as G.
-    simpl in G.
-    rewrite !(hom_eq_reflect (right_id f)) in G.
-    rewrite !(hom_eq_reflect (right_id f)) in H.
-    apply G.
-    rewrite -(setoid_eq_reflect (psh_naturality _ _ _ _ _)).
+    pose proof (psh_naturality P _ _ (f ∘ (id _)) (((t ₙ n) γ), γ)) as G.
+    rewrite /= (right_id f) in G.
+    rewrite /= (right_id f) in H.
+    pose proof (sieve_equiv_pack G _ (id _)) as J; clear G.
+    rewrite /= right_id in J.
+    rewrite -J.
+    rewrite /hom_prod /=.
+    rewrite -(psh_naturality t _ _ f).
     apply H.
   Qed.
 
@@ -602,10 +491,10 @@ Section logic.
     intros n γ m f Px.
     exists ((t ₙ m) ((Γ ₕ f) γ)).
     simpl in *.
-    rewrite (setoid_eq_reflect (psh_naturality _ _ _ _ _)).
+    rewrite psh_naturality.
     pose proof (psh_naturality P m n f ((A ₕ (id _)) ((t ₙ n) γ), (Γ ₕ (id _)) γ)) as H.
-    rewrite /= !(hom_eq_reflect (h_map_id _ _ _ _)) /= in H.
-    rewrite H; clear H.
+    rewrite /= !h_map_id /= in H.
+    rewrite (sieve_equiv_pack H _ (id _)).
     apply sieve_closed, Px.
   Qed.
 
@@ -615,8 +504,7 @@ Section logic.
     intros H n γ m f [y Py]; simpl in *.
     pose proof (H m (y, ((Γ ₕ f) γ)) m (id _) Py) as J.
     simpl in J.
-    rewrite (setoid_eq_reflect (psh_naturality _ _ _ _ _)) /= in J.
-    rewrite (hom_eq_reflect (right_id _)) in J.
+    rewrite psh_naturality /= right_id in J.
     apply J.
   Qed.
 
@@ -633,38 +521,7 @@ Section logic.
     by apply H.
   Qed.
 
-  Lemma discr_all_intro {A} P (Ψ : A → (global_sections ₒ (Ωₒ)))
-    : (∀ a, P ⊢ᵢ Ψ a) → P ⊢ᵢ ∀ᵢ a, Ψ a.
-  Proof.
-    intros H.
-    intros ????????.
-    apply sieve_closed.
-    by apply H.
-  Qed.
-
-  Lemma discr_all_elim {A} {Ψ : A → (global_sections ₒ (Ωₒ))} a
-    : (∀ᵢ a, Ψ a) ⊢ᵢ Ψ a.
-  Proof.
-    intros n γ m f H.
-    specialize (H m (id _) a).
-    by rewrite (hom_eq_reflect (right_id _)) in H.
-  Qed.
-
-  Lemma discr_exist_intro {A} {Ψ : A → (global_sections ₒ (Ωₒ))} a
-    : Ψ a ⊢ᵢ ∃ᵢ a, Ψ a.
-  Proof.
-    intros n γ m f H.
-    by exists a.
-  Qed.
-
-  Lemma discr_exist_elim {A} (Φ : A → (global_sections ₒ (Ωₒ))) Q
-    : (∀ a, Φ a ⊢ᵢ Q) → (∃ᵢ a, Φ a) ⊢ᵢ Q.
-  Proof.
-    intros H n γ m f [r G].
-    apply (H r n γ m f G).
-  Qed.
-
-  Opaque entails true false conj disj impl all exist pure discr_all discr_exist.
+  Opaque entails true false conj disj impl all exist pure.
 
   Lemma false_elim' {Γ} (R P : hom Γ (Ωₒ)) :
     R ⊢ᵢ ⊥ᵢ →
@@ -890,10 +747,11 @@ Section logic.
   Lemma soundness_eq {A B : obj (PSh C)} (t u : hom (1ₒ) A) :
     ⊤ᵢ ⊢ᵢ t ≡ᵢ u → t ≡ u.
   Proof.
-    intros H x [] [] G.
+    intros H x.
+    extensionality y; destruct y.
     specialize (H x () x (id _)).
     rewrite /= in H.
-    rewrite (hom_eq_reflect (h_map_id _ _ _ _)) /= in H.
+    rewrite h_map_id /= in H.
     by apply H.
   Qed.
 
@@ -913,10 +771,6 @@ Notation "∃ᵢ[ A ] P" :=
   (exist A P)
     (at level 95, P at level 95, format "∃ᵢ[ A ]  P")
     : logic_scope.
-Notation "∀ᵢ x , P" :=
-  (discr_all _ (λ x, P)) (at level 95) : logic_scope.
-Notation "∃ᵢ x , P" :=
-  (discr_exist _ (λ x, P)) (at level 95) : logic_scope.
 Notation "'⌜' P '⌝ᵢ'" := (pure P) : logic_scope.
 Infix "⊢ᵢ" := entails (at level 99, no associativity) : logic_scope.
 
@@ -966,13 +820,8 @@ Section si_logic.
     (f : a ≺ b) : hom (C := OrdCat SI) a b := index_lt_le_subrel _ _ f.
 
   Program Definition laterI : hom (C := (PSh (OrdCat SI))) (Ωₒ) (Ωₒ) :=
-    MkNat (λ m, λset γ, λsieve n, λset f,
+    MkNat (λ m, λ γ, λsieve n, λ f,
         ∀ n' (g : n' ≺ n), (γ n' (f ∘ (index_lt_le_subrel_hom g)))) _.
-  Next Obligation.
-    intros; intros ?? H; simpl.
-    rewrite (hom_eq_reflect H).
-    reflexivity.
-  Qed.
   Next Obligation.
     intros x y d e f g H h j.
     eapply ord_cat_sieve_thin;
@@ -980,23 +829,14 @@ Section si_logic.
     apply id.
   Qed.
   Next Obligation.
-    intros; simpl.
-    intros ?? H ??.
-    split; intros ???.
-    - by rewrite -H.
-    - by rewrite H.
-  Qed.
-  Next Obligation.
-    intros; simpl.
-    intros ?? H ??; simpl.
-    rewrite (setoid_eq_reflect H); clear H.
-    split; intros G h g.
-    - eapply ord_cat_sieve_thin;
-        last apply (G _ g).
-      apply id.
-    - eapply ord_cat_sieve_thin;
-        last apply (G _ g).
-      apply id.
+    repeat intros ?.
+    extensionality x; simpl.
+    apply sieve_equiv_unpack.
+    intros ??; simpl.
+    extensionality y; simpl.
+    extensionality z; simpl.
+    f_equiv.
+    apply proof_irrel.
   Qed.
   Fail Next Obligation.
 
@@ -1058,7 +898,7 @@ Section si_logic.
     ⊤ᵢ ⊢ᵢ P.
   Proof.
     intros n γ [] f Px G.
-    rewrite (psh_naturality P γ (succ γ) index_succ_hom () f Px) /=.
+    rewrite (psh_naturality P γ (succ γ) index_succ_hom ()) /=.
     eapply ord_cat_sieve_thin;
       last apply
         (n (succ γ) () (succ f)
@@ -1066,18 +906,37 @@ Section si_logic.
     apply id.
   Qed.
 
-  Lemma laterP_discr_forall {A} (Φ : A → (global_sections ₒ (Ωₒ)))
-    : (∀ᵢ a, (▷ᵢ (Φ a))) ⊢ᵢ ▷ᵢ ∀ᵢ a, Φ a.
+  Lemma laterP_forall {Γ A} (Φ : hom (A ×ₒ Γ) (Ωₒ))
+    : ▷ᵢ (∀ᵢ[A] Φ) ⊢ᵢ (∀ᵢ[A] (laterI ∘ Φ)).
   Proof.
     intros n γ m f Px h.
+    intros g.
+    intros q e r.
+    rewrite left_id.
+    pose proof (sieve_equiv_pack (psh_naturality Φ _ _ (index_lt_le_subrel_hom r) (q, (Γ ₕ transitivity g f) γ)) _ (id _)) as H.
+    simpl in H.
+    simpl.
+    replace (index_lt_le_subrel_hom r) with
+      (transitivity (reflexivity e) (index_lt_le_subrel_hom r));
+      last apply proof_irrel.
+    rewrite -H; clear H.
+    rewrite h_map_comp.
+    rewrite /hom_prod /=.
+    pose proof (Px e (index_lt_le_trans _ _ _ r g) e (id _)
+                  ((A ₕ index_lt_le_subrel_hom r) q)) as H.
+    rewrite right_id in H.
     simpl in *.
-    destruct (index_is_zero m) as [->| Hnz].
-    - intros g.
-      exfalso.
-      by eapply index_lt_zero_is_normal.
-    - intros g q e r.
-      eapply ord_cat_sieve_thin; last apply (Px m (reflexivity _) _ _ g).
-      apply e.
+    replace ((Γ ₕ index_lt_le_subrel_hom r) ((Γ ₕ g) ((Γ ₕ f) γ))) with
+      ((Γ ₕ transitivity (index_lt_le_subrel_hom (index_lt_le_trans e h m r g)) f) γ);
+      first apply H; clear H.
+    epose proof (equal_f (h_map_comp _ _ Γ _ _ _ f g) γ) as H.
+    simpl in H.
+    rewrite -H; clear H.
+    epose proof (equal_f (h_map_comp _ _ Γ _ _ _ (transitivity g f) (index_lt_le_subrel_hom r)) γ) as H.
+    simpl in H.
+    rewrite -H; clear H.
+    f_equiv.
+    apply proof_irrel.
   Qed.
 
   (* TODO: only with finite index *)
@@ -1092,9 +951,9 @@ Section si_logic.
 
   Lemma next_proj (A : obj (PSh (OrdCat SI))) (m : SI) (α β : A ₒ m) :
     (∀ (n' : SI) (g : n' ≺ m),
-       ((A ₕ (index_lt_le_subrel_hom g)) α ≡ ((A ₕ (index_lt_le_subrel_hom g))) β))
+       ((A ₕ (index_lt_le_subrel_hom g)) α = ((A ₕ (index_lt_le_subrel_hom g))) β))
     <->
-      ((((next ₙ A)ₙ m) α) ≡ (((next ₙ A)ₙ m) β)).
+      ((((next ₙ A)ₙ m) α) = (((next ₙ A)ₙ m) β)).
   Proof.
     split.
     - intros Px.
@@ -1113,22 +972,21 @@ Section si_logic.
     - intros Px p Hlt.
       set (β' := (MkDS (lt_dsp m) (squash Hlt))).
       assert (((later ₒ A) ₕ (index_succ_le_lt2 _ _ Hlt)) (((next ₙ A)ₙ m) α)
-                ≡
+                =
                 ((later ₒ A) ₕ (index_succ_le_lt2 _ _ Hlt)) (((next ₙ A)ₙ m) β)) as Qx.
       { by rewrite Px. }
       replace Hlt with (unsquash (squash Hlt)) in Qx by apply proof_irrelevance.
       rewrite (side_of_later' A β') /= in Qx.
       match goal with
-      | [ H : context ctx [setoid_fun_map _ _ (ic_side _ ?j)
-                             (setoid_fun_map _ _ (cone_hom_map ?c) ?x)] |- _ ] =>
-          pose proof (cone_hom_commutes c j x x (reflexivity _)) as G
+      | [ H : context ctx [(ic_side _ ?j) ((cone_hom_map ?c) ?x)] |- _ ] =>
+          pose proof (equal_f (cone_hom_commutes c j) x) as G
       end.
       simpl in G.
       rewrite -G in Qx; clear G.
       match goal with
-      | [ H : context ctx [setoid_fun_map _ _ (ic_side _ ?j)
-                             (setoid_fun_map _ _ (cone_hom_map ?c) ?x)] |- _ ] =>
-          pose proof (cone_hom_commutes c j x x (reflexivity _)) as G
+      | [ H : context ctx [(ic_side _ ?j)
+                             ((cone_hom_map ?c) ?x)] |- _ ] =>
+          pose proof (equal_f (cone_hom_commutes c j) x) as G
       end.
       simpl in G.
       rewrite -G in Qx; clear G.
@@ -1141,7 +999,7 @@ Section si_logic.
                     (earlier_later_pointwise_iso A
                        (later_func_o_map A) (later_func_o_map_is_limit A) p)
                     ((A ₕ in_lt_dsp m β') α))
-                 ≡
+                 =
                  forward (earlier_later_pointwise_iso A
                             (later_func_o_map A) (later_func_o_map_is_limit A) p)
                  (backward
@@ -1149,24 +1007,20 @@ Section si_logic.
                        (later_func_o_map A) (later_func_o_map_is_limit A) p)
                     ((A ₕ in_lt_dsp m β') β))).
       { f_equiv; apply Qx. }
-      pose proof (iso_rl (is_iso ((earlier_later_pointwise_iso A
+      pose proof (equal_f (iso_rl (is_iso ((earlier_later_pointwise_iso A
                                      (later_func_o_map A)
-                                     (later_func_o_map_is_limit A) p)))
-                    ((A ₕ in_lt_dsp m β') α)
-                    _ (reflexivity _)) as H.
+                                     (later_func_o_map_is_limit A) p))))
+                    ((A ₕ in_lt_dsp m β') α)) as H.
       simpl in H.
       rewrite H in Rx; clear H.
-      pose proof (iso_rl (is_iso ((earlier_later_pointwise_iso A
+      pose proof (equal_f (iso_rl (is_iso ((earlier_later_pointwise_iso A
                                      (later_func_o_map A)
-                                     (later_func_o_map_is_limit A) p)))
-                    ((A ₕ in_lt_dsp m β') β)
-                    _ (reflexivity _)) as H.
+                                     (later_func_o_map_is_limit A) p))))
+                    ((A ₕ in_lt_dsp m β') β)) as H.
       simpl in H.
       rewrite H in Rx.
       apply Rx.
   Qed.
-
-  (* Local Opaque next. *)
 
   Lemma laterP_eq {Γ A} (t u : hom Γ A) :
     ▷ᵢ (t ≡ᵢ u) ⊢ᵢ (next ₙ _) ∘ t ≡ᵢ (next ₙ _) ∘ u.
