@@ -1,5 +1,8 @@
 -Q ./theories SynthDom
 
+theories/existential_prop/classical.v
+theories/existential_prop/sigma.v
+theories/existential_prop/existential_prop.v
 
 theories/prelude.v
 theories/quotient.v

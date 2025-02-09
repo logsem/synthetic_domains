@@ -1061,13 +1061,13 @@ Section example.
                      (PSh (OrdCat SI))
     := prod_enriched_def.
 
-  Example pcf_dom
+  Example simplified_gitree_dom
     : functor (cat_prod ((PSh (OrdCat SI)) ᵒᵖ) (PSh (OrdCat SI))) (PSh (OrdCat SI))
     := (functor_compose exp_func later)
        +ᵨ (Δᵨ (discr_psh nat))
        +ᵨ (↑ᵨ later).
-  Lemma pcf_dom_lc
-    : LocallyContractiveFunctor pcf_dom.
+  Lemma simplified_gitree_dom_lc
+    : LocallyContractiveFunctor simplified_gitree_dom.
   Proof.
     apply i_cod_func_sum_lc.
     - apply i_cod_func_sum_lc.
@@ -1079,10 +1079,10 @@ Section example.
       apply later_lc.
   Qed.
 
-  Lemma pcf_dom_sol : @bifunc_solution _ pcf_dom.
+  Lemma simplified_gitree_dom_sol : @bifunc_solution _ simplified_gitree_dom.
   Proof.
     unshelve eapply (@symmetrization_sol SI
-                       (PSh (OrdCat SI)) _ _ pcf_dom pcf_dom_lc _).
+                       (PSh (OrdCat SI)) _ _ simplified_gitree_dom simplified_gitree_dom_lc _).
     intros F ?.
     unshelve eapply solver; last done.
     unshelve eapply cat_prod_complete.

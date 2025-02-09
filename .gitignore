@@ -10,3 +10,4 @@
 /theories/categories/.lia.cache
 flake.lock
 flake.nix
+.lia.cache
