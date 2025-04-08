@@ -8,6 +8,31 @@ To compile use `make`. This project has been tested using the following dependen
 |`coq-stdpp`           |`dev.2025-01-17.0.9e1cd491` |An extended "Standard Library" for Coq|
 |`ocaml`               |`5.3.0`                     |The OCaml compiler (virtual package)|
 
+# Project layout
+```
+.
++-- Readme.md
++-- Makefile
++-- _CoqProject
++-- theories/prelude.v (global parameters)
++-- theories/quotient.v (quotients in Rocq)
++-- theories/stepindex.v (ordinals interface)
++-- theories/ordinals (ordinals framework)
++-- theories/existential_prop
+|   +-- classical.v (Choice+FunExt+PI->EM)
+|   +-- sigma.v (equality of sigma-types)
+|   +-- existential_prop.v (existential property)
++-- theories/categories/
+|   +-- category.v (general constructions)
+|   +-- contractive.v (subclass of locally contractive functors, example)
+|   +-- coprod.v (coproducts)
+|   +-- domain.v (uniqueness of solution, later is locally contractive, symmetrization, )
+|   +-- enriched.v (partial isomorphisms and pointwise-enriched limits)
+|   +-- logic.v (logical connectives for step-indexed logic)
+|   +-- ord_cat.v (presheaves over ordinals, later, next, earlier, fixpoint)
+|   +-- solution.v (solver for recursive domain equations)
+```
+
 # Paper-formalization glossary
 | Paper entry | Rocq qualified identifier |
 | ----------- | -------------- |
@@ -45,7 +70,6 @@ To compile use `make`. This project has been tested using the following dependen
 | def. 36 | ```SynthDom.existential_prop.existential_prop.regular``` |
 | theorem 37 | ```SynthDom.categories.domain.{later_enriched, later_lc}``` |
 | remark 40 | ```SynthDom.categories.enriched.{isomorphism_at_id, compose_along_isomorphism_at_left, compose_along_isomorphism_at_right, compose_along_is_iso_at_left, compose_along_is_iso_at_right, compose_along_is_iso_at_left', compose_along_is_iso_at_right', is_iso_at_compose, is_iso_at_uncompose_l, is_iso_at_uncompose_r}``` |
-| lemma 41 | ``` ``` |
 | theorem 42 | ```SynthDom.categories.ord_cat.later_adj``` |
 | theorem 43 | ```SynthDom.categories.category.{func_limit, func_cat_limits_pointwise}``` |
 | theorem 44 | ```SynthDom.categories.category.alg_complete``` |
@@ -60,7 +84,7 @@ To compile use `make`. This project has been tested using the following dependen
 | Unique product morphism | ```<< f, g >>``` |
 | Product of morphisms | ```f ×ₕ g``` |
 | Coproduct | ```a +ₒ b``` |
-| Unique coproduct morphism | ```<< f | g >>``` |
+| Unique coproduct morphism | ```<< f ∣ g >>``` |
 | Coproduct of morphisms | ```f +ₕ g``` |
 | Exponential | ```b ↑ₒ a``` |
 | Functor object action | ```F ₒ a``` |
