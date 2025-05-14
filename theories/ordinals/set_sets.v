@@ -14,7 +14,7 @@
 
 (** import of necessary libraries **)
 
-Require Import Coq.Logic.Classical_Prop.
+Require Import Stdlib.Logic.Classical_Prop.
 From SynthDom.ordinals Require Export set_model.
 
 Set Universe Polymorphism.

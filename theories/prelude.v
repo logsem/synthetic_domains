@@ -12,17 +12,13 @@ From stdpp Require Export options.
 
 #[export] Set Suggest Proof Using. (* also warns about forgotten [Proof.] *)
 
-(* We always annotate hints with locality ([Global] or [Local]). This enforces
-that at least global hints are annotated. *)
-#[export] Set Warnings "+deprecated-hint-without-locality".
-
 (* "Fake" import to whitelist this file for the check that ensures we import
 this file everywhere.
 From iris.prelude Require Import options.
 *)
 
 (* taken from iris *)
-From Coq.ssr Require Export ssreflect.
+From Stdlib.ssr Require Export ssreflect.
 From stdpp Require Export prelude.
 Set Default Proof Using "Type".
 Global Open Scope general_if_scope.

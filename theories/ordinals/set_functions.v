@@ -323,7 +323,7 @@ intros [I [I' I'']] J. apply zf_extensionality; split; intros y' H.
 - apply single_el. apply (I'' x y y').
 + assumption.
 + apply zf_replacement in H as [p [H H']]. apply zf_specification in H as [H H''].
-  assert (P: p = (x,y')) by eauto using (rel_pair f A B). now rewrite <- P.
+  assert (P: p = (x,y')) by eauto using rel_pair. now rewrite <- P.
 - apply single_el in H. rewrite H. apply zf_replacement. exists (x,y). split.
 + now apply xgraph_cor.
 + now rewrite pi2_cor.
@@ -766,7 +766,7 @@ Lemma comp_app A B C f g x: bijection f B C → bijection g A B → x ∈ A → 
 Proof.
 intros [I1 _] [I2 _] I3.
 cut ((x, (comp f g) [x]) ∈ (comp f g));
-eauto using (app_cor1 (comp f g) x A C), (comp_fun f g A B C).
+eauto using app_cor1, comp_fun.
 intros J. apply zf_specification in J as [J1[y[J2 J3]]].
 rewrite pi1_cor in J2. rewrite pi2_cor in J3.
 assert (GY: y = g[x]) by eauto using app_eq. subst y.
@@ -938,7 +938,7 @@ intros FF FG S1 S2 S3. apply (fun_eq C B).
   now apply subs_trans with (B:=A').
 - now apply res_fun with (A:=A').
 - intros b BE.
-  rewrite <- (res_eq f A B C); eauto using (subs_trans C A').
+  rewrite <- (res_eq f A B C); eauto using subs_trans.
   rewrite <- (res_eq g A' B C); trivial.
   symmetry. apply (fun_subs f g A B A'); auto.
 Qed.

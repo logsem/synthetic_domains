@@ -364,9 +364,9 @@ Hint Resolve Aeq_ref Aeq_sym Aeq_tra : core.
 
 (** * extensional model using ϵ, PE and FE *)
 (** in the original development, the weaker tree description axiom below is used, but as we need ϵ to make ordinals a stepindex type anyway, we just directly use ϵ + PE + FE *)
-Require Import Coq.Logic.Epsilon.
-Require Import Coq.Logic.PropExtensionality.
-Require Import Coq.Logic.FunctionalExtensionality.
+Require Import Stdlib.Logic.Epsilon.
+Require Import Stdlib.Logic.PropExtensionality.
+Require Import Stdlib.Logic.FunctionalExtensionality.
 
 Definition tdelta : (Acz → Prop) → Acz := epsilon (inhabits AEmpty).
 

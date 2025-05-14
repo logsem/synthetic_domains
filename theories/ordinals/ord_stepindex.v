@@ -7,9 +7,9 @@
     - PI (but this is already implied by PE)
   *)
 
-Require Import Coq.Logic.Epsilon.
-Require Import Coq.Logic.ProofIrrelevance.
-Require Import Coq.Logic.Classical_Prop.
+Require Import Stdlib.Logic.Epsilon.
+Require Import Stdlib.Logic.ProofIrrelevance.
+Require Import Stdlib.Logic.Classical_Prop.
 From SynthDom Require Export stepindex.
 From SynthDom.ordinals Require Import set_model set_sets set_ordinals.
 
@@ -91,7 +91,7 @@ Section ord_definition.
   Definition ord_lt (α β : Ord) := (α: set) ∈ (β: set).
   Infix "≺" := ord_lt (at level 80).
   Infix "⪯" := (rc ord_lt) (at level 80).
-  Hint Constructors rc.
+  Hint Constructors rc : core.
 
   Lemma ord_leq_unfold α β: α ⪯ β ↔ (α: set) ⊆ (β: set).
   Proof.

@@ -3,7 +3,7 @@
     see https://www.ps.uni-saarland.de/~kirst/bachelor.php
 *)
 
-Require Import Coq.Logic.Classical_Prop.
+Require Import Stdlib.Logic.Classical_Prop.
 From SynthDom.ordinals Require Export set_model.
 From SynthDom.ordinals Require Import set_sets set_functions.
 
@@ -20,7 +20,7 @@ Set Universe Minimization ToSet.
   - XM
   - PI (but this is already implied by PE)
 *)
-Require Import Coq.Logic.Epsilon.
+Require Import Stdlib.Logic.Epsilon.
 
 
 (** ** Definition and General Statements *)
@@ -204,8 +204,8 @@ Qed.
 Lemma ordinal_el a a': ordinal a → a' ∈ a → ordinal a'.
 Proof.
 intros [str [[reo [ass [tra lin]]] ex]]. intros I. split.
-- intros v V u U. assert (J: v ∈ a) by eauto using (str a' I v).
-  assert (H: u ∈ a) by eauto using (str v J u). eauto using elorder_trans.
+- intros v V u U. assert (J: v ∈ a) by by epose proof (str a' I v); eauto.
+  assert (H: u ∈ a) by by epose proof (str v J u); eauto. eauto using elorder_trans.
 - apply (elorder_worder a); eauto. repeat split; eauto.
 Qed.
 
@@ -226,7 +226,7 @@ destruct (YWF (y\x)) as [l [H1 H2]]; eauto using spec_subs.
   destruct I1 as [I1 _]. destruct I2 as [_[[_[_[_ lin]]]_]].
   destruct (lin d l) as [J|[J|J]]; eauto.
 * apply elorder_element in J. now apply H.
-* apply elorder_element in J. apply H1'. eauto using (I1 d I).
+* apply elorder_element in J. apply H1'. by epose proof (I1 d I); eauto.
 * subst d. now apply H.
 + destruct (classic (l ⊆ x)); eauto. exfalso. apply subs_comp in H as [d H].
   destruct I2 as [str [[_ [ass _]] _]].

@@ -4,9 +4,9 @@ To compile use `make`. This project has been tested using the following dependen
 
 |Name                  |Installed                   | Synopsis|
 |----------------------|----------------------------|---------|
-|`rocq`                |`9.0.0`                     | The Rocq Proof Assistant
+|`rocq`                |`9.0.0`                     | The Rocq Prover with Stdlib |
 |`coq-stdpp`           |`1.11.0`                    | An extended "Standard Library" for Coq|
-|`ocaml`               |`4.14.2`                    | The OCaml compiler (virtual package)|
+|`ocaml`               |`5.3.0`                    | The OCaml compiler (virtual package)|
 
 # Project layout
 ```

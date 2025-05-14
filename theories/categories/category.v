@@ -1,10 +1,10 @@
 From SynthDom Require Import prelude quotient.
 
-Require Export Coq.Logic.PropExtensionality.
-Require Export Coq.Logic.FunctionalExtensionality.
-Require Export Coq.Logic.ProofIrrelevance.
-Require Export Coq.Logic.Epsilon.
-Require Export Coq.Logic.Classical_Prop.
+Require Export Stdlib.Logic.PropExtensionality.
+Require Export Stdlib.Logic.FunctionalExtensionality.
+Require Export Stdlib.Logic.ProofIrrelevance.
+Require Export Stdlib.Logic.Epsilon.
+Require Export Stdlib.Logic.Classical_Prop.
 
 (* Helper tactic. *)
 Ltac solve_by_eq_rewrite :=
